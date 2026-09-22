@@ -8,6 +8,7 @@ import {
   flattenAll,
   money,
   releaseKillSwitch,
+  sendTestAlert,
   signedMoney,
   timeAgo,
   VERDICT_DISPLAY,
@@ -45,6 +46,7 @@ export function Dashboard() {
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
   const [openTradeId, setOpenTradeId] = useState<number | null>(null);
+  const [testResult, setTestResult] = useState<string | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -94,7 +96,10 @@ export function Dashboard() {
     );
   }
 
-  const { status, portfolio, positions, trades, events, equity, metrics, insight } = data;
+  const { status, portfolio, positions, trades, events, equity, metrics, insight, alerts } = data;
+  const lastAlert = alerts.recent.at(-1);
+  const alertsBroken =
+    alerts.enabled && lastAlert !== undefined && lastAlert.results.every((r) => !r.ok);
   const equityNow = Number.parseFloat(portfolio.equity);
   const startingEquity = equity.length > 0 ? Number.parseFloat(equity[0]!.equity) : null;
   const change = startingEquity !== null ? equityNow - startingEquity : null;
@@ -118,6 +123,16 @@ export function Dashboard() {
             {insight.pending > 0 ? ` · ${insight.pending} queued` : ''}
           </span>
         )}
+        <span
+          className={alerts.enabled ? (alertsBroken ? 'badge badge--halted' : 'badge') : 'badge badge--halted'}
+          title={
+            alerts.enabled
+              ? `alerting via ${alerts.channels.join(', ')} · ${alerts.sent} sent, ${alerts.dropped} suppressed`
+              : 'no alert channels configured — you will not be told if this stops'
+          }
+        >
+          {alerts.enabled ? (alertsBroken ? '⚠ alerts failing' : `🔔 ${alerts.channels.join(', ')}`) : '🔕 no alerts'}
+        </span>
         {status.killSwitchEngaged && <span className="badge badge--halted">⛔ kill switch engaged</span>}
         <div className="header-spacer" />
         <button
@@ -135,6 +150,25 @@ export function Dashboard() {
           }
         >
           {status.killSwitchEngaged ? 'Release kill switch' : 'Engage kill switch'}
+        </button>
+        <button
+          className="btn"
+          disabled={busy || !alerts.enabled}
+          title={alerts.enabled ? 'send a real alert to every channel' : 'no channels configured'}
+          onClick={() =>
+            void act(async () => {
+              const delivery = await sendTestAlert();
+              const ok = delivery.results.filter((r) => r.ok).map((r) => r.channel);
+              const bad = delivery.results.filter((r) => !r.ok);
+              setTestResult(
+                bad.length === 0
+                  ? `Test alert delivered to ${ok.join(', ')}.`
+                  : `Delivered to ${ok.join(', ') || 'nothing'}. Failed: ${bad.map((b) => `${b.channel} (${b.error})`).join('; ')}`,
+              );
+            })
+          }
+        >
+          Test alert
         </button>
         <button
           className="btn btn--danger"
@@ -157,6 +191,28 @@ export function Dashboard() {
         </div>
       )}
       {error && <div className="banner">Engine unreachable on the last poll: {error}</div>}
+      {!alerts.enabled && (
+        <div className="banner">
+          <strong>No alert channels configured.</strong> If the bot halts itself while you are
+          asleep, nothing will tell you. Set <code>NTFY_TOPIC</code>,{' '}
+          <code>DISCORD_WEBHOOK_URL</code> or the Telegram pair in <code>.env</code>.
+        </div>
+      )}
+      {alertsBroken && (
+        <div className="banner">
+          <strong>The last alert reached no channel.</strong>{' '}
+          {lastAlert?.results.map((r) => r.error).filter(Boolean).join('; ')} — alerting is
+          configured but not working, which is worse than knowing it is off.
+        </div>
+      )}
+      {testResult && (
+        <div className="banner" style={{ borderColor: 'var(--baseline)' }}>
+          {testResult}{' '}
+          <button className="btn" style={{ marginLeft: 8 }} onClick={() => setTestResult(null)}>
+            Dismiss
+          </button>
+        </div>
+      )}
 
       <div className="tiles">
         <StatTile

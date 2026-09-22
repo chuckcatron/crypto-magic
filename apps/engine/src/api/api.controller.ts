@@ -9,6 +9,7 @@ import { StateRepository } from '../persistence/repositories/state.repository';
 import { TradeAnalysisRepository } from '../persistence/repositories/trade-analysis.repository';
 import { TradeRepository } from '../persistence/repositories/trade.repository';
 import { PostMortemService } from '../insight/postmortem.service';
+import { AlertService } from '../alerts/alert.service';
 import { TradingEngineService } from '../trading/engine.service';
 import { KillSwitchService } from '../trading/kill-switch.service';
 import { PortfolioService } from '../trading/portfolio.service';
@@ -38,6 +39,7 @@ export class ApiController {
     private readonly trades: TradeRepository,
     private readonly analyses: TradeAnalysisRepository,
     private readonly postMortems: PostMortemService,
+    private readonly alerts: AlertService,
     private readonly orders: OrderRepository,
     private readonly events: EventRepository,
     private readonly state: StateRepository,
@@ -84,6 +86,22 @@ export class ApiController {
   @Get('insight')
   insightStatus() {
     return serialize(this.postMortems.status);
+  }
+
+  @Get('alerts')
+  alertStatus() {
+    return serialize(this.alerts.status);
+  }
+
+  /**
+   * Fire a real alert down every configured channel.
+   *
+   * Bypasses the severity threshold and the cooldown on purpose: the point is
+   * to prove delivery works before you rely on it at 3am.
+   */
+  @Post('alerts/test')
+  async testAlert() {
+    return serialize(await this.alerts.sendTestAlert());
   }
 
   @Get('orders')

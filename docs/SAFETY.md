@@ -82,6 +82,17 @@ position is the case it exists for.
 Sizes and prices are arbitrary-precision decimals end to end, stored as TEXT in
 SQLite and serialized as strings over the API. Sizes always round *down*.
 
+### You are told when it stops itself
+
+Every halt, kill-switch trip and reconciliation mismatch pushes to your phone,
+at a priority that bypasses quiet hours. Without this the bot's safety
+machinery is only half useful: it stops itself correctly and then waits
+silently for you to notice.
+
+Alerting cannot affect trading. The listener runs inside the event write but
+only enqueues; delivery happens on a later tick, so a hung webhook cannot delay
+a stop check. Every channel failure is swallowed and recorded.
+
 ### The local model cannot trade
 
 If you enable trade reviews, be clear about what that does and does not add.
@@ -113,6 +124,10 @@ Be clear-eyed about the gaps.
   not your worst case.
 - **Your Mac.** If it sleeps, loses Wi-Fi, or runs out of disk, the engine stops
   managing positions. The exchange-side stop is the backstop; see the runbook.
+- **Alerting cannot report its own death.** Alerts only fire while the process
+  runs, so a crashed bot sends nothing — which looks identical to a quiet day.
+  The daily check-in is the mitigation, and it only works if you notice it
+  missing. Treat that as a genuine gap, not a solved problem.
 - **Key compromise.** Anyone with your `.env` can trade your account. Use a key
   with no withdraw permission so the worst case is bad trades, not an empty
   account.

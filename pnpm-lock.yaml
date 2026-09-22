@@ -32,6 +32,9 @@ importers:
       '@crypto-magic/insight':
         specifier: workspace:*
         version: link:../../packages/insight
+      '@crypto-magic/notify':
+        specifier: workspace:*
+        version: link:../../packages/notify
       '@nestjs/common':
         specifier: ^11.0.1
         version: 11.2.5(reflect-metadata@0.2.2)(rxjs@7.8.2)
@@ -144,6 +147,12 @@ importers:
       '@crypto-magic/core':
         specifier: workspace:*
         version: link:../core
+    devDependencies:
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.4)
+
+  packages/notify:
     devDependencies:
       vitest:
         specifier: ^2.1.8

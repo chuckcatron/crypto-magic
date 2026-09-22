@@ -97,6 +97,25 @@ export interface InsightStatus {
   lastError: string | null;
 }
 
+export interface AlertDelivery {
+  at: number;
+  severity: 'info' | 'warning' | 'critical';
+  title: string;
+  results: { channel: string; ok: boolean; error?: string }[];
+}
+
+export interface AlertStatus {
+  enabled: boolean;
+  channels: string[];
+  minSeverity: 'info' | 'warning' | 'critical';
+  sent: number;
+  dropped: number;
+  queued: number;
+  suppressed: Record<string, number>;
+  heartbeat: string | null;
+  recent: AlertDelivery[];
+}
+
 export interface EventRow {
   id: number;
   ts: number;
@@ -150,26 +169,30 @@ export interface DashboardData {
   equity: EquityPoint[];
   metrics: Metrics;
   insight: InsightStatus;
+  alerts: AlertStatus;
 }
 
 export async function fetchDashboard(signal?: AbortSignal): Promise<DashboardData> {
-  const [status, portfolio, positions, trades, events, equity, metrics, insight] = await Promise.all([
-    get<EngineStatus>('/status', signal),
-    get<Portfolio>('/portfolio', signal),
-    get<PositionRow[]>('/positions', signal),
-    get<TradeRow[]>('/trades?limit=25', signal),
-    get<EventRow[]>('/events?limit=80', signal),
-    get<EquityPoint[]>('/equity?limit=500', signal),
-    get<Metrics>('/metrics', signal),
-    get<InsightStatus>('/insight', signal),
-  ]);
-  return { status, portfolio, positions, trades, events, equity, metrics, insight };
+  const [status, portfolio, positions, trades, events, equity, metrics, insight, alerts] =
+    await Promise.all([
+      get<EngineStatus>('/status', signal),
+      get<Portfolio>('/portfolio', signal),
+      get<PositionRow[]>('/positions', signal),
+      get<TradeRow[]>('/trades?limit=25', signal),
+      get<EventRow[]>('/events?limit=80', signal),
+      get<EquityPoint[]>('/equity?limit=500', signal),
+      get<Metrics>('/metrics', signal),
+      get<InsightStatus>('/insight', signal),
+      get<AlertStatus>('/alerts', signal),
+    ]);
+  return { status, portfolio, positions, trades, events, equity, metrics, insight, alerts };
 }
 
 export const engageKillSwitch = (reason: string) =>
   post<{ engaged: boolean }>('/kill-switch/engage', { reason });
 export const releaseKillSwitch = () => post<{ engaged: boolean }>('/kill-switch/release');
 export const flattenAll = () => post<{ closed: number }>('/flatten');
+export const sendTestAlert = () => post<AlertDelivery>('/alerts/test');
 
 /** Format for display only. Never feed the result back into a calculation. */
 export function money(value: string | number, currency = '$'): string {

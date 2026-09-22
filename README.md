@@ -11,6 +11,7 @@ underneath it and covered by tests.
 ```
 packages/core        pure domain — indicators, strategy, risk, backtester. No I/O.
 packages/exchange    ExchangeAdapter port + Coinbase adapter + paper adapter
+packages/notify      alert policy + ntfy / Discord / Telegram channels
 packages/insight     LLM port + Ollama, news port + CryptoPanic, review prompts
 apps/engine          NestJS engine: the loop, persistence, dashboard API
 apps/web             Next.js dashboard
@@ -158,6 +159,57 @@ A tight stop buys more coins, a wide stop fewer, so every trade loses roughly
 the same amount when it is wrong. Then every hard cap is applied on top and the
 smallest one wins.
 
+## Alerting
+
+A 24/7 bot you have to remember to check is not monitored. Configure at least
+one channel before running live:
+
+```bash
+# .env — any or all; each is tried independently
+NTFY_TOPIC=crypto-magic-8f3k2p9wqz          # easiest phone push; install the ntfy app
+DISCORD_WEBHOOK_URL=https://discord.com/...
+TELEGRAM_BOT_TOKEN=...                       # with TELEGRAM_CHAT_ID
+```
+
+Then press **Test alert** on the dashboard. An alerting setup you have never
+seen fire is not an alerting setup.
+
+What reaches you at the default `warning` threshold:
+
+| | |
+|---|---|
+| 🔴 critical | kill switch engaged · trading halted · positions disagree with the exchange |
+| 🟡 warning | order rejected · engine errors |
+| 🔵 info | positions opened and closed, engine start/stop (set `ALERT_MIN_SEVERITY=info`) |
+
+### Why it won't cry wolf
+
+The failure mode of alerting is never "too few alerts" — it is a channel you
+muted three weeks ago. When Coinbase was unreachable during development the
+engine logged the same error every 30 seconds; unfiltered that is 120 pages an
+hour.
+
+So the same recurring condition is sent at most once per `ALERT_COOLDOWN_SECONDS`
+(default 15 minutes), and the occurrences in between are counted, not lost — the
+next one that goes out says how many it stands for. Numbers inside messages are
+normalized before matching, so "price 61240.55 below stop" and "price 59180.20
+below stop" are recognised as the same recurring condition.
+
+**Critical alerts bypass the hourly rate limit.** A cap that can swallow "kill
+switch engaged" is a bug, not a feature. They still respect the cooldown, so a
+stuck critical condition cannot become a flood either.
+
+### The heartbeat, and why silence matters
+
+Alerts can only fire while the process is alive. If the Mac sleeps, the process
+is killed or the disk fills, the bot sends nothing — and nothing is exactly what
+a healthy quiet day looks like too.
+
+So it sends a short daily check-in with equity, open positions and the last 24
+hours of P&L. **If it stops arriving, that is the signal.** This only works if
+you actually notice its absence; it is a weak watchdog, not a strong one. A
+proper external watchdog would be better and this project does not have one.
+
 ## Trade reviews with a local model
 
 Optional, off by default, and deliberately kept out of the trade path.
@@ -209,7 +261,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 185 tests
+pnpm test        # 230 tests
 pnpm typecheck
 ```
 

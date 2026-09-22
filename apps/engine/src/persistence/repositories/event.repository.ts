@@ -31,9 +31,29 @@ export interface StoredEvent {
   data?: unknown;
 }
 
+export type EventListener = (event: StoredEvent) => void;
+
 @Injectable()
 export class EventRepository implements EventStore {
+  private readonly listeners = new Set<EventListener>();
+
   constructor(@Inject(DATABASE) private readonly db: Db) {}
+
+  /**
+   * Observe every event as it is written. Returns an unsubscribe function.
+   *
+   * Alerting hangs off this rather than off individual call sites, so a new
+   * failure path that logs an event is alertable without anyone remembering to
+   * wire it up.
+   *
+   * Listeners run SYNCHRONOUSLY inside append(), which is called from the
+   * trading loop. A listener must return immediately — queue the work, do not
+   * do it here — and it must not throw.
+   */
+  subscribe(listener: EventListener): () => void {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
 
   append(event: Omit<StoredEvent, 'id' | 'ts'> & { ts?: number }): void {
     this.db
@@ -45,6 +65,17 @@ export class EventRepository implements EventStore {
         event.message,
         event.data === undefined ? null : safeStringify(event.data),
       );
+
+    if (this.listeners.size === 0) return;
+    const record: StoredEvent = { ...event, ts: event.ts ?? Date.now() };
+    for (const listener of this.listeners) {
+      try {
+        listener(record);
+      } catch {
+        // A broken observer must never break the write that triggered it, and
+        // certainly never the trade that triggered that.
+      }
+    }
   }
 
   recent(limit = 200): StoredEvent[] {

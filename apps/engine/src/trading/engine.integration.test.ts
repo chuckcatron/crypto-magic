@@ -16,6 +16,9 @@ import { PositionRepository } from '../persistence/repositories/position.reposit
 import { StateRepository } from '../persistence/repositories/state.repository';
 import { TradeRepository } from '../persistence/repositories/trade.repository';
 import { NullNewsProvider } from '@crypto-magic/insight';
+import { AlertPolicy, FanoutNotifier } from '@crypto-magic/notify';
+import { AlertService } from '../alerts/alert.service';
+import { ALERT_POLICY, NOTIFIER } from '../alerts/tokens';
 import { PostMortemService } from '../insight/postmortem.service';
 import { LLM_CLIENT, NEWS_PROVIDER } from '../insight/tokens';
 import { TradeAnalysisRepository } from '../persistence/repositories/trade-analysis.repository';
@@ -87,6 +90,10 @@ describe('TradingEngineService (integration)', () => {
         { provide: LLM_CLIENT, useValue: null },
         { provide: NEWS_PROVIDER, useValue: new NullNewsProvider() },
         PostMortemService,
+        // No alert channels. Trading must behave identically.
+        { provide: NOTIFIER, useValue: new FanoutNotifier([]) },
+        { provide: ALERT_POLICY, useValue: new AlertPolicy() },
+        AlertService,
         MarketDataService,
         KillSwitchService,
         PortfolioService,
@@ -248,6 +255,17 @@ describe('TradingEngineService (integration)', () => {
 
     const metrics = api.metrics() as Record<string, unknown>;
     expect(metrics.totalTrades).toBe(0);
+  });
+
+  it('trades normally with no alert channels configured', async () => {
+    const series = seriesCrossingUpOnLastBar();
+    market.candles = candlesEndingNow(series);
+    market.price = series.at(-1)!;
+
+    await engine.tick();
+
+    expect(positions.findAll()).toHaveLength(1);
+    expect(moduleRef.get(AlertService).status.enabled).toBe(false);
   });
 
   it('trades normally with no local model configured, and reports it as disabled', async () => {

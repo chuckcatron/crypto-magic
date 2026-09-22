@@ -39,6 +39,62 @@ Logs go to `logs/engine.log` and `logs/engine.error.log`.
 reconciles against the exchange, and the kill switch is a file, so a restart
 cannot lose a halt or duplicate a position.
 
+## Alerting setup
+
+Pick at least one. All three can run together; each is tried independently so
+one being down does not stop the others.
+
+**ntfy** (easiest to receive on a phone):
+```bash
+# Install the ntfy app on your phone, subscribe to a topic you invent, then:
+NTFY_TOPIC=crypto-magic-8f3k2p9wqz
+```
+The topic is the only secret. Anyone who knows it can read your alerts and
+anyone can publish to it, so make it long and random. Alert bodies deliberately
+never contain API keys or balances.
+
+**Discord**: Server Settings → Integrations → Webhooks → New Webhook → Copy URL
+into `DISCORD_WEBHOOK_URL`.
+
+**Telegram**: message `@BotFather`, `/newbot`, copy the token. Then message your
+new bot once and read your chat id from
+`https://api.telegram.org/bot<TOKEN>/getUpdates`.
+
+Then **press Test alert on the dashboard** and confirm it arrives on your phone.
+Do this before you trust it, and again after you change anything.
+
+### What each alert means
+
+| Alert | What to do |
+|---|---|
+| 🔴 Kill switch ENGAGED | Something stopped the bot from opening positions. Read the reason in the body. Exits still run. |
+| 🔴 Trading halted | A breaker tripped — daily loss, losing streak, stale data, rate limit. Usually self-clearing; if it repeats daily, the caps or the strategy need attention. |
+| 🔴 Reconciliation mismatch | The bot and the exchange disagree about what you hold. **Check the exchange first.** |
+| 🟡 Order rejected | Often transient. Repeated rejections mean a config or balance problem. |
+| 🟡 Engine error | Usually a network blip. Collapses to one alert per 15 minutes. |
+
+### Tuning the noise
+
+If you are getting too many, raise `ALERT_COOLDOWN_SECONDS` or lower
+`ALERT_MAX_PER_HOUR`. If a specific condition is chattering, the dashboard's
+`/api/alerts` endpoint shows exactly which fingerprints are being suppressed
+and how often.
+
+**Resist muting the channel.** That is the failure mode this design exists to
+prevent; tune the thresholds instead.
+
+### The daily check-in
+
+Once a day at `HEARTBEAT_UTC_HOUR` you get equity, open positions and 24h P&L.
+Its real purpose is the inverse: alerts can only fire while the process is
+alive, so **a check-in that does not arrive is the only signal a dead bot can
+send you.** Put a recurring reminder somewhere to notice it, or this does
+nothing.
+
+This is a weak watchdog. A strong one would be a second process — or another
+machine — checking `/api/status` and shouting if it stops answering. Worth
+adding if you ever run size that matters.
+
 ## Ollama, if you enabled trade reviews
 
 ```bash
@@ -128,6 +184,12 @@ stale row from the `positions` table.
 
 **Engine won't start** — config errors print every problem at once. Read the
 whole list.
+
+**Alerts stopped arriving** — check the dashboard header. `⚠ alerts failing`
+means the last one reached no channel; `🔕 no alerts` means none are configured.
+`curl -s localhost:4000/api/alerts | jq` shows the last ten deliveries with the
+per-channel error. If the dashboard itself is unreachable, the engine is down —
+which is what the missing daily check-in was telling you.
 
 **Reviews are not appearing** — check `curl -s localhost:4000/api/insight`. A
 null `model` means `LLM_ENABLED` is off; a `lastError` mentioning availability

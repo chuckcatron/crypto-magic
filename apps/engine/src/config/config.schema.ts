@@ -108,6 +108,26 @@ export const configSchema = z
     /** Headlines from this long before entry are included, to catch the catalyst. */
     NEWS_LEAD_IN_HOURS: z.coerce.number().min(0).default(6),
 
+    // --- Alerting ------------------------------------------------------------
+    // A 24/7 bot with a dashboard you have to remember to open is unobserved.
+    // Configure at least one channel before running live.
+    DISCORD_WEBHOOK_URL: z.string().url().optional(),
+    TELEGRAM_BOT_TOKEN: z.string().optional(),
+    TELEGRAM_CHAT_ID: z.string().optional(),
+    NTFY_TOPIC: z.string().optional(),
+    NTFY_SERVER: z.string().url().default('https://ntfy.sh'),
+
+    /** 'warning' means you are only interrupted by problems. */
+    ALERT_MIN_SEVERITY: z.enum(['info', 'warning', 'critical']).default('warning'),
+    /** The same recurring condition is re-sent at most this often. */
+    ALERT_COOLDOWN_SECONDS: z.coerce.number().int().min(30).default(900),
+    /** Ceiling on non-critical alerts per hour. Critical always gets through. */
+    ALERT_MAX_PER_HOUR: z.coerce.number().int().min(1).default(12),
+
+    /** Daily "still alive" message — the only way a dead bot can signal you. */
+    HEARTBEAT_ENABLED: bool(true),
+    HEARTBEAT_UTC_HOUR: z.coerce.number().int().min(0).max(23).default(13),
+
     // --- Runtime ------------------------------------------------------------
     DATABASE_PATH: z.string().default('./data/crypto-magic.db'),
     KILL_SWITCH_FILE: z.string().default('./data/KILL_SWITCH'),
@@ -160,6 +180,35 @@ export const configSchema = z
         path: ['MIN_ATR_PCT'],
         message: 'MIN_ATR_PCT must be below MAX_ATR_PCT',
       });
+    }
+    if (cfg.TELEGRAM_BOT_TOKEN && !cfg.TELEGRAM_CHAT_ID) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['TELEGRAM_CHAT_ID'],
+        message: 'TELEGRAM_BOT_TOKEN needs TELEGRAM_CHAT_ID to know where to send',
+      });
+    }
+    if (cfg.TELEGRAM_CHAT_ID && !cfg.TELEGRAM_BOT_TOKEN) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['TELEGRAM_BOT_TOKEN'],
+        message: 'TELEGRAM_CHAT_ID needs TELEGRAM_BOT_TOKEN to authenticate',
+      });
+    }
+    if (
+      cfg.TRADING_MODE === 'live' &&
+      !cfg.DISCORD_WEBHOOK_URL &&
+      !cfg.NTFY_TOPIC &&
+      !(cfg.TELEGRAM_BOT_TOKEN && cfg.TELEGRAM_CHAT_ID)
+    ) {
+      // Not fatal — you may genuinely want to watch it yourself — but running
+      // real money 24/7 with no way to be told it stopped deserves a shout.
+      // eslint-disable-next-line no-console
+      console.warn(
+        '\n  ⚠  LIVE MODE WITH NO ALERT CHANNEL CONFIGURED.\n' +
+          '     If the bot halts itself at 3am, nothing will tell you.\n' +
+          '     Set NTFY_TOPIC, DISCORD_WEBHOOK_URL or the Telegram pair.\n',
+      );
     }
     if (cfg.NEWS_ENABLED && !cfg.CRYPTOPANIC_API_KEY) {
       ctx.addIssue({
