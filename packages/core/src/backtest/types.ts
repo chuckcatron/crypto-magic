@@ -36,6 +36,8 @@ export interface EquityPoint {
 }
 
 export interface BacktestResult {
+  /** Buy-and-hold over the same window. The number the strategy has to beat. */
+  readonly benchmark: import('./benchmark').Benchmark;
   readonly strategy: string;
   readonly productId: string;
   readonly startTime: number;

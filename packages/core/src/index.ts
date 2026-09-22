@@ -9,5 +9,6 @@ export * from './risk/risk-engine';
 export * from './strategy/types';
 export * from './strategy/ta-ensemble';
 export * from './backtest/types';
+export * from './backtest/benchmark';
 export * from './backtest/metrics';
 export * from './backtest/backtester';

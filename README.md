@@ -34,12 +34,56 @@ cost anything.
 ## Before you risk real money
 
 ```bash
-pnpm backtest -- --product BTC-USD --days 365
+pnpm backtest -- --product BTC-USD --days 365 --split
 ```
 
-Runs the same strategy, stop logic and risk caps over real historical candles
-and prints a report — then tells you why not to trust it too much. Read that
-part. Then leave it in paper mode for a few weeks and compare.
+Runs the same strategy, stop logic and risk caps over real historical candles,
+and leads with the only comparison that matters:
+
+```
+  STRATEGY  vs  BUY & HOLD
+                          strategy     buy & hold
+    Total return            -5.81%        +99.70%
+    Max drawdown            -5.98%        -44.63%
+    Return / drawdown        -0.50           0.94
+    Time in market             13%           100%
+```
+
+Bitcoin's history is dominated by a handful of enormous up-moves. Any long-only
+strategy that catches a few of them shows a big positive return and looks like
+an edge. The question is whether it beat simply holding — on return, on
+drawdown, or ideally both. The report states a verdict in words so the answer
+cannot be skimmed past.
+
+`--split` scores the first and second halves separately. An edge that appears in
+one half and vanishes in the other is a fitted parameter, not an edge.
+
+Useful flags:
+
+| flag | what it does |
+|---|---|
+| `--csv <path>` | backtest a CSV instead of Coinbase — needed for history longer than the API conveniently serves |
+| `--split` | first-half vs second-half, scored separately |
+| `--taker-bps` / `--slippage-bps` | model a different fee tier, or set both to `0` to separate strategy performance from trading costs |
+| `--days`, `--granularity`, `--equity`, `--json` | window, bar size, starting capital, dump full result |
+
+### Trading costs are probably your binding constraint
+
+The report ends with a cost section, and on a small account it usually matters
+more than anything else in it:
+
+```
+    Round-trip cost         1.30% of position value
+    Cost per round trip     $0.33 at the $25 position cap
+    Versus average winner   47% of +$0.70
+```
+
+At Coinbase's retail taker tier every trade starts 1.2% behind, before slippage.
+With a $25 position cap that is $0.33 a round trip against an average winner of
+well under a dollar. Set `--taker-bps 0 --slippage-bps 0` to see how much of a
+result is the strategy and how much is just the cost of trading — if the gap is
+large, the fee tier and position size are worth more attention than any
+indicator parameter.
 
 ## Going live
 
@@ -165,7 +209,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 158 tests
+pnpm test        # 185 tests
 pnpm typecheck
 ```
 

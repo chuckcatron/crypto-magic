@@ -7,6 +7,7 @@ import type { Candle, ProductSpec } from '../types/market';
 import { GRANULARITY_SECONDS } from '../types/market';
 import type { ExitReason, Position, Signal } from '../types/trading';
 import type { Strategy } from '../strategy/types';
+import { buyAndHold } from './benchmark';
 import { computeMetrics } from './metrics';
 import { DEFAULT_FEE_MODEL, type BacktestResult, type BacktestTrade, type EquityPoint, type FeeModel } from './types';
 
@@ -214,6 +215,12 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
 
   return {
     strategy: strategy.name,
+    benchmark: buyAndHold({
+      candles,
+      startIndex: strategy.warmupBars,
+      initialEquity,
+      feeModel,
+    }),
     productId: product.productId,
     startTime: candles[0]!.openTime,
     endTime: candles.at(-1)!.openTime + barSeconds,
