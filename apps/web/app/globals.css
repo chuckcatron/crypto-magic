@@ -1,0 +1,249 @@
+/*
+ * Roles, not raw hex. Dark values are declared under BOTH the media query and
+ * the [data-theme] scope so an explicit toggle wins over the OS setting either
+ * way. Values are the validated reference palette.
+ */
+:root {
+  color-scheme: light;
+
+  --surface-1: #fcfcfb;
+  --page: #f9f9f7;
+  --text-primary: #0b0b0b;
+  --text-secondary: #52514e;
+  --text-muted: #898781;
+  --gridline: #e1e0d9;
+  --baseline: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+
+  /* Single series: the equity curve. No categorical set is needed. */
+  --series-1: #2a78d6;
+  --series-1-wash: rgba(42, 120, 214, 0.12);
+
+  /* Status. Never used as the only signal — always with a sign or a glyph. */
+  --good: #0ca30c;
+  --good-text: #006300;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+
+  --radius: 10px;
+  --font: system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --mono: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, monospace;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:where(:not([data-theme='light'])) {
+    color-scheme: dark;
+    --surface-1: #1a1a19;
+    --page: #0d0d0d;
+    --text-primary: #ffffff;
+    --text-secondary: #c3c2b7;
+    --text-muted: #898781;
+    --gridline: #2c2c2a;
+    --baseline: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --series-1: #3987e5;
+    --series-1-wash: rgba(57, 135, 229, 0.16);
+    --good-text: #0ca30c;
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --surface-1: #1a1a19;
+  --page: #0d0d0d;
+  --text-primary: #ffffff;
+  --text-secondary: #c3c2b7;
+  --text-muted: #898781;
+  --gridline: #2c2c2a;
+  --baseline: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --series-1: #3987e5;
+  --series-1-wash: rgba(57, 135, 229, 0.16);
+  --good-text: #0ca30c;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--page);
+  color: var(--text-primary);
+  font-family: var(--font);
+  -webkit-font-smoothing: antialiased;
+}
+
+.shell {
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.card {
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.card-title {
+  margin: 0 0 12px;
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  color: var(--text-secondary);
+}
+
+/* --- header ------------------------------------------------------------- */
+.header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.brand { font-size: 20px; font-weight: 700; margin: 0; letter-spacing: -0.01em; }
+.header-spacer { flex: 1 1 auto; }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  color: var(--text-secondary);
+  white-space: nowrap;
+}
+.badge--live { border-color: var(--critical); color: var(--critical); }
+.badge--paper { border-color: var(--baseline); }
+.badge--halted { border-color: var(--warning); color: var(--text-primary); background: rgba(250, 178, 25, 0.14); }
+
+.btn {
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface-1);
+  color: var(--text-primary);
+  cursor: pointer;
+}
+.btn:hover { border-color: var(--baseline); }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+.btn--danger { border-color: var(--critical); color: var(--critical); }
+.btn--danger:hover { background: rgba(208, 59, 59, 0.1); }
+
+/* --- stat tiles --------------------------------------------------------- */
+.tiles {
+  display: grid;
+  /* The hero tile holds a 40px figure plus a delta line, so it gets its own
+     wider track. At 170px the number was clipped by the tile edge. */
+  grid-template-columns: minmax(260px, 1.6fr) repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px;
+  margin-bottom: 16px;
+}
+@media (max-width: 860px) {
+  .tiles { grid-template-columns: 1fr 1fr; }
+}
+@media (max-width: 520px) {
+  .tiles { grid-template-columns: 1fr; }
+}
+.tile-label {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-bottom: 6px;
+}
+.tile-value {
+  font-size: 26px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+}
+.tile-value--hero { font-size: 40px; overflow-wrap: anywhere; }
+.tile-sub { margin-top: 6px; font-size: 12px; color: var(--text-muted); }
+
+.event-count {
+  color: var(--text-muted);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Direction is carried by the sign and the glyph; color only reinforces it. */
+.delta { font-size: 13px; font-weight: 600; margin-top: 6px; }
+.delta--up { color: var(--good-text); }
+.delta--down { color: var(--critical); }
+.delta--flat { color: var(--text-muted); }
+
+/* --- layout ------------------------------------------------------------- */
+.grid-2 {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(380px, 1fr));
+  gap: 16px;
+  margin-top: 16px;
+}
+
+/* --- tables ------------------------------------------------------------- */
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th {
+  text-align: left;
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  padding: 0 8px 8px 0;
+  border-bottom: 1px solid var(--gridline);
+}
+td { padding: 8px 8px 8px 0; border-bottom: 1px solid var(--gridline); color: var(--text-secondary); }
+tr:last-child td { border-bottom: none; }
+td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; padding-right: 0; }
+td.strong { color: var(--text-primary); font-weight: 600; }
+.empty { color: var(--text-muted); font-size: 13px; padding: 20px 0; text-align: center; }
+
+/* --- event log ---------------------------------------------------------- */
+.events { max-height: 340px; overflow-y: auto; font-family: var(--mono); font-size: 12px; }
+.event { display: flex; gap: 10px; padding: 5px 0; border-bottom: 1px solid var(--gridline); }
+.event:last-child { border-bottom: none; }
+.event-time { color: var(--text-muted); white-space: nowrap; }
+.event-kind { white-space: nowrap; font-weight: 600; }
+.event--info .event-kind { color: var(--text-secondary); }
+.event--warn .event-kind { color: var(--serious); }
+.event--error .event-kind { color: var(--critical); }
+.event-msg { color: var(--text-secondary); word-break: break-word; }
+
+/* --- chart -------------------------------------------------------------- */
+.chart-wrap { position: relative; width: 100%; }
+.chart-svg { display: block; width: 100%; height: auto; }
+.tick { font-size: 11px; fill: var(--text-muted); font-variant-numeric: tabular-nums; }
+.tooltip {
+  position: absolute;
+  pointer-events: none;
+  background: var(--surface-1);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px 10px;
+  font-size: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.14);
+  white-space: nowrap;
+  z-index: 2;
+}
+.tooltip-value { font-weight: 600; color: var(--text-primary); font-size: 14px; }
+.tooltip-time { color: var(--text-muted); margin-top: 2px; }
+
+.banner {
+  border: 1px solid var(--critical);
+  background: rgba(208, 59, 59, 0.1);
+  border-radius: var(--radius);
+  padding: 12px 16px;
+  margin-bottom: 16px;
+  font-size: 13px;
+}
+.banner strong { color: var(--critical); }
+
+.offline { color: var(--serious); font-size: 13px; }

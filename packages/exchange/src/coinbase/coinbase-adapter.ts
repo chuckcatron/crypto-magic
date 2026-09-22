@@ -423,16 +423,37 @@ function isRetryable(error: unknown): boolean {
   );
 }
 
+/**
+ * Compact, single-line description of an SDK error.
+ *
+ * The SDK rejects with a large object carrying the whole request — headers,
+ * client options, every parameter. Serializing that wholesale produces a ~900
+ * character log line, and a bot that retries every 30 seconds for a year writes
+ * it about a million times. Keep the parts that identify the failure.
+ */
 function describeError(error: unknown): string {
-  if (error instanceof Error) return error.message;
   if (typeof error === 'object' && error !== null) {
-    try {
-      return JSON.stringify(error);
-    } catch {
-      return String(error);
+    const e = error as {
+      code?: unknown;
+      message?: unknown;
+      body?: unknown;
+      requestParams?: { method?: unknown; endpoint?: unknown };
+    };
+    const parts: string[] = [];
+    if (e.code !== undefined) parts.push(`HTTP ${String(e.code)}`);
+    if (typeof e.message === 'string' && e.message) parts.push(e.message);
+    if (e.requestParams?.endpoint) {
+      parts.push(`(${String(e.requestParams.method ?? 'GET')} ${String(e.requestParams.endpoint)})`);
     }
+    if (typeof e.body === 'string' && e.body) parts.push(`- ${truncate(e.body, 160)}`);
+    if (parts.length > 0) return parts.join(' ');
   }
-  return String(error);
+  if (error instanceof Error) return error.message;
+  return truncate(String(error), 200);
+}
+
+function truncate(value: string, max: number): string {
+  return value.length <= max ? value : `${value.slice(0, max)}...`;
 }
 
 function sleep(ms: number): Promise<void> {

@@ -1,0 +1,121 @@
+# Safety
+
+Read this before setting `TRADING_MODE=live`.
+
+## The honest part first
+
+This bot can lose money. Not as a disclaimer — as the expected outcome of some
+weeks. A trend-following strategy in a sideways market loses a little on most
+trades and makes it back on a few big ones. If you cannot sit through a month of
+small losses without switching it off, the strategy will not get the chance to
+work, and you should not run it.
+
+Nothing here predicts the market. The whole design is about bounding what
+happens when it is wrong.
+
+**Only trade money you would shrug at losing entirely.** Not "money I could
+afford to lose" — money whose total loss would be an annoyance, not an event.
+
+## What protects you
+
+### Live mode takes three switches
+
+`TRADING_MODE=live`, the exact `LIVE_TRADING_ACK` phrase, and credentials. A
+typo in one leaves you in paper mode with a clear error.
+
+### Paper mode physically cannot trade
+
+It is handed a Coinbase adapter constructed without credentials, which throws on
+every order method. It is not "paper mode checks a flag before ordering" — there
+is no reachable code path to a real order.
+
+### Hard caps, enforced independently of the strategy
+
+Every order passes a risk engine that knows nothing about the strategy's
+reasoning. Defaults:
+
+| Cap | Default |
+|---|---|
+| Total exposure | $100 |
+| Per position | $25 |
+| Open positions | 4 |
+| Risk per trade | 1% of equity |
+| Daily realized loss | $10 → halt |
+| Consecutive losses | 4 → halt |
+| Orders per hour | 12 |
+| Slippage | 0.5% → kill switch |
+
+A strategy bug that wants to buy $50,000 of anything gets $25.
+
+### Exits are never blocked
+
+Every halt — kill switch, daily loss, losing streak, stale data, rate limit —
+stops *entries only*. A halt that trapped you in a losing position would be
+worse than the thing that caused it.
+
+### Orders cannot duplicate
+
+Each order carries a deterministic id derived from what it is *for* — mode,
+product, side, the bar that triggered it, purpose — not from when it was sent.
+The intent is written to SQLite *before* the network call. Crash mid-order,
+restart, and the same decision produces the same id, which is refused locally.
+
+An ambiguous submission failure is never retried. It engages the kill switch so
+a human checks the exchange before the bot acts again.
+
+### It verifies its own holdings on startup
+
+Before trading, the engine reconciles against real exchange balances. If they
+disagree with its records it adopts the exchange's numbers and halts for review.
+A bot that believes it holds less than it does leaves coins outside the stop
+logic.
+
+### Positions have a floor even when the bot is dead
+
+An exchange-side stop-limit is placed below the engine's own trailing stop. The
+engine normally exits first at the tighter level; the exchange-side one is for
+when the process is not running to enforce it. Power cut at 3am with an open
+position is the case it exists for.
+
+### Money is never a float
+
+Sizes and prices are arbitrary-precision decimals end to end, stored as TEXT in
+SQLite and serialized as strings over the API. Sizes always round *down*.
+
+## What does NOT protect you
+
+Be clear-eyed about the gaps.
+
+- **Exchange risk.** Coinbase can halt trading, delist a pair, freeze an account
+  or go down mid-position. The bot handles the API errors; it cannot handle not
+  being able to sell.
+- **Gap risk.** Crypto trades 24/7 but still gaps. A stop at $59,000 does not
+  fill at $59,000 if the market prints $52,000 next. Stops bound your *intent*,
+  not your worst case.
+- **Your Mac.** If it sleeps, loses Wi-Fi, or runs out of disk, the engine stops
+  managing positions. The exchange-side stop is the backstop; see the runbook.
+- **Key compromise.** Anyone with your `.env` can trade your account. Use a key
+  with no withdraw permission so the worst case is bad trades, not an empty
+  account.
+- **Strategy risk.** The biggest one. The code does what it says; whether what
+  it says makes money is genuinely unknown.
+
+## Before going live
+
+- [ ] Backtested over at least a year, and compared against buy-and-hold
+- [ ] Ran in paper mode for two weeks and read the trades it took
+- [ ] Caps set to an amount you would shrug at losing
+- [ ] API key has Trade + View, **not** transfer or withdraw
+- [ ] `.env` is not in git (`git check-ignore .env` prints `.env`)
+- [ ] You have engaged and released the kill switch once, so you know it works
+- [ ] You know where `data/crypto-magic.db` is and that it is your only record
+
+## When something looks wrong
+
+1. `touch data/KILL_SWITCH` — stops new entries immediately.
+2. Decide whether to flatten. The dashboard's **Flatten all** sells at market.
+3. Check the exchange directly. The bot's view can be wrong; Coinbase's is not.
+4. Read `data/` and the engine log before restarting — startup reconciliation
+   will adopt whatever the exchange says.
+
+If the bot and the exchange disagree about what you hold, believe the exchange.

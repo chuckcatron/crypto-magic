@@ -14,7 +14,10 @@
     "test": "turbo run test",
     "backtest": "pnpm --filter @crypto-magic/engine backtest",
     "engine": "pnpm --filter @crypto-magic/engine start:prod",
-    "format": "prettier --write \"**/*.{ts,tsx,json,md}\""
+    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "dashboard": "pnpm --filter @crypto-magic/web start",
+    "dashboard:dev": "pnpm --filter @crypto-magic/web dev",
+    "engine:dev": "pnpm --filter @crypto-magic/engine start:dev"
   },
   "devDependencies": {
     "@types/node": "^22.10.2",
