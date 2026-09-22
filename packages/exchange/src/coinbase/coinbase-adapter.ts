@@ -31,10 +31,17 @@ const MAX_CANDLES_PER_REQUEST = 350;
 const CLIENT_ORDER_ID_PREFIX = 'cbnode';
 
 export interface CoinbaseAdapterOptions {
-  /** CDP API key name, e.g. "organizations/{org}/apiKeys/{key}". */
-  readonly apiKey: string;
+  /**
+   * CDP API key name, e.g. "organizations/{org}/apiKeys/{key}".
+   *
+   * Omit both credentials to get a market-data-only adapter backed by
+   * Coinbase's public endpoints. That is what paper mode uses, so you can run
+   * the bot against real prices before creating an API key at all — and an
+   * adapter with no credentials physically cannot place an order.
+   */
+  readonly apiKey?: string;
   /** CDP private key PEM, including the BEGIN/END lines. */
-  readonly apiSecret: string;
+  readonly apiSecret?: string;
   readonly maxRetries?: number;
 }
 
@@ -47,21 +54,55 @@ export interface CoinbaseAdapterOptions {
  */
 export class CoinbaseAdapter implements ExchangeAdapter {
   readonly name = 'coinbase-advanced-trade';
-  readonly isLive = true;
+
+  /** Only an authenticated adapter can actually move money. */
+  get isLive(): boolean {
+    return this.authenticated;
+  }
 
   private readonly client: CBAdvancedTradeClient;
   private readonly maxRetries: number;
   private readonly productCache = new Map<string, { spec: ProductSpec; fetchedAt: number }>();
+  /** False when constructed without credentials: reads work, orders cannot. */
+  readonly authenticated: boolean;
 
   constructor(options: CoinbaseAdapterOptions) {
-    if (!options.apiKey || !options.apiSecret) {
-      throw new ExchangeError('Coinbase adapter requires both an API key name and a private key');
+    const hasKey = Boolean(options.apiKey);
+    const hasSecret = Boolean(options.apiSecret);
+    if (hasKey !== hasSecret) {
+      throw new ExchangeError(
+        'Coinbase adapter needs both an API key name and a private key, or neither',
+      );
     }
-    this.client = new CBAdvancedTradeClient({
-      apiKey: options.apiKey,
-      apiSecret: options.apiSecret,
-    });
+    this.authenticated = hasKey && hasSecret;
+    this.client = new CBAdvancedTradeClient(
+      this.authenticated ? { apiKey: options.apiKey, apiSecret: options.apiSecret } : {},
+    );
     this.maxRetries = options.maxRetries ?? 3;
+  }
+
+  /**
+   * Fetch a product from whichever endpoint this adapter is entitled to use.
+   *
+   * The authenticated and public responses are different SDK types that differ
+   * only in futures fields we never read, so both are narrowed to the subset
+   * the mapper actually needs.
+   */
+  private async fetchProduct(productId: string): Promise<RawProduct> {
+    return this.call(async () =>
+      this.authenticated
+        ? ((await this.client.getProduct({ product_id: productId })) as RawProduct)
+        : ((await this.client.getPublicProduct({ product_id: productId })) as RawProduct),
+    );
+  }
+
+  /** Guard on every method that moves money or reads private account state. */
+  private requireCredentials(operation: string): void {
+    if (!this.authenticated) {
+      throw new ExchangeError(
+        `${operation} requires Coinbase API credentials; this adapter was built for public market data only`,
+      );
+    }
   }
 
   async getProduct(productId: string): Promise<ProductSpec> {
@@ -70,7 +111,7 @@ export class CoinbaseAdapter implements ExchangeAdapter {
     const cached = this.productCache.get(productId);
     if (cached && Date.now() - cached.fetchedAt < 15 * 60_000) return cached.spec;
 
-    const raw = await this.call(() => this.client.getProduct({ product_id: productId }));
+    const raw = await this.fetchProduct(productId);
     const spec = toProductSpec(raw);
     this.productCache.set(productId, { spec, fetchedAt: Date.now() });
     return spec;
@@ -94,14 +135,17 @@ export class CoinbaseAdapter implements ExchangeAdapter {
 
     for (let from = args.start; from < args.end; from += step * MAX_CANDLES_PER_REQUEST) {
       const to = Math.min(args.end, from + step * MAX_CANDLES_PER_REQUEST);
+      const params = {
+        product_id: args.productId,
+        granularity: args.granularity,
+        start: String(from),
+        end: String(to),
+        limit: MAX_CANDLES_PER_REQUEST,
+      };
       const response = await this.call(() =>
-        this.client.getProductCandles({
-          product_id: args.productId,
-          granularity: args.granularity,
-          start: String(from),
-          end: String(to),
-          limit: MAX_CANDLES_PER_REQUEST,
-        }),
+        this.authenticated
+          ? this.client.getProductCandles(params)
+          : this.client.getPublicProductCandles(params),
       );
       for (const raw of response.candles ?? []) {
         collected.push(toCandle(raw, args.productId, args.granularity));
@@ -119,7 +163,7 @@ export class CoinbaseAdapter implements ExchangeAdapter {
   }
 
   async getTicker(productId: string): Promise<Ticker> {
-    const raw = await this.call(() => this.client.getProduct({ product_id: productId }));
+    const raw = await this.fetchProduct(productId);
     const price = Number.parseFloat(raw.price);
     if (!Number.isFinite(price) || price <= 0) {
       throw new ExchangeError(`Coinbase returned a nonsensical price for ${productId}: ${raw.price}`);
@@ -128,6 +172,7 @@ export class CoinbaseAdapter implements ExchangeAdapter {
   }
 
   async getBalances(): Promise<Balance[]> {
+    this.requireCredentials('reading balances');
     const balances: Balance[] = [];
     let cursor: string | undefined;
 
@@ -159,6 +204,7 @@ export class CoinbaseAdapter implements ExchangeAdapter {
    * `getOrder` to learn the actual fill price.
    */
   async submitMarketOrder(request: MarketOrderRequest): Promise<OrderResult> {
+    this.requireCredentials('submitting an order');
     const product = await this.getProduct(request.productId);
     if (product.tradingDisabled) {
       throw new ExchangeError(`trading is disabled for ${request.productId}`);
@@ -225,6 +271,7 @@ export class CoinbaseAdapter implements ExchangeAdapter {
   }
 
   async getOrder(orderId: string): Promise<OrderResult | null> {
+    this.requireCredentials('reading an order');
     try {
       const response = await this.call(() => this.client.getOrder({ order_id: orderId }));
       return response.order ? toOrderResult(response.order) : null;
@@ -235,6 +282,7 @@ export class CoinbaseAdapter implements ExchangeAdapter {
   }
 
   async listOpenOrders(productIds?: string[]): Promise<OrderResult[]> {
+    this.requireCredentials('listing open orders');
     const response = await this.call(() =>
       this.client.getOrders({
         order_status: ['OPEN', 'PENDING'],
@@ -247,6 +295,7 @@ export class CoinbaseAdapter implements ExchangeAdapter {
 
   async cancelOrders(orderIds: string[]): Promise<void> {
     if (orderIds.length === 0) return;
+    this.requireCredentials('cancelling orders');
     const response = await this.call(() => this.client.cancelOrders({ order_ids: orderIds }));
     const failures = (response.results ?? []).filter((r) => !r.success);
     if (failures.length > 0) {
@@ -263,6 +312,7 @@ export class CoinbaseAdapter implements ExchangeAdapter {
    * the odds of filling in a fast move.
    */
   async submitProtectiveStop(request: ProtectiveStopRequest): Promise<OrderResult> {
+    this.requireCredentials('placing a protective stop');
     const product = await this.getProduct(request.productId);
     const response = await this.call(() =>
       this.client.submitOrder({
@@ -325,6 +375,22 @@ export class CoinbaseAdapter implements ExchangeAdapter {
       isRetryable(lastError),
     );
   }
+}
+
+/** The fields of a Coinbase product response this adapter actually reads. */
+interface RawProduct {
+  product_id: string;
+  price: string;
+  base_name: string;
+  quote_name: string;
+  base_increment: string;
+  quote_increment: string;
+  quote_min_size: string;
+  trading_disabled: boolean;
+  is_disabled?: boolean;
+  cancel_only?: boolean;
+  limit_only?: boolean;
+  status?: string;
 }
 
 function withPrefix(clientOrderId: string): string {

@@ -81,7 +81,19 @@ export class PaperAdapter implements ExchangeAdapter {
     const product = await this.getProduct(request.productId);
     const ticker = await this.getTicker(request.productId);
     const fillPrice = applySlippage(D(ticker.price), request.side, this.slippageBps);
-    const baseSize = floorToIncrement(request.baseSize, product.baseIncrement);
+
+    // Mirror how Coinbase actually executes each side. A market BUY is sized in
+    // QUOTE currency, so the dollars spent are fixed and slippage changes how
+    // many coins arrive. Simulating a buy as a fixed BASE size instead would
+    // spend more than the caller asked for whenever the price slipped up,
+    // quietly breaching a notional cap that live trading would have respected.
+    const baseSize =
+      request.side === 'BUY'
+        ? floorToIncrement(
+            request.baseSize.mul(request.referencePrice).div(fillPrice),
+            product.baseIncrement,
+          )
+        : floorToIncrement(request.baseSize, product.baseIncrement);
 
     if (baseSize.lte(0)) {
       throw new ExchangeError(`paper order size rounds to zero for ${request.productId}`);

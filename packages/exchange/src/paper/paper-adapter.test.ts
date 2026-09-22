@@ -54,7 +54,7 @@ const balanceOf = async (adapter: PaperAdapter, currency: string) =>
   (await adapter.getBalances()).find((b) => b.currency === currency)?.available ?? D(0);
 
 describe('PaperAdapter buys', () => {
-  it('debits notional plus fee and credits the base asset', async () => {
+  it('spends the requested QUOTE amount and receives fewer coins when price slips up', async () => {
     const adapter = makeAdapter(1000);
     const order = await adapter.submitMarketOrder({
       productId: 'BTC-USD',
@@ -67,10 +67,47 @@ describe('PaperAdapter buys', () => {
     expect(order.status).toBe('FILLED');
     // Buys slip up: 100 * (1 + 5bps) = 100.05
     expect(order.averageFillPrice.toNumber()).toBeCloseTo(100.05, 8);
-    expect(order.fee.toNumber()).toBeCloseTo(100.05 * 0.006, 8);
-    expect((await balanceOf(adapter, 'BTC')).toNumber()).toBe(1);
+
+    // A market BUY is sized in quote currency, exactly as Coinbase executes it.
+    // The caller asked to spend 1 * 100 = $100, so $100 is what is spent — and
+    // the slipped price buys slightly under 1 coin rather than a full coin at a
+    // higher cost.
+    const spent = order.filledSize.mul(order.averageFillPrice);
+    expect(spent.toNumber()).toBeLessThanOrEqual(100);
+    expect(spent.toNumber()).toBeCloseTo(100, 4);
+    expect(order.filledSize.toNumber()).toBeLessThan(1);
+    expect(order.filledSize.toNumber()).toBeCloseTo(100 / 100.05, 6);
+  });
+
+  it('never spends more quote than asked, which is what makes a notional cap hard', async () => {
+    const market = new StubMarketData();
+    const adapter = new PaperAdapter({
+      marketData: market,
+      initialBalances: { USD: 10_000 },
+      takerBps: 0,
+      slippageBps: 200, // a brutal 2% adverse move
+    });
+
+    const order = await adapter.submitMarketOrder({
+      productId: 'BTC-USD',
+      side: 'BUY',
+      baseSize: D(10),
+      referencePrice: D(100), // asking to spend $1000
+      clientOrderId: 'cap',
+    });
+
+    expect(order.filledSize.mul(order.averageFillPrice).toNumber()).toBeLessThanOrEqual(1000);
+  });
+
+  it('debits the fee on top of the quote spend', async () => {
+    const adapter = makeAdapter(1000);
+    const order = await adapter.submitMarketOrder({
+      productId: 'BTC-USD', side: 'BUY', baseSize: D(1), referencePrice: D(100), clientOrderId: 'fee',
+    });
+    const spent = order.filledSize.mul(order.averageFillPrice);
+    expect(order.fee.toNumber()).toBeCloseTo(spent.mul(0.006).toNumber(), 8);
     expect((await balanceOf(adapter, 'USD')).toNumber()).toBeCloseTo(
-      1000 - 100.05 - 100.05 * 0.006,
+      1000 - spent.toNumber() - order.fee.toNumber(),
       8,
     );
   });
@@ -90,22 +127,29 @@ describe('PaperAdapter buys', () => {
 });
 
 describe('PaperAdapter sells', () => {
-  it('credits proceeds net of fee', async () => {
+  it('is sized in BASE currency and credits proceeds net of fee', async () => {
     const adapter = makeAdapter(1000);
-    await adapter.submitMarketOrder({
+    const buy = await adapter.submitMarketOrder({
       productId: 'BTC-USD', side: 'BUY', baseSize: D(1), referencePrice: D(100), clientOrderId: 'b',
     });
     const usdAfterBuy = await balanceOf(adapter, 'USD');
 
     const sell = await adapter.submitMarketOrder({
-      productId: 'BTC-USD', side: 'SELL', baseSize: D(1), referencePrice: D(100), clientOrderId: 's',
+      productId: 'BTC-USD',
+      side: 'SELL',
+      baseSize: buy.filledSize,
+      referencePrice: D(100),
+      clientOrderId: 's',
     });
 
-    // Sells slip down: 100 * (1 - 5bps) = 99.95
+    // Sells slip down: 100 * (1 - 5bps) = 99.95, and sell the exact base size.
     expect(sell.averageFillPrice.toNumber()).toBeCloseTo(99.95, 8);
+    expect(sell.filledSize.toNumber()).toBe(buy.filledSize.toNumber());
     expect((await balanceOf(adapter, 'BTC')).toNumber()).toBe(0);
+
+    const proceeds = sell.filledSize.mul(sell.averageFillPrice);
     expect((await balanceOf(adapter, 'USD')).toNumber()).toBeCloseTo(
-      usdAfterBuy.toNumber() + 99.95 - 99.95 * 0.006,
+      usdAfterBuy.plus(proceeds).minus(sell.fee).toNumber(),
       8,
     );
   });
@@ -123,11 +167,15 @@ describe('PaperAdapter sells', () => {
 describe('PaperAdapter round trip', () => {
   it('loses money at an unchanged price, because fees and slippage are real', async () => {
     const adapter = makeAdapter(1000);
-    await adapter.submitMarketOrder({
+    const buy = await adapter.submitMarketOrder({
       productId: 'BTC-USD', side: 'BUY', baseSize: D(1), referencePrice: D(100), clientOrderId: 'b',
     });
     await adapter.submitMarketOrder({
-      productId: 'BTC-USD', side: 'SELL', baseSize: D(1), referencePrice: D(100), clientOrderId: 's',
+      productId: 'BTC-USD',
+      side: 'SELL',
+      baseSize: buy.filledSize,
+      referencePrice: D(100),
+      clientOrderId: 's',
     });
     expect((await balanceOf(adapter, 'USD')).toNumber()).toBeLessThan(1000);
   });
@@ -144,7 +192,8 @@ describe('PaperAdapter idempotency', () => {
     });
 
     expect(second.orderId).toBe(first.orderId);
-    expect((await balanceOf(adapter, 'BTC')).toNumber()).toBe(1); // not 2
+    // One fill, not two.
+    expect((await balanceOf(adapter, 'BTC')).toNumber()).toBe(first.filledSize.toNumber());
   });
 });
 
