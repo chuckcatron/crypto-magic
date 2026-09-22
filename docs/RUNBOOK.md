@@ -39,6 +39,35 @@ Logs go to `logs/engine.log` and `logs/engine.error.log`.
 reconciles against the exchange, and the kill switch is a file, so a restart
 cannot lose a halt or duplicate a position.
 
+## Ollama, if you enabled trade reviews
+
+```bash
+brew install ollama
+brew services start ollama      # keeps it running across reboots
+ollama pull llama3.1:8b
+```
+
+Sizing: an 8B model at Q4 wants roughly 6GB of RAM while resident and writes a
+review in 10-40 seconds on Apple Silicon. A 14B is noticeably better at the
+process-versus-outcome distinction and wants about 10GB. Neither is on the
+trade path, so latency here costs you nothing but patience.
+
+`OLLAMA_KEEP_ALIVE` controls how long the model stays in memory between reviews.
+The default of `5m` unloads it between hourly bars, which means a reload each
+time; set it to `30m` if you have the RAM to spare, or `0` to unload
+immediately when you need the memory back.
+
+Reviews are fire-and-forget. If Ollama is stopped the worker notices, logs it
+once and skips — trades queue up and get reviewed whenever it comes back. You
+can check the backlog:
+
+```bash
+curl -s localhost:4000/api/insight | jq
+```
+
+A trade that the model fails to produce usable JSON for is retried twice and
+then abandoned, so one awkward trade cannot block the queue behind it.
+
 ## Log rotation
 
 Structured JSON logs grow. Rotate weekly:
@@ -99,6 +128,12 @@ stale row from the `positions` table.
 
 **Engine won't start** — config errors print every problem at once. Read the
 whole list.
+
+**Reviews are not appearing** — check `curl -s localhost:4000/api/insight`. A
+null `model` means `LLM_ENABLED` is off; a `lastError` mentioning availability
+means Ollama is not running or the model in `.env` is not pulled. Note that the
+worker checks the model is actually pulled, not just that Ollama is up, because
+an unpulled model turns the first review into a multi-gigabyte download.
 
 ## Upgrading
 

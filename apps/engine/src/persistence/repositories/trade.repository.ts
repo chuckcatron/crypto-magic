@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { D, type Decimal, type ExitReason, type TradingMode } from '@crypto-magic/core';
 import { DATABASE } from '../tokens';
 import type { Db } from '../database';
+import type { TradeStore } from '../ports';
 
 export interface StoredTrade {
   id?: number;
@@ -18,10 +19,13 @@ export interface StoredTrade {
   entryReasons: string[];
   confidence: number;
   mode: TradingMode;
+  /** The risk the bot actually took, so a post-mortem can judge it. */
+  stopPrice: Decimal | null;
+  takeProfitPrice: Decimal | null;
 }
 
 @Injectable()
-export class TradeRepository {
+export class TradeRepository implements TradeStore {
   constructor(@Inject(DATABASE) private readonly db: Db) {}
 
   insert(trade: StoredTrade): void {
@@ -29,10 +33,12 @@ export class TradeRepository {
       .prepare(
         `INSERT INTO trades (
            product_id, entry_time, exit_time, entry_price, exit_price, base_size,
-           fees, pnl, pnl_pct, exit_reason, entry_reasons, confidence, mode
+           fees, pnl, pnl_pct, exit_reason, entry_reasons, confidence, mode,
+           stop_price, take_profit_price
          ) VALUES (
            @productId, @entryTime, @exitTime, @entryPrice, @exitPrice, @baseSize,
-           @fees, @pnl, @pnlPct, @exitReason, @entryReasons, @confidence, @mode
+           @fees, @pnl, @pnlPct, @exitReason, @entryReasons, @confidence, @mode,
+           @stopPrice, @takeProfitPrice
          )`,
       )
       .run({
@@ -43,6 +49,8 @@ export class TradeRepository {
         fees: trade.fees.toFixed(),
         pnl: trade.pnl.toFixed(),
         entryReasons: JSON.stringify(trade.entryReasons),
+        stopPrice: trade.stopPrice?.toFixed() ?? null,
+        takeProfitPrice: trade.takeProfitPrice?.toFixed() ?? null,
       });
   }
 
@@ -71,6 +79,11 @@ export class TradeRepository {
     return count;
   }
 
+  findById(id: number): StoredTrade | null {
+    const row = this.db.prepare('SELECT * FROM trades WHERE id = ?').get(id);
+    return row ? toTrade(row as never) : null;
+  }
+
   recent(limit = 100): StoredTrade[] {
     return this.db
       .prepare('SELECT * FROM trades ORDER BY exit_time DESC LIMIT ?')
@@ -86,7 +99,7 @@ export class TradeRepository {
   }
 }
 
-function toTrade(row: Record<string, string | number>): StoredTrade {
+function toTrade(row: Record<string, string | number | null>): StoredTrade {
   return {
     id: Number(row.id),
     productId: String(row.product_id),
@@ -102,6 +115,8 @@ function toTrade(row: Record<string, string | number>): StoredTrade {
     entryReasons: parseArray(String(row.entry_reasons)),
     confidence: Number(row.confidence),
     mode: String(row.mode) as TradingMode,
+    stopPrice: row.stop_price == null ? null : D(String(row.stop_price)),
+    takeProfitPrice: row.take_profit_price == null ? null : D(String(row.take_profit_price)),
   };
 }
 

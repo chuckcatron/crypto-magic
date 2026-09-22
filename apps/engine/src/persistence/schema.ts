@@ -88,4 +88,36 @@ export const MIGRATIONS: { id: string; sql: string }[] = [
       );
     `,
   },
+  {
+    id: '002-trade-analyses',
+    sql: `
+      -- Stop and target are recorded on the closed trade so a post-mortem can
+      -- see the risk the bot actually took, not just the outcome.
+      ALTER TABLE trades ADD COLUMN stop_price TEXT;
+      ALTER TABLE trades ADD COLUMN take_profit_price TEXT;
+
+      CREATE TABLE trade_analyses (
+        trade_id    INTEGER PRIMARY KEY REFERENCES trades(id) ON DELETE CASCADE,
+        created_at  INTEGER NOT NULL,
+        model       TEXT NOT NULL,
+        verdict     TEXT NOT NULL,
+        summary     TEXT NOT NULL,
+        what_worked TEXT NOT NULL DEFAULT '[]',
+        what_didnt  TEXT NOT NULL DEFAULT '[]',
+        lesson      TEXT,
+        used_news   INTEGER NOT NULL DEFAULT 0,
+        news_count  INTEGER NOT NULL DEFAULT 0,
+        duration_ms INTEGER NOT NULL DEFAULT 0
+      );
+
+      -- Trades the worker tried and failed to analyse, so a model that cannot
+      -- produce usable JSON does not get retried forever on the same row.
+      CREATE TABLE trade_analysis_failures (
+        trade_id   INTEGER PRIMARY KEY REFERENCES trades(id) ON DELETE CASCADE,
+        attempts   INTEGER NOT NULL DEFAULT 0,
+        last_error TEXT,
+        last_tried INTEGER NOT NULL
+      );
+    `,
+  },
 ];

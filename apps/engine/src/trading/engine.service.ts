@@ -514,6 +514,8 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       entryReasons: position.entryReasons,
       confidence: position.confidence,
       mode: this.config.TRADING_MODE,
+      stopPrice: position.stopPrice,
+      takeProfitPrice: position.takeProfitPrice,
     });
 
     const remaining = position.baseSize.minus(order.filledSize);

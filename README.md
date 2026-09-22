@@ -11,6 +11,7 @@ underneath it and covered by tests.
 ```
 packages/core        pure domain — indicators, strategy, risk, backtester. No I/O.
 packages/exchange    ExchangeAdapter port + Coinbase adapter + paper adapter
+packages/insight     LLM port + Ollama, news port + CryptoPanic, review prompts
 apps/engine          NestJS engine: the loop, persistence, dashboard API
 apps/web             Next.js dashboard
 ```
@@ -113,10 +114,58 @@ A tight stop buys more coins, a wide stop fewer, so every trade loses roughly
 the same amount when it is wrong. Then every hard cap is applied on top and the
 smallest one wins.
 
+## Trade reviews with a local model
+
+Optional, off by default, and deliberately kept out of the trade path.
+
+```bash
+brew install ollama && ollama serve
+ollama pull llama3.1:8b
+# then in .env:  LLM_ENABLED=true
+```
+
+After a trade closes, a background worker hands the model the entry reasons, the
+indicators, the exit reason and the real prices, and asks it to judge **process
+and outcome separately**:
+
+| | won | lost |
+|---|---|---|
+| **sound process** | worked | the normal cost of trend following |
+| **flawed process** | got lucky — the dangerous one | at least it was cheap |
+
+That distinction is the entire point. A 45%-win-rate strategy feels like failure
+from the inside, and the instinct is to change it after a losing streak. A
+review that says "you followed the rules and lost, that is what this looks like"
+is worth more than one that says "you lost".
+
+Click any trade on the dashboard to read its review.
+
+What this is not: the model **cannot trigger, size, veto or exit a trade.** It
+reads closed history and writes text. The entry path stays fully deterministic
+and backtestable, and turning the model off changes nothing about how the bot
+trades. If Ollama is down, wedged, or returns nonsense, you lose a paragraph.
+
+Optionally set `NEWS_ENABLED=true` with a
+[CryptoPanic](https://cryptopanic.com/developers/api/) key and the review also
+sees the headlines published during the trade's window — again, as context for
+the write-up afterwards, never as an input to the decision.
+
+### Why not a cloud model, or news-driven entries?
+
+Both were considered and rejected for this build:
+
+- **Nothing leaves the machine.** Your positions and P&L are not interesting to
+  anyone else, and a local model keeps it that way at zero marginal cost.
+- **Sentiment-gated entries need a live feed to be anything but fiction.** A
+  model reasoning about "market sentiment" from training data months out of date
+  will confidently veto good trades and wave through bad ones. If you want this
+  later, wire the feed into the entry path deliberately and backtest what you
+  can — do not let it arrive by accident.
+
 ## Testing
 
 ```bash
-pnpm test        # 120 tests
+pnpm test        # 158 tests
 pnpm typecheck
 ```
 

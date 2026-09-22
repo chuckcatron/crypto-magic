@@ -62,6 +62,39 @@ export interface TradeRow {
   pnlPct: number;
   exitReason: string;
   confidence: number;
+  stopPrice: string | null;
+  takeProfitPrice: string | null;
+  /** Written by the local model after the fact; null until it has run. */
+  analysis: TradeAnalysis | null;
+}
+
+export type Verdict =
+  | 'sound_process_won'
+  | 'sound_process_lost'
+  | 'flawed_process_won'
+  | 'flawed_process_lost';
+
+export interface TradeAnalysis {
+  tradeId: number;
+  createdAt: number;
+  model: string;
+  verdict: Verdict;
+  summary: string;
+  whatWorked: string[];
+  whatDidnt: string[];
+  lesson: string | null;
+  usedNews: boolean;
+  newsCount: number;
+  durationMs: number;
+}
+
+export interface InsightStatus {
+  enabled: boolean;
+  model: string | null;
+  newsProvider: string | null;
+  pending: number;
+  analysed: number;
+  lastError: string | null;
 }
 
 export interface EventRow {
@@ -116,10 +149,11 @@ export interface DashboardData {
   events: EventRow[];
   equity: EquityPoint[];
   metrics: Metrics;
+  insight: InsightStatus;
 }
 
 export async function fetchDashboard(signal?: AbortSignal): Promise<DashboardData> {
-  const [status, portfolio, positions, trades, events, equity, metrics] = await Promise.all([
+  const [status, portfolio, positions, trades, events, equity, metrics, insight] = await Promise.all([
     get<EngineStatus>('/status', signal),
     get<Portfolio>('/portfolio', signal),
     get<PositionRow[]>('/positions', signal),
@@ -127,8 +161,9 @@ export async function fetchDashboard(signal?: AbortSignal): Promise<DashboardDat
     get<EventRow[]>('/events?limit=80', signal),
     get<EquityPoint[]>('/equity?limit=500', signal),
     get<Metrics>('/metrics', signal),
+    get<InsightStatus>('/insight', signal),
   ]);
-  return { status, portfolio, positions, trades, events, equity, metrics };
+  return { status, portfolio, positions, trades, events, equity, metrics, insight };
 }
 
 export const engageKillSwitch = (reason: string) =>
@@ -163,3 +198,18 @@ export function timeAgo(ms: number): string {
   if (seconds < 86400) return `${Math.round(seconds / 3600)}h ago`;
   return `${Math.round(seconds / 86400)}d ago`;
 }
+
+/**
+ * How a verdict reads in the UI.
+ *
+ * Colour follows PROCESS, not outcome, because process is the part you can act
+ * on — a sound trade that lost money needs no change, and a flawed trade that
+ * won is the one to worry about. Both halves are always spelled out in words,
+ * so the distinction never rests on colour alone.
+ */
+export const VERDICT_DISPLAY: Record<Verdict, { process: string; outcome: string; tone: 'ok' | 'warn' }> = {
+  sound_process_won: { process: 'Sound process', outcome: 'won', tone: 'ok' },
+  sound_process_lost: { process: 'Sound process', outcome: 'lost', tone: 'ok' },
+  flawed_process_won: { process: 'Flawed process', outcome: 'won', tone: 'warn' },
+  flawed_process_lost: { process: 'Flawed process', outcome: 'lost', tone: 'warn' },
+};

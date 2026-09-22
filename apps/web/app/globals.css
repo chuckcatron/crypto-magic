@@ -247,3 +247,52 @@ td.strong { color: var(--text-primary); font-weight: 600; }
 .banner strong { color: var(--critical); }
 
 .offline { color: var(--serious); font-size: 13px; }
+
+/* --- trade review -------------------------------------------------------- */
+.trade-row { cursor: pointer; }
+.trade-row:hover td { background: var(--series-1-wash); }
+.trade-row--open td { background: var(--series-1-wash); }
+
+/* Process soundness drives the colour; the words carry the meaning. */
+.verdict {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  white-space: nowrap;
+}
+.verdict--ok { border-color: var(--good); color: var(--good-text); }
+.verdict--warn { border-color: var(--warning); color: var(--text-primary); background: rgba(250, 178, 25, 0.14); }
+.verdict--none { color: var(--text-muted); }
+
+.review { padding: 4px 0 14px; font-size: 13px; line-height: 1.55; }
+.review-summary { color: var(--text-primary); margin-bottom: 10px; }
+.review-cols {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 14px;
+}
+.review-h {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin-bottom: 4px;
+}
+.review ul { margin: 0; padding-left: 16px; color: var(--text-secondary); }
+.review li { margin-bottom: 3px; }
+.review-lesson {
+  margin-top: 12px;
+  padding: 9px 12px;
+  border-left: 2px solid var(--series-1);
+  background: var(--series-1-wash);
+  border-radius: 0 6px 6px 0;
+  color: var(--text-primary);
+}
+.review-meta { margin-top: 10px; font-size: 11px; color: var(--text-muted); }
+.review-pending { color: var(--text-muted); font-size: 12px; padding: 4px 0 12px; }

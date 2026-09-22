@@ -6,7 +6,9 @@ import { EventRepository } from '../persistence/repositories/event.repository';
 import { OrderRepository } from '../persistence/repositories/order.repository';
 import { PositionRepository } from '../persistence/repositories/position.repository';
 import { StateRepository } from '../persistence/repositories/state.repository';
+import { TradeAnalysisRepository } from '../persistence/repositories/trade-analysis.repository';
 import { TradeRepository } from '../persistence/repositories/trade.repository';
+import { PostMortemService } from '../insight/postmortem.service';
 import { TradingEngineService } from '../trading/engine.service';
 import { KillSwitchService } from '../trading/kill-switch.service';
 import { PortfolioService } from '../trading/portfolio.service';
@@ -34,6 +36,8 @@ export class ApiController {
     private readonly portfolio: PortfolioService,
     private readonly positions: PositionRepository,
     private readonly trades: TradeRepository,
+    private readonly analyses: TradeAnalysisRepository,
+    private readonly postMortems: PostMortemService,
     private readonly orders: OrderRepository,
     private readonly events: EventRepository,
     private readonly state: StateRepository,
@@ -62,9 +66,24 @@ export class ApiController {
     return serialize(this.positions.findAll());
   }
 
+  /** Trades, each with its post-mortem attached when one has been written. */
   @Get('trades')
   listTrades(@Query('limit') limit?: string) {
-    return serialize(this.trades.recent(clampLimit(limit, 100, 1000)));
+    const trades = this.trades.recent(clampLimit(limit, 100, 1000));
+    const byTradeId = this.analyses.findMany(
+      trades.map((t) => t.id).filter((id): id is number => id !== undefined),
+    );
+    return serialize(
+      trades.map((trade) => ({
+        ...trade,
+        analysis: trade.id === undefined ? null : (byTradeId.get(trade.id) ?? null),
+      })),
+    );
+  }
+
+  @Get('insight')
+  insightStatus() {
+    return serialize(this.postMortems.status);
   }
 
   @Get('orders')

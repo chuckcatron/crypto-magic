@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { DATABASE } from '../tokens';
 import type { Db } from '../database';
+import type { EventStore } from '../ports';
 
 export type EventLevel = 'info' | 'warn' | 'error';
 
@@ -18,6 +19,7 @@ export type EventKind =
   | 'halt'
   | 'kill_switch'
   | 'reconciliation'
+  | 'trade_analysed'
   | 'error';
 
 export interface StoredEvent {
@@ -30,7 +32,7 @@ export interface StoredEvent {
 }
 
 @Injectable()
-export class EventRepository {
+export class EventRepository implements EventStore {
   constructor(@Inject(DATABASE) private readonly db: Db) {}
 
   append(event: Omit<StoredEvent, 'id' | 'ts'> & { ts?: number }): void {

@@ -3,6 +3,7 @@ import { D, type Decimal, type ExitReason, type Side, type TradingMode } from '@
 import type { OrderStatus } from '@crypto-magic/exchange';
 import { DATABASE } from '../tokens';
 import type { Db } from '../database';
+import type { OrderStore } from '../ports';
 
 export interface StoredOrder {
   orderId: string;
@@ -23,7 +24,7 @@ export interface StoredOrder {
 }
 
 @Injectable()
-export class OrderRepository {
+export class OrderRepository implements OrderStore {
   constructor(@Inject(DATABASE) private readonly db: Db) {}
 
   /**

@@ -86,6 +86,28 @@ export const configSchema = z
      */
     MAX_MARKET_DATA_AGE_BARS: z.coerce.number().min(1).default(2),
 
+    // --- Local LLM (Ollama) --------------------------------------------------
+    // Everything here is off by default and strictly advisory. The model reads
+    // ALREADY-CLOSED trades and writes prose. It has no path to an order.
+    LLM_ENABLED: bool(false),
+    OLLAMA_BASE_URL: z.string().url().default('http://127.0.0.1:11434'),
+    OLLAMA_MODEL: z.string().default('llama3.1:8b'),
+    /** How long Ollama keeps the model resident between post-mortems. */
+    OLLAMA_KEEP_ALIVE: z.string().default('5m'),
+    LLM_TIMEOUT_MS: z.coerce.number().int().min(5_000).default(120_000),
+    LLM_MAX_TOKENS: z.coerce.number().int().min(64).default(700),
+
+    POSTMORTEM_ENABLED: bool(true),
+    POSTMORTEM_INTERVAL_SECONDS: z.coerce.number().int().min(30).default(300),
+
+    // --- News (post-mortem context only, never an input to a trade) ----------
+    NEWS_ENABLED: bool(false),
+    CRYPTOPANIC_API_KEY: z.string().optional(),
+    CRYPTOPANIC_PLAN: z.enum(['developer', 'growth', 'enterprise']).default('developer'),
+    CRYPTOPANIC_BASE_URL: z.string().url().optional(),
+    /** Headlines from this long before entry are included, to catch the catalyst. */
+    NEWS_LEAD_IN_HOURS: z.coerce.number().min(0).default(6),
+
     // --- Runtime ------------------------------------------------------------
     DATABASE_PATH: z.string().default('./data/crypto-magic.db'),
     KILL_SWITCH_FILE: z.string().default('./data/KILL_SWITCH'),
@@ -137,6 +159,13 @@ export const configSchema = z
         code: z.ZodIssueCode.custom,
         path: ['MIN_ATR_PCT'],
         message: 'MIN_ATR_PCT must be below MAX_ATR_PCT',
+      });
+    }
+    if (cfg.NEWS_ENABLED && !cfg.CRYPTOPANIC_API_KEY) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['CRYPTOPANIC_API_KEY'],
+        message: 'NEWS_ENABLED=true requires CRYPTOPANIC_API_KEY',
       });
     }
     if (cfg.PRODUCTS.length === 0) {

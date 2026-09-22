@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { D, type Decimal, type TradingMode } from '@crypto-magic/core';
 import { DATABASE } from '../tokens';
 import type { Db } from '../database';
+import type { StateStore } from '../ports';
 
 export interface EquitySnapshot {
   ts: number;
@@ -13,7 +14,7 @@ export interface EquitySnapshot {
 
 /** Small key/value store for engine flags, plus the equity time series. */
 @Injectable()
-export class StateRepository {
+export class StateRepository implements StateStore {
   constructor(@Inject(DATABASE) private readonly db: Db) {}
 
   get(key: string): string | null {

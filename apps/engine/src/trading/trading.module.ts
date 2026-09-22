@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ScheduleModule } from '@nestjs/schedule';
 import { ApiController } from '../api/api.controller';
+import { PostMortemService } from '../insight/postmortem.service';
 import { MarketDataService } from '../market-data/market-data.service';
 import { TradingEngineService } from './engine.service';
 import { ExecutorService } from './executor.service';
@@ -20,7 +21,8 @@ import { RiskService } from './risk.service';
     ExecutorService,
     ReconciliationService,
     TradingEngineService,
+    PostMortemService,
   ],
-  exports: [TradingEngineService],
+  exports: [TradingEngineService, PostMortemService],
 })
 export class TradingModule {}

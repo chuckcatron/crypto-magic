@@ -15,6 +15,10 @@ import { OrderRepository } from '../persistence/repositories/order.repository';
 import { PositionRepository } from '../persistence/repositories/position.repository';
 import { StateRepository } from '../persistence/repositories/state.repository';
 import { TradeRepository } from '../persistence/repositories/trade.repository';
+import { NullNewsProvider } from '@crypto-magic/insight';
+import { PostMortemService } from '../insight/postmortem.service';
+import { LLM_CLIENT, NEWS_PROVIDER } from '../insight/tokens';
+import { TradeAnalysisRepository } from '../persistence/repositories/trade-analysis.repository';
 import { FakeMarketData, candlesEndingNow, seriesCrossingUpOnLastBar } from '../testing/fake-exchange';
 import { TradingEngineService } from './engine.service';
 import { ExecutorService } from './executor.service';
@@ -76,8 +80,13 @@ describe('TradingEngineService (integration)', () => {
         PositionRepository,
         OrderRepository,
         TradeRepository,
+        TradeAnalysisRepository,
         EventRepository,
         StateRepository,
+        // No local model configured. The engine must trade exactly the same.
+        { provide: LLM_CLIENT, useValue: null },
+        { provide: NEWS_PROVIDER, useValue: new NullNewsProvider() },
+        PostMortemService,
         MarketDataService,
         KillSwitchService,
         PortfolioService,
@@ -239,6 +248,36 @@ describe('TradingEngineService (integration)', () => {
 
     const metrics = api.metrics() as Record<string, unknown>;
     expect(metrics.totalTrades).toBe(0);
+  });
+
+  it('trades normally with no local model configured, and reports it as disabled', async () => {
+    const series = seriesCrossingUpOnLastBar();
+    market.candles = candlesEndingNow(series);
+    market.price = series.at(-1)!;
+
+    await engine.tick();
+
+    // The whole insight layer being absent must be invisible to trading.
+    expect(positions.findAll()).toHaveLength(1);
+    expect(moduleRef.get(PostMortemService).status.enabled).toBe(false);
+  });
+
+  it('records the stop and target on a closed trade, for later analysis', async () => {
+    const series = seriesCrossingUpOnLastBar();
+    market.candles = candlesEndingNow(series);
+    market.price = series.at(-1)!;
+    await engine.tick();
+
+    const position = positions.findAll()[0]!;
+    market.price = position.stopPrice.toNumber() * 0.97;
+    await engine.tick();
+
+    const closed = trades.recent()[0]!;
+    expect(closed.stopPrice?.toNumber()).toBeCloseTo(position.stopPrice.toNumber(), 8);
+    expect(closed.takeProfitPrice?.toNumber()).toBeCloseTo(
+      position.takeProfitPrice!.toNumber(),
+      8,
+    );
   });
 
   it('never exposes credentials through the config endpoint', () => {

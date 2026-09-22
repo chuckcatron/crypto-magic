@@ -82,6 +82,25 @@ position is the case it exists for.
 Sizes and prices are arbitrary-precision decimals end to end, stored as TEXT in
 SQLite and serialized as strings over the API. Sizes always round *down*.
 
+### The local model cannot trade
+
+If you enable trade reviews, be clear about what that does and does not add.
+
+The model reads trades that have **already closed** and writes prose into the
+log. It runs on its own timer, outside the trade loop. It has no access to the
+exchange adapter, the risk engine or the position store. The worst a compromised
+or hallucinating model can do is write something wrong in a review you then read
+and believe.
+
+That last part is the real risk, and it is yours, not the software's. A small
+local model will sometimes produce a confident, well-written, wrong explanation
+of why a trade lost. Treat a review as a prompt to go look at the chart, never
+as a finding. If a review ever makes you want to change the strategy, verify the
+claim in the backtester first.
+
+The bot does not read its own reviews. Nothing the model writes feeds back into
+a future decision.
+
 ## What does NOT protect you
 
 Be clear-eyed about the gaps.
@@ -97,6 +116,8 @@ Be clear-eyed about the gaps.
 - **Key compromise.** Anyone with your `.env` can trade your account. Use a key
   with no withdraw permission so the worst case is bad trades, not an empty
   account.
+- **A persuasive review.** The model's job is to sound reasonable, which it
+  will manage even when it is wrong. It is a reading aid, not an analyst.
 - **Strategy risk.** The biggest one. The code does what it says; whether what
   it says makes money is genuinely unknown.
 

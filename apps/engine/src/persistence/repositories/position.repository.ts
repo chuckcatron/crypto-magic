@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { D, type Decimal, type Position, type TradingMode } from '@crypto-magic/core';
 import { DATABASE } from '../tokens';
 import type { Db } from '../database';
+import type { PositionStore } from '../ports';
 
 export interface StoredPosition extends Position {
   readonly barsHeld: number;
@@ -31,7 +32,7 @@ interface Row {
 }
 
 @Injectable()
-export class PositionRepository {
+export class PositionRepository implements PositionStore {
   constructor(@Inject(DATABASE) private readonly db: Db) {}
 
   findAll(): StoredPosition[] {

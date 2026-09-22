@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { Fragment, useCallback, useEffect, useState } from 'react';
 import {
   compactSize,
   engageKillSwitch,
@@ -10,10 +10,12 @@ import {
   releaseKillSwitch,
   signedMoney,
   timeAgo,
+  VERDICT_DISPLAY,
   type DashboardData,
   type EventRow,
 } from '@/lib/api';
 import { EquityCurve } from './EquityCurve';
+import { TradeReview } from './TradeReview';
 import { StatTile } from './StatTile';
 
 const POLL_MS = 5000;
@@ -42,6 +44,7 @@ export function Dashboard() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+  const [openTradeId, setOpenTradeId] = useState<number | null>(null);
 
   const load = useCallback(async (signal?: AbortSignal) => {
     try {
@@ -91,7 +94,7 @@ export function Dashboard() {
     );
   }
 
-  const { status, portfolio, positions, trades, events, equity, metrics } = data;
+  const { status, portfolio, positions, trades, events, equity, metrics, insight } = data;
   const equityNow = Number.parseFloat(portfolio.equity);
   const startingEquity = equity.length > 0 ? Number.parseFloat(equity[0]!.equity) : null;
   const change = startingEquity !== null ? equityNow - startingEquity : null;
@@ -109,6 +112,12 @@ export function Dashboard() {
         {status.exchange !== status.mode && <span className="badge">{status.exchange}</span>}
         <span className="badge">{status.strategy}</span>
         <span className="badge">{status.granularity}</span>
+        {insight.enabled && (
+          <span className="badge" title={insight.lastError ?? 'local model writes trade reviews'}>
+            ◆ {insight.model}
+            {insight.pending > 0 ? ` · ${insight.pending} queued` : ''}
+          </span>
+        )}
         {status.killSwitchEngaged && <span className="badge badge--halted">⛔ kill switch engaged</span>}
         <div className="header-spacer" />
         <button
@@ -232,7 +241,9 @@ export function Dashboard() {
         </section>
 
         <section className="card">
-          <h2 className="card-title">Recent trades</h2>
+          <h2 className="card-title">
+            Recent trades{insight.enabled ? ' — click a row for the review' : ''}
+          </h2>
           {trades.length === 0 ? (
             <p className="empty">No closed trades yet.</p>
           ) : (
@@ -241,6 +252,7 @@ export function Dashboard() {
                 <tr>
                   <th>Product</th>
                   <th>Exit</th>
+                  {insight.enabled && <th>Review</th>}
                   <th className="num">P&amp;L</th>
                   <th className="num">%</th>
                   <th className="num">Closed</th>
@@ -249,18 +261,44 @@ export function Dashboard() {
               <tbody>
                 {trades.map((t) => {
                   const pnl = Number.parseFloat(t.pnl);
+                  const verdict = t.analysis ? VERDICT_DISPLAY[t.analysis.verdict] : null;
+                  const isOpen = openTradeId === t.id;
                   return (
-                    <tr key={t.id}>
-                      <td className="strong">{t.productId}</td>
-                      <td>{t.exitReason.replace(/_/g, ' ')}</td>
-                      {/* Sign and arrow carry direction; color only reinforces. */}
-                      <td className={`num delta--${pnl > 0 ? 'up' : pnl < 0 ? 'down' : 'flat'}`}>
-                        <span aria-hidden="true">{pnl > 0 ? '▲ ' : pnl < 0 ? '▼ ' : ''}</span>
-                        {signedMoney(t.pnl)}
-                      </td>
-                      <td className="num">{t.pnlPct.toFixed(2)}%</td>
-                      <td className="num">{timeAgo(t.exitTime)}</td>
-                    </tr>
+                    <Fragment key={t.id}>
+                      <tr
+                        className={`trade-row${isOpen ? ' trade-row--open' : ''}`}
+                        onClick={() => setOpenTradeId(isOpen ? null : t.id)}
+                      >
+                        <td className="strong">{t.productId}</td>
+                        <td>{t.exitReason.replace(/_/g, ' ')}</td>
+                        {insight.enabled && (
+                          <td>
+                            {verdict ? (
+                              <span className={`verdict verdict--${verdict.tone}`}>
+                                <span aria-hidden="true">{verdict.tone === 'ok' ? '✓' : '⚠'}</span>
+                                {verdict.process}
+                              </span>
+                            ) : (
+                              <span className="verdict verdict--none">pending</span>
+                            )}
+                          </td>
+                        )}
+                        {/* Sign and arrow carry direction; color only reinforces. */}
+                        <td className={`num delta--${pnl > 0 ? 'up' : pnl < 0 ? 'down' : 'flat'}`}>
+                          <span aria-hidden="true">{pnl > 0 ? '▲ ' : pnl < 0 ? '▼ ' : ''}</span>
+                          {signedMoney(t.pnl)}
+                        </td>
+                        <td className="num">{t.pnlPct.toFixed(2)}%</td>
+                        <td className="num">{timeAgo(t.exitTime)}</td>
+                      </tr>
+                      {isOpen && (
+                        <tr>
+                          <td colSpan={insight.enabled ? 6 : 5}>
+                            <TradeReview analysis={t.analysis} />
+                          </td>
+                        </tr>
+                      )}
+                    </Fragment>
                   );
                 })}
               </tbody>
