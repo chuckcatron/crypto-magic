@@ -37,6 +37,7 @@ export class TelegramChannel implements NotificationChannel {
         }),
       },
       this.timeoutMs,
+      [this.botToken],
     );
   }
 }

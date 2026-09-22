@@ -29,6 +29,12 @@ It is handed a Coinbase adapter constructed without credentials, which throws on
 every order method. It is not "paper mode checks a flag before ordering" — there
 is no reachable code path to a real order.
 
+This holds **even when live keys are in `.env`**. An earlier version forwarded
+credentials to paper mode's market-data adapter whenever they were present, which
+quietly broke this guarantee in its most likely real-world configuration: you set
+up live, then switch back to paper to test something. Found and fixed in the
+security review; `exchange.module.test.ts` pins it.
+
 ### Hard caps, enforced independently of the strategy
 
 Every order passes a risk engine that knows nothing about the strategy's
@@ -82,6 +88,40 @@ position is the case it exists for.
 Sizes and prices are arbitrary-precision decimals end to end, stored as TEXT in
 SQLite and serialized as strings over the API. Sizes always round *down*.
 
+### A web page cannot drive the bot
+
+The engine binds `127.0.0.1`, which keeps the network out. It does not keep your
+**browser** out, and your browser runs other people's code. Before the security
+review, any page you visited while the bot ran could have released the kill
+switch or sold every position, with a single `fetch(..., { mode: 'no-cors' })`.
+CORS does not prevent that — it only hides the response; the request still lands.
+
+Both the engine and the dashboard proxy now refuse:
+
+- any request whose `Host` is not loopback (defeats DNS rebinding, where a
+  hostile domain re-resolves itself to `127.0.0.1`);
+- any request carrying a foreign `Origin`, including the opaque `null` origin;
+- any state-changing request without an `x-crypto-magic-request: 1` header,
+  which a browser cannot add cross-origin without a preflight the engine never
+  approves.
+
+The engine enables no CORS at all — no browser ever needs to call it directly,
+since the dashboard goes through its own server-side proxy. And the dashboard now
+binds to `127.0.0.1` too; it previously listened on every interface, which made
+the engine's own loopback binding moot to anyone on the same Wi-Fi.
+
+### Money-placing calls are never retried
+
+The adapter retries transient failures on reads. It never retries an order
+submission: a reset connection or timeout is exactly the case where Coinbase may
+already hold the order. That failure surfaces immediately, the executor engages
+the kill switch, and a human checks the exchange before anything else happens.
+
+An earlier version documented this rule while silently breaking it — both
+submission paths went through the retrying wrapper, so one intended order could
+become up to four requests. Found in the security review; a test demonstrates
+the old code submitting three times and the fixed code once.
+
 ### You are told when it stops itself
 
 Every halt, kill-switch trip and reconciliation mismatch pushes to your phone,
@@ -130,7 +170,11 @@ Be clear-eyed about the gaps.
   missing. Treat that as a genuine gap, not a solved problem.
 - **Key compromise.** Anyone with your `.env` can trade your account. Use a key
   with no withdraw permission so the worst case is bad trades, not an empty
-  account.
+  account, and lock the file down: `chmod 600 .env`.
+- **Anything already running as you.** The API guard stops web pages. It does
+  not stop malware or a rogue script running under your user account, which can
+  read `.env` directly and call the API with the header. Nothing short of
+  keeping the machine clean defends against that.
 - **A persuasive review.** The model's job is to sound reasonable, which it
   will manage even when it is wrong. It is a reading aid, not an analyst.
 - **Strategy risk.** The biggest one. The code does what it says; whether what
@@ -143,6 +187,8 @@ Be clear-eyed about the gaps.
 - [ ] Caps set to an amount you would shrug at losing
 - [ ] API key has Trade + View, **not** transfer or withdraw
 - [ ] `.env` is not in git (`git check-ignore .env` prints `.env`)
+- [ ] `.env` is readable only by you (`chmod 600 .env`)
+- [ ] Neither port 3000 nor 4000 is forwarded on your router
 - [ ] You have engaged and released the kill switch once, so you know it works
 - [ ] You know where `data/crypto-magic.db` is and that it is your only record
 

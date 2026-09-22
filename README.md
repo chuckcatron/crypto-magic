@@ -104,7 +104,7 @@ Start with caps you would genuinely shrug at losing. The defaults are $100 total
 exposure and $25 per position.
 
 Read [`docs/SAFETY.md`](docs/SAFETY.md) first. It is short and it is the part
-that matters.
+that matters. Then `chmod 600 .env`.
 
 ## Stopping it
 
@@ -261,7 +261,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 230 tests
+pnpm test        # 261 tests
 pnpm typecheck
 ```
 

@@ -2,6 +2,7 @@ import './config/load-env';
 import 'reflect-metadata';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { localRequestMiddleware } from './api/local-request.guard';
 import { APP_CONFIG } from './config/tokens';
 import type { AppConfig } from './config/config.schema';
 import { childLogger, rootLogger } from './common/logger';
@@ -20,9 +21,11 @@ async function bootstrap(): Promise<void> {
 
   const config = app.get<AppConfig>(APP_CONFIG);
 
-  // The dashboard runs on the same machine. Nothing here is authenticated, so
-  // nothing here is exposed beyond the loopback interface.
-  app.enableCors({ origin: [/^http:\/\/localhost:\d+$/, /^http:\/\/127\.0\.0\.1:\d+$/] });
+  // No CORS, deliberately. The dashboard reaches this API through its own
+  // server-side proxy, so no browser ever needs to call it directly — and a CORS
+  // rule is exactly what would let a page on some other localhost port read it.
+  // Binding to loopback keeps the network out; the guard keeps your browser out.
+  app.use(localRequestMiddleware);
   await app.listen(config.PORT, '127.0.0.1');
 
   log.info(

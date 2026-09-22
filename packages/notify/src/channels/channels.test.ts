@@ -4,7 +4,7 @@ import { DiscordChannel } from './discord';
 import { NtfyChannel } from './ntfy';
 import { TelegramChannel } from './telegram';
 import { FanoutNotifier } from '../fanout';
-import type { Alert, NotificationChannel } from '../types';
+import { scrub, type Alert, type NotificationChannel } from '../types';
 
 interface Captured {
   method: string;
@@ -76,6 +76,12 @@ describe('DiscordChannel', () => {
     status = 404;
     await expect(new DiscordChannel(`${base}/gone`).send(alert())).rejects.toThrow(/discord.*404/i);
   });
+
+  it('suppresses @everyone and every other mention', async () => {
+    await new DiscordChannel(`${base}/webhook`).send(alert({ body: 'boom @everyone' }));
+    const payload = JSON.parse(captured[0]!.body) as { allowed_mentions: { parse: string[] } };
+    expect(payload.allowed_mentions).toEqual({ parse: [] });
+  });
 });
 
 describe('TelegramChannel', () => {
@@ -135,6 +141,39 @@ describe('NtfyChannel', () => {
   it('times out rather than hanging the caller forever', async () => {
     delayMs = 500;
     await expect(new NtfyChannel('t', base, 50).send(alert())).rejects.toThrow(/timed out/);
+  });
+});
+
+describe('secret scrubbing', () => {
+  it('removes a secret wherever it appears', () => {
+    expect(scrub('bad url https://x/botABC123:TOKEN/send failed', ['ABC123:TOKEN'])).toBe(
+      'bad url https://x/bot[redacted]/send failed',
+    );
+  });
+
+  it('ignores empty or trivially short secrets rather than mangling the message', () => {
+    expect(scrub('abc', ['', 'a'])).toBe('abc');
+  });
+
+  it('keeps a Telegram token out of the error even if the server echoes it back', async () => {
+    // Simulate a provider that echoes the request path in its error body.
+    status = 400;
+    const token = '123456:VERY-SECRET-TOKEN';
+    const echo = createServer((req, res) => {
+      res.writeHead(400).end(`bad request for ${req.url}`);
+    });
+    await new Promise<void>((resolve) => echo.listen(0, '127.0.0.1', resolve));
+    const address = echo.address();
+    const echoBase = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`;
+
+    const error = await new TelegramChannel(token, 'c', 10_000, echoBase)
+      .send(alert())
+      .catch((e: unknown) => e as Error);
+    await new Promise<void>((resolve) => echo.close(() => resolve()));
+
+    expect(error.message).toContain('bad request');
+    expect(error.message).not.toContain('VERY-SECRET-TOKEN');
+    expect(error.message).toContain('[redacted]');
   });
 });
 

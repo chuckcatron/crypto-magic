@@ -140,9 +140,22 @@ Structured JSON logs grow. Rotate weekly:
 - Live log: `tail -f logs/engine.log | npx pino-pretty`
 - Quick check: `curl -s localhost:4000/api/status | jq`
 
-Both the engine API and the dashboard bind to localhost only. Neither is
-authenticated, because neither is reachable from outside the machine. **Do not
-port-forward them.** If you want remote access, use a VPN or an SSH tunnel.
+Both the engine API and the dashboard bind to `127.0.0.1` only, and both refuse
+requests from web pages (foreign `Origin`), from DNS-rebinding domains
+(non-loopback `Host`), and state changes that lack the local request header.
+**Do not port-forward them** — nothing here is authenticated beyond "you are on
+this machine". For remote access, use a VPN or an SSH tunnel, which keeps the
+request looking local.
+
+Calling a state-changing endpoint by hand needs the header:
+
+```bash
+curl -X POST localhost:4000/api/kill-switch/engage -H 'x-crypto-magic-request: 1'
+curl -X POST localhost:4000/api/alerts/test        -H 'x-crypto-magic-request: 1'
+```
+
+Reads need nothing extra. The `touch data/KILL_SWITCH` route needs nothing at
+all, which is why it is the one to remember.
 
 ## Routine checks
 

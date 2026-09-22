@@ -16,6 +16,59 @@ import { PortfolioService } from '../trading/portfolio.service';
 import { RiskService } from '../trading/risk.service';
 import { serialize } from './serializers';
 
+/**
+ * Settings that are safe to show anyone who can reach this API. Anything not
+ * listed — every credential, token, webhook URL and topic — is never returned.
+ */
+export const PUBLIC_CONFIG_KEYS = [
+  'NODE_ENV',
+  'PORT',
+  'LOG_LEVEL',
+  'TRADING_MODE',
+  'PRODUCTS',
+  'GRANULARITY',
+  'QUOTE_CURRENCY',
+  'MAX_TOTAL_NOTIONAL',
+  'MAX_POSITION_NOTIONAL',
+  'MAX_OPEN_POSITIONS',
+  'RISK_PER_TRADE_PCT',
+  'MAX_DAILY_LOSS',
+  'MAX_CONSECUTIVE_LOSSES',
+  'MAX_ORDERS_PER_HOUR',
+  'MAX_SLIPPAGE_PCT',
+  'MIN_ORDER_NOTIONAL',
+  'EMA_FAST_PERIOD',
+  'EMA_SLOW_PERIOD',
+  'EMA_TREND_PERIOD',
+  'RSI_PERIOD',
+  'RSI_ENTRY_MAX',
+  'RSI_ENTRY_MIN',
+  'RSI_EXIT_MAX',
+  'ATR_PERIOD',
+  'ATR_STOP_MULTIPLE',
+  'ATR_TAKE_PROFIT_MULTIPLE',
+  'MIN_ATR_PCT',
+  'MAX_ATR_PCT',
+  'REQUIRE_TREND_FILTER',
+  'MIN_CONFIDENCE',
+  'TRAILING_STOP_ENABLED',
+  'TRAIL_ACTIVATION_ATR_MULTIPLE',
+  'MAX_HOLDING_BARS',
+  'PROTECTIVE_STOP_ENABLED',
+  'PROTECTIVE_STOP_SLACK_ATR',
+  'STOP_MONITOR_INTERVAL_SECONDS',
+  'MAX_MARKET_DATA_AGE_BARS',
+  'LLM_ENABLED',
+  'OLLAMA_MODEL',
+  'POSTMORTEM_ENABLED',
+  'NEWS_ENABLED',
+  'ALERT_MIN_SEVERITY',
+  'ALERT_COOLDOWN_SECONDS',
+  'ALERT_MAX_PER_HOUR',
+  'HEARTBEAT_ENABLED',
+  'HEARTBEAT_UTC_HOUR',
+] as const satisfies readonly (keyof AppConfig)[];
+
 const clampLimit = (value: string | undefined, fallback: number, max: number): number => {
   const parsed = Number.parseInt(value ?? '', 10);
   if (!Number.isFinite(parsed) || parsed < 1) return fallback;
@@ -144,11 +197,28 @@ export class ApiController {
     });
   }
 
+  /**
+   * The non-secret configuration, for debugging.
+   *
+   * An ALLOWLIST, not a denylist. This endpoint originally omitted three secrets
+   * by name; five more were added to the config later and every one of them was
+   * served in plain text until the security review caught it. With an allowlist
+   * the failure mode flips: a new setting is hidden until someone decides it is
+   * safe to show, instead of shown until someone remembers it is secret.
+   */
   @Get('config')
   safeConfig() {
-    // Credentials are never exposed, not even redacted placeholders.
-    const { COINBASE_API_KEY_NAME, COINBASE_API_PRIVATE_KEY, LIVE_TRADING_ACK, ...safe } =
-      this.config;
+    const safe: Record<string, unknown> = {};
+    for (const key of PUBLIC_CONFIG_KEYS) safe[key] = this.config[key];
+    // Say which integrations are on without revealing how to reach them.
+    safe.ALERT_CHANNELS = {
+      discord: Boolean(this.config.DISCORD_WEBHOOK_URL),
+      telegram: Boolean(this.config.TELEGRAM_BOT_TOKEN && this.config.TELEGRAM_CHAT_ID),
+      ntfy: Boolean(this.config.NTFY_TOPIC),
+    };
+    safe.COINBASE_CREDENTIALS_PRESENT = Boolean(
+      this.config.COINBASE_API_KEY_NAME && this.config.COINBASE_API_PRIVATE_KEY,
+    );
     return serialize(safe);
   }
 

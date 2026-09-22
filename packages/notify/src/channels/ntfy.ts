@@ -44,6 +44,7 @@ export class NtfyChannel implements NotificationChannel {
         body: `${alert.body}${suffix}`.slice(0, 4000),
       },
       this.timeoutMs,
+      [this.topic],
     );
   }
 }

@@ -38,12 +38,30 @@ export class NotificationError extends Error {
   }
 }
 
-/** Shared fetch wrapper: bounded, and never leaves a socket hanging. */
+/**
+ * Replace every occurrence of a secret in a string.
+ *
+ * A Telegram bot token lives in the request URL and a Discord webhook URL IS its
+ * credential. Error text from these calls ends up in the log file and on the
+ * /api/alerts endpoint, so it must never be able to carry one. Node's fetch does
+ * not currently echo URLs in its errors — verified in the security review — but
+ * that is an implementation detail of a dependency, not a guarantee.
+ */
+export function scrub(text: string, secrets: readonly string[]): string {
+  let out = text;
+  for (const secret of secrets) {
+    if (secret && secret.length >= 4) out = out.split(secret).join('[redacted]');
+  }
+  return out;
+}
+
+/** Shared fetch wrapper: bounded, never leaves a socket hanging, never leaks a secret. */
 export async function postWithTimeout(
   channel: string,
   url: string,
   init: RequestInit,
   timeoutMs: number,
+  secrets: readonly string[] = [],
 ): Promise<void> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
@@ -51,14 +69,17 @@ export async function postWithTimeout(
     const response = await fetch(url, { ...init, signal: controller.signal });
     if (!response.ok) {
       const body = (await response.text().catch(() => '')).slice(0, 200);
-      throw new NotificationError(channel, `HTTP ${response.status} ${body}`.trim());
+      throw new NotificationError(channel, scrub(`HTTP ${response.status} ${body}`.trim(), secrets));
     }
   } catch (error) {
     if (error instanceof NotificationError) throw error;
     if ((error as Error)?.name === 'AbortError') {
       throw new NotificationError(channel, `timed out after ${timeoutMs}ms`);
     }
-    throw new NotificationError(channel, error instanceof Error ? error.message : String(error));
+    throw new NotificationError(
+      channel,
+      scrub(error instanceof Error ? error.message : String(error), secrets),
+    );
   } finally {
     clearTimeout(timer);
   }

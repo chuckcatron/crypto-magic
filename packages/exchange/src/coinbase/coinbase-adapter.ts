@@ -234,13 +234,15 @@ export class CoinbaseAdapter implements ExchangeAdapter {
             },
           };
 
-    const response = await this.call(() =>
-      this.client.submitOrder({
-        client_order_id: clientOrderId,
-        product_id: request.productId,
-        side: request.side,
-        order_configuration: orderConfiguration,
-      }),
+    const response = await this.call(
+      () =>
+        this.client.submitOrder({
+          client_order_id: clientOrderId,
+          product_id: request.productId,
+          side: request.side,
+          order_configuration: orderConfiguration,
+        }),
+      { retry: false },
     );
 
     if (!response.success || !response.success_response) {
@@ -314,29 +316,31 @@ export class CoinbaseAdapter implements ExchangeAdapter {
   async submitProtectiveStop(request: ProtectiveStopRequest): Promise<OrderResult> {
     this.requireCredentials('placing a protective stop');
     const product = await this.getProduct(request.productId);
-    const response = await this.call(() =>
-      this.client.submitOrder({
-        client_order_id: withPrefix(request.clientOrderId),
-        product_id: request.productId,
-        side: 'SELL',
-        order_configuration: {
-          stop_limit_stop_limit_gtc: {
-            base_size: toApiString(
-              floorToIncrement(request.baseSize, product.baseIncrement),
-              product.baseIncrement,
-            ),
-            stop_price: toApiString(
-              roundPrice(request.stopPrice, product.quoteIncrement, 'down'),
-              product.quoteIncrement,
-            ),
-            limit_price: toApiString(
-              roundPrice(request.limitPrice, product.quoteIncrement, 'down'),
-              product.quoteIncrement,
-            ),
-            stop_direction: 'STOP_DIRECTION_STOP_DOWN',
+    const response = await this.call(
+      () =>
+        this.client.submitOrder({
+          client_order_id: withPrefix(request.clientOrderId),
+          product_id: request.productId,
+          side: 'SELL',
+          order_configuration: {
+            stop_limit_stop_limit_gtc: {
+              base_size: toApiString(
+                floorToIncrement(request.baseSize, product.baseIncrement),
+                product.baseIncrement,
+              ),
+              stop_price: toApiString(
+                roundPrice(request.stopPrice, product.quoteIncrement, 'down'),
+                product.quoteIncrement,
+              ),
+              limit_price: toApiString(
+                roundPrice(request.limitPrice, product.quoteIncrement, 'down'),
+                product.quoteIncrement,
+              ),
+              stop_direction: 'STOP_DIRECTION_STOP_DOWN',
+            },
           },
-        },
-      }),
+        }),
+      { retry: false },
     );
 
     if (!response.success || !response.success_response) {
@@ -351,21 +355,29 @@ export class CoinbaseAdapter implements ExchangeAdapter {
   }
 
   /**
-   * Retry transient failures with exponential backoff.
+   * Run an API call, retrying transient failures with exponential backoff.
    *
-   * Only read-shaped and explicitly retryable failures are retried. A failed
-   * order submission is NOT retried here — the caller owns that decision,
-   * because a blind retry on an ambiguous timeout is how you end up with two
-   * positions instead of one.
+   * Pass `{ retry: false }` for anything that PLACES an order. The failures
+   * worth retrying on a read — a reset connection, a timeout, a 5xx — are
+   * exactly the ones where an order submission is AMBIGUOUS: Coinbase may
+   * already have accepted it and we simply never saw the reply. Retrying then
+   * is how one intended position becomes two.
+   *
+   * The comment on this method used to promise submissions were never retried
+   * while both submitOrder call sites went through the retrying path anyway.
+   * Found in the security review. The executor's own "ambiguous failure →
+   * engage the kill switch and let a human check the exchange" logic depends on
+   * seeing the FIRST failure, not the fourth.
    */
-  private async call<T>(operation: () => Promise<T>): Promise<T> {
+  private async call<T>(operation: () => Promise<T>, options: { retry?: boolean } = {}): Promise<T> {
+    const maxRetries = options.retry === false ? 0 : this.maxRetries;
     let lastError: unknown;
-    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
         return await operation();
       } catch (error) {
         lastError = error;
-        if (!isRetryable(error) || attempt === this.maxRetries) break;
+        if (!isRetryable(error) || attempt === maxRetries) break;
         await sleep(2 ** attempt * 500 + Math.random() * 250);
       }
     }

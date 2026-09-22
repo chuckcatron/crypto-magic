@@ -39,9 +39,13 @@ export class DiscordChannel implements NotificationChannel {
               footer: { text: 'crypto-magic' },
             },
           ],
+          // Never ping. An error body containing "@everyone" would otherwise
+          // notify a whole server; alerts are for you, not your channel.
+          allowed_mentions: { parse: [] },
         }),
       },
       this.timeoutMs,
+      [this.webhookUrl],
     );
   }
 }
