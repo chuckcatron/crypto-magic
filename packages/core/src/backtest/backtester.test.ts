@@ -13,6 +13,7 @@ const bigLimits = { ...DEFAULT_RISK_LIMITS, maxPositionNotional: 5000, maxTotalN
 /** Buys on a fixed bar index and holds. Lets us assert fill mechanics exactly. */
 class ScriptedStrategy implements Strategy {
   readonly name = 'scripted';
+  readonly lookbackBars = 10_000;
   constructor(
     readonly warmupBars: number,
     private readonly script: Map<number, Signal['action']>,
@@ -138,6 +139,45 @@ describe('risk integration', () => {
     });
     expect(result.trades).toHaveLength(0);
     expect(result.rejections.length).toBeGreaterThan(0);
+  });
+});
+
+describe('full-exposure sizing', () => {
+  it('can put the whole account into a trade — cash net of the entry fee — instead of refusing it', () => {
+    // Every cap lifted so available cash binds. Before sizing against cash net of
+    // the fee, every such entry cost cash + fee > cash and was rejected.
+    const candles = candlesFromCloses(flatThenRally(220, 200));
+    const result = runBacktest({
+      candles,
+      strategy: new TaEnsembleStrategy(),
+      product: TEST_PRODUCT,
+      stopConfig: DEFAULT_STOP_CONFIG,
+      riskLimits: {
+        ...DEFAULT_RISK_LIMITS,
+        maxPositionNotional: 1e12,
+        maxTotalNotional: 1e12,
+        riskPerTradePct: 100,
+      },
+      initialEquity: 10_000,
+    });
+
+    expect(result.rejections.filter((r) => /insufficient cash/.test(r.reason))).toHaveLength(0);
+    expect(result.trades.length).toBeGreaterThan(0);
+    expect(result.metrics.capitalDeployedPct).toBeGreaterThan(95);
+  });
+
+  it('reports a small capital share for a capped strategy, so its total return is not misread', () => {
+    const candles = candlesFromCloses(flatThenRally(220, 200));
+    const result = runBacktest({
+      candles,
+      strategy: new TaEnsembleStrategy(),
+      product: TEST_PRODUCT,
+      stopConfig: DEFAULT_STOP_CONFIG,
+      riskLimits: { ...DEFAULT_RISK_LIMITS, maxPositionNotional: 25 },
+      initialEquity: 1000,
+    });
+    expect(result.metrics.capitalDeployedPct).toBeGreaterThan(0);
+    expect(result.metrics.capitalDeployedPct).toBeLessThan(5);
   });
 });
 

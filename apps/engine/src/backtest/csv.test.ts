@@ -2,7 +2,7 @@ import { mkdtempSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
-import { loadCsv, parseTime } from './csv';
+import { loadCsv, parseCsvLine, parseNumber, parseTime } from './csv';
 
 const dir = mkdtempSync(join(tmpdir(), 'cm-csv-'));
 let n = 0;
@@ -108,5 +108,68 @@ describe('loadCsv', () => {
 
   it('rejects a file with no data rows', () => {
     expect(() => load(header)).toThrow(/no data rows/);
+  });
+});
+
+describe('parseCsvLine', () => {
+  it('keeps commas inside quoted fields', () => {
+    expect(parseCsvLine('"Aug 02, 2020","11,105.8","x"')).toEqual(['Aug 02, 2020', '11,105.8', 'x']);
+  });
+
+  it('treats a doubled quote as a literal quote', () => {
+    expect(parseCsvLine('"say ""hi""",2')).toEqual(['say "hi"', '2']);
+  });
+
+  it('handles unquoted and empty fields', () => {
+    expect(parseCsvLine('a,,c')).toEqual(['a', '', 'c']);
+  });
+});
+
+describe('parseNumber', () => {
+  it('strips thousands separators', () => expect(parseNumber('11,105.8')).toBe(11105.8));
+  it('expands K/M/B volume suffixes', () => {
+    expect(parseNumber('698.62K')).toBeCloseTo(698_620, 6);
+    expect(parseNumber('1.5M')).toBe(1_500_000);
+    expect(parseNumber('2B')).toBe(2e9);
+  });
+  it('rejects junk rather than guessing', () => {
+    expect(Number.isNaN(parseNumber('-'))).toBe(true);
+    expect(Number.isNaN(parseNumber('abc'))).toBe(true);
+    expect(Number.isNaN(parseNumber(undefined))).toBe(true);
+  });
+});
+
+describe('loadCsv — investing.com export', () => {
+  // The most common free BTC history format, verbatim: BOM, every field quoted,
+  // commas inside prices and dates, "Price" meaning close, newest row first.
+  const investing = [
+    '\uFEFF"Date","Price","Open","High","Low","Vol.","Change %"',
+    '"Aug 02, 2020","11,105.8","11,802.6","12,061.1","10,730.7","698.62K","-5.91%"',
+    '"Aug 01, 2020","11,803.1","11,333.2","11,847.7","11,226.1","611.47K","4.14%"',
+  ].join('\n');
+
+  it('parses every row with correct values', () => {
+    const candles = load(investing);
+    expect(candles).toHaveLength(2);
+    expect(candles[1]).toMatchObject({
+      open: 11802.6,
+      high: 12061.1,
+      low: 10730.7,
+      close: 11105.8,
+    });
+    expect(candles[1]!.volume).toBeCloseTo(698_620, 6);
+  });
+
+  it('reads "Price" as the close', () => {
+    expect(load(investing)[0]!.close).toBe(11803.1);
+  });
+
+  it('parses bare dates as UTC midnight, the same on every machine', () => {
+    expect(load(investing)[0]!.openTime).toBe(Date.UTC(2020, 7, 1) / 1000);
+  });
+
+  it('sorts newest-first exports into ascending order', () => {
+    const [first, second] = load(investing);
+    expect(first!.openTime).toBeLessThan(second!.openTime);
   });
 });

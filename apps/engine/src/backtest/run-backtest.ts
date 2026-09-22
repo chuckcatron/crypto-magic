@@ -34,6 +34,9 @@ interface Args {
   split: boolean;
   takerBps: number;
   slippageBps: number;
+  fullExposure: boolean;
+  from: number | null;
+  to: number | null;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -65,7 +68,19 @@ function parseArgs(argv: string[]): Args {
     // result is the strategy and how much is just the cost of trading.
     takerBps: numberFlag(get('taker-bps'), DEFAULT_FEE_MODEL.takerBps, 'taker-bps'),
     slippageBps: numberFlag(get('slippage-bps'), DEFAULT_FEE_MODEL.slippageBps, 'slippage-bps'),
+    // Same capital as buy-and-hold, fully in or fully out. The only difference
+    // from holding is WHEN — which is the question a timing signal must answer.
+    fullExposure: argv.includes('--full-exposure'),
+    from: dateFlag(get('from'), 'from'),
+    to: dateFlag(get('to'), 'to'),
   };
+}
+
+function dateFlag(raw: string | undefined, name: string): number | null {
+  if (raw === undefined) return null;
+  const ms = Date.parse(`${raw}T00:00:00Z`);
+  if (!Number.isFinite(ms)) throw new Error(`--${name} must be a date like 2017-01-01`);
+  return Math.floor(ms / 1000);
 }
 
 function numberFlag(raw: string | undefined, fallback: number, name: string): number {
@@ -81,7 +96,7 @@ async function main(): Promise<void> {
 
   const strategy = new TaEnsembleStrategy(toStrategyConfig(config));
   const stopConfig = toStopConfig(config);
-  const riskLimits = toRiskLimits(config);
+  let riskLimits = toRiskLimits(config);
 
   // Public market data: no credentials, and an adapter that cannot place orders.
   const exchange = new CoinbaseAdapter({});
@@ -91,7 +106,11 @@ async function main(): Promise<void> {
 
   if (args.csv) {
     process.stderr.write(`Loading candles from ${args.csv}...\n`);
-    candles = loadCsv(args.csv, args.product, args.granularity);
+    candles = loadCsv(args.csv, args.product, args.granularity).filter(
+      (c) =>
+        (args.from === null || c.openTime >= args.from) &&
+        (args.to === null || c.openTime < args.to),
+    );
     product = {
       productId: args.product,
       baseCurrency: args.product.split('-')[0] ?? 'BTC',
@@ -125,6 +144,18 @@ async function main(): Promise<void> {
   }
 
   const feeModel = { takerBps: args.takerBps, slippageBps: args.slippageBps };
+  if (args.fullExposure) {
+    // Lift every cap and let available cash bind, so each entry puts the whole
+    // account in. This is a MEASUREMENT mode for comparing against buy-and-hold,
+    // not a way to run the bot — never configure live trading like this.
+    riskLimits = {
+      ...riskLimits,
+      maxPositionNotional: 1e12,
+      maxTotalNotional: 1e12,
+      riskPerTradePct: 100,
+    };
+    process.stderr.write('Full-exposure timing test: fully invested when in, flat when out.\n');
+  }
   const run = (input: Candle[]) =>
     runBacktest({
       candles: input,
@@ -184,7 +215,15 @@ function report(
   // The fixed cost of a round trip, independent of how well the strategy picks
   // entries. On a capped position this is frequently the whole story.
   const roundTripPct = ((costs.takerBps + costs.slippageBps) * 2) / 100;
-  const costPerTrade = (costs.positionCap * roundTripPct) / 100;
+  // Use the positions the backtest ACTUALLY took, not the configured cap: in
+  // full-exposure mode the cap is a placeholder and dividing by it printed a
+  // cost of thirteen billion dollars a trade.
+  const averagePosition =
+    result.trades.length > 0
+      ? result.trades.reduce((sum, t) => sum + t.baseSize.mul(t.entryPrice).toNumber(), 0) /
+        result.trades.length
+      : costs.positionCap;
+  const costPerTrade = (averagePosition * roundTripPct) / 100;
   const feeShareOfWin = m.averageWin > 0 ? (costPerTrade / m.averageWin) * 100 : Number.NaN;
 
   const lines = [
@@ -205,7 +244,17 @@ function report(
     `    Sharpe                ${m.sharpeRatio.toFixed(2).padStart(12)}   ${b.sharpeRatio.toFixed(2).padStart(12)}`,
     `    Return / drawdown     ${mar(m.annualizedReturnPct, m.maxDrawdownPct).padStart(12)}   ${mar(b.annualizedReturnPct, b.maxDrawdownPct).padStart(12)}`,
     `    Time in market        ${`${m.exposurePct.toFixed(0)}%`.padStart(12)}   ${'100%'.padStart(12)}`,
+    `    Capital deployed      ${`${m.capitalDeployedPct.toFixed(0)}%`.padStart(12)}   ${'100%'.padStart(12)}   (while in a trade)`,
     '',
+    ...(m.capitalDeployedPct > 0 && m.capitalDeployedPct < 50
+      ? [
+          `  NOTE: the strategy puts only ${m.capitalDeployedPct.toFixed(0)}% of the account into a trade, buy & hold`,
+          '  puts in all of it. Total return is NOT a fair comparison here — compare',
+          '  Sharpe and return/drawdown, or re-run with --full-exposure for a',
+          '  like-for-like timing test.',
+          '',
+        ]
+      : []),
     ...verdict(m.totalReturnPct, m.maxDrawdownPct, b.totalReturnPct, b.maxDrawdownPct),
     '',
     '  STRATEGY DETAIL',
@@ -222,7 +271,7 @@ function report(
     '  COST OF TRADING',
     `    Round-trip cost         ${roundTripPct.toFixed(2)}% of position value  (${costs.takerBps}bps fee + ${costs.slippageBps}bps slippage, both ways)`,
     `    Break-even move         ${roundTripPct.toFixed(2)}% — every trade starts this far behind`,
-    `    Cost per round trip     $${costPerTrade.toFixed(2)} at the $${costs.positionCap} position cap`,
+    `    Cost per round trip     $${costPerTrade.toFixed(2)} on an average $${averagePosition.toFixed(2)} position`,
     Number.isFinite(feeShareOfWin)
       ? `    Versus average winner   ${feeShareOfWin.toFixed(0)}% of ${money(m.averageWin)}`
       : '    Versus average winner   n/a — no winning trades',

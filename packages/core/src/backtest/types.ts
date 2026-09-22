@@ -70,5 +70,12 @@ export interface BacktestMetrics {
   readonly averageBarsHeld: number;
   /** Fraction of bars spent holding a position. */
   readonly exposurePct: number;
+  /**
+   * Average share of equity in the position while one is open. Buy-and-hold is
+   * 100. A strategy capped at $25 of a $1,000 account is 2.5, and its total
+   * return is not comparable to buy-and-hold's — only its risk-adjusted numbers
+   * are.
+   */
+  readonly capitalDeployedPct: number;
   readonly totalFees: number;
 }

@@ -37,6 +37,13 @@ describe('config validation', () => {
     );
   });
 
+  it('looks back far enough for the longest EMA to shed its seed', () => {
+    const strategy = new TaEnsembleStrategy(DEFAULT_TA_ENSEMBLE_CONFIG);
+    expect(strategy.lookbackBars).toBe(201 + 3 * 200);
+    // Seed weight after 3 periods for EMA(200): well under half a percent.
+    expect((1 - 2 / 201) ** 600).toBeLessThan(0.005);
+  });
+
   it('derives warmup from the longest indicator it uses', () => {
     expect(new TaEnsembleStrategy(DEFAULT_TA_ENSEMBLE_CONFIG).warmupBars).toBe(201);
     expect(

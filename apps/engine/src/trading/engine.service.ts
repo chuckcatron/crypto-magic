@@ -219,8 +219,11 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
   }
 
   private async processProduct(productId: string): Promise<void> {
-    const candles = await this.marketData.getRecentCandles(productId, this.strategy.warmupBars);
-    if (candles.length < this.strategy.warmupBars) return;
+    // Fetch the full lookback, not just warmup: the backtester evaluates every bar
+    // on exactly this window, so live and backtest compute the same indicators.
+    const fetched = await this.marketData.getRecentCandles(productId, this.strategy.lookbackBars);
+    if (fetched.length < this.strategy.warmupBars) return;
+    const candles = fetched.slice(-this.strategy.lookbackBars);
 
     const newest = candles.at(-1)!;
     const lastProcessed = Number(this.state.get(LAST_BAR_KEY(productId)) ?? 0);

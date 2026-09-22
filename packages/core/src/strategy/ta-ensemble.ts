@@ -77,6 +77,7 @@ export const DEFAULT_TA_ENSEMBLE_CONFIG: TaEnsembleConfig = {
 export class TaEnsembleStrategy implements Strategy {
   readonly name = 'ta-ensemble-v1';
   readonly warmupBars: number;
+  readonly lookbackBars: number;
 
   constructor(private readonly config: TaEnsembleConfig = DEFAULT_TA_ENSEMBLE_CONFIG) {
     validateConfig(config);
@@ -87,6 +88,15 @@ export class TaEnsembleStrategy implements Strategy {
         config.rsiPeriod + 1,
         config.atrPeriod + 1,
       ) + 1;
+    // Three extra periods past warmup puts the seed's weight below 0.3% for the
+    // longest EMA: (1 - 2/(n+1))^(3n) ≈ e^-6.
+    const longest = Math.max(
+      config.emaSlowPeriod,
+      config.requireTrendFilter ? config.emaTrendPeriod : 0,
+      config.rsiPeriod,
+      config.atrPeriod,
+    );
+    this.lookbackBars = this.warmupBars + 3 * longest;
   }
 
   evaluate(ctx: StrategyContext): Signal {

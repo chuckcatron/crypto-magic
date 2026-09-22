@@ -51,8 +51,15 @@ export function computeMetrics(args: {
     averageBarsHeld:
       trades.length > 0 ? round(trades.reduce((s, t) => s + t.barsHeld, 0) / trades.length) : 0,
     exposurePct: args.totalBars > 0 ? round((args.barsInPosition / args.totalBars) * 100) : 0,
+    capitalDeployedPct: round(capitalDeployed(equityCurve)),
     totalFees: round(trades.reduce((s, t) => s + t.fees.toNumber(), 0)),
   };
+}
+
+function capitalDeployed(curve: EquityPoint[]): number {
+  const inPosition = curve.filter((p) => p.positionValue > 0 && p.equity > 0);
+  if (inPosition.length === 0) return 0;
+  return (inPosition.reduce((s, p) => s + p.positionValue / p.equity, 0) / inPosition.length) * 100;
 }
 
 function elapsedSeconds(curve: EquityPoint[]): number {

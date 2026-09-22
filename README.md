@@ -32,6 +32,14 @@ Paper mode needs **no API key**. It pulls real prices from Coinbase's public
 endpoints and simulates the money, so you can watch it behave before it can
 cost anything.
 
+## Backtest results
+
+**Run on real BTC history, this strategy loses to buy-and-hold on every
+timeframe and every measure.** On daily bars over 2015–2025 it made 7.5% a year
+against holding's 86%; on hourly bars, fees turned a small real edge into −86%.
+A fixed 20% Bitcoin allocation matched its drawdown at 2.5× the return. Full
+results, data validation and reproduction: [`docs/BACKTEST.md`](docs/BACKTEST.md).
+
 ## Before you risk real money
 
 ```bash
@@ -63,7 +71,9 @@ Useful flags:
 
 | flag | what it does |
 |---|---|
-| `--csv <path>` | backtest a CSV instead of Coinbase — needed for history longer than the API conveniently serves |
+| `--csv <path>` | backtest a CSV instead of Coinbase. `node scripts/fetch-btc-history.mjs` builds one from 13 years of Bitstamp data |
+| `--from` / `--to` | restrict a CSV to a date window |
+| `--full-exposure` | lift every cap: fully in or fully out, on the same capital as buy-and-hold. The fair timing test |
 | `--split` | first-half vs second-half, scored separately |
 | `--taker-bps` / `--slippage-bps` | model a different fee tier, or set both to `0` to separate strategy performance from trading costs |
 | `--days`, `--granularity`, `--equity`, `--json` | window, bar size, starting capital, dump full result |
@@ -261,7 +271,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 261 tests
+pnpm test        # 274 tests
 pnpm typecheck
 ```
 

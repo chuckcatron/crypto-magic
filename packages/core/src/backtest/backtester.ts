@@ -87,9 +87,12 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
             openedAt: bar.openTime,
             config: stopConfig,
           });
+          // Leave room for the entry fee: an order sized to all available cash
+          // would otherwise cost cash + fee and be refused.
+          const spendable = cash.div(D(1).plus(D(feeModel.takerBps).div(10_000)));
           const sizing = sizePosition({
             equity: cash,
-            availableQuote: cash,
+            availableQuote: spendable,
             entryPrice: fillPrice,
             stopPrice: provisional.stopPrice,
             openNotional: 0,
@@ -170,8 +173,10 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
     }
 
     // ---- 3. Decide on the closed bar; the order fills next bar ----
+    // Exactly the trailing window the live engine fetches — see lookbackBars.
+    // Also turns an O(n²) loop into O(n · lookback).
     const signal = strategy.evaluate({
-      candles: candles.slice(0, i + 1),
+      candles: candles.slice(Math.max(0, i + 1 - strategy.lookbackBars), i + 1),
       position,
       now: barClose,
     });
