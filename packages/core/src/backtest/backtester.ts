@@ -19,6 +19,13 @@ export interface BacktestOptions {
   readonly riskLimits?: RiskLimits;
   readonly feeModel?: FeeModel;
   readonly initialEquity?: number;
+  /**
+   * First bar (unix seconds) the strategy may trade. Earlier bars are history
+   * only — they warm up the indicators but no decision is made and neither the
+   * strategy nor the benchmark is scored on them. This is how a holdout window
+   * gets a fully warmed indicator without using a single bar from after it.
+   */
+  readonly tradeFrom?: number;
 }
 
 interface PendingOrder {
@@ -48,12 +55,17 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
     riskLimits = DEFAULT_RISK_LIMITS,
     feeModel = DEFAULT_FEE_MODEL,
     initialEquity = 1000,
+    tradeFrom,
   } = options;
 
   if (candles.length === 0) throw new Error('backtest requires at least one candle');
   assertAscending(candles);
 
   const barSeconds = GRANULARITY_SECONDS[candles[0]!.granularity];
+  const firstTradable =
+    tradeFrom === undefined ? 0 : candles.findIndex((c) => c.openTime >= tradeFrom);
+  if (firstTradable === -1) throw new Error('tradeFrom is after the last candle');
+  const startIndex = Math.max(strategy.warmupBars, firstTradable);
   const atrSeries = atr(candles, stopConfig.atrPeriod);
 
   let cash = D(initialEquity);
@@ -69,7 +81,7 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
   let peakEquity = initialEquity;
   let barsInPosition = 0;
 
-  for (let i = strategy.warmupBars; i < candles.length; i++) {
+  for (let i = startIndex; i < candles.length; i++) {
     const bar = candles[i]!;
     const barClose = bar.openTime + barSeconds;
 
@@ -222,12 +234,12 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
     strategy: strategy.name,
     benchmark: buyAndHold({
       candles,
-      startIndex: strategy.warmupBars,
+      startIndex,
       initialEquity,
       feeModel,
     }),
     productId: product.productId,
-    startTime: candles[0]!.openTime,
+    startTime: candles[Math.min(startIndex, candles.length - 1)]!.openTime,
     endTime: candles.at(-1)!.openTime + barSeconds,
     initialEquity,
     finalEquity: round2(cash.toNumber()),
@@ -240,7 +252,7 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
       initialEquity,
       barSeconds,
       barsInPosition,
-      totalBars: Math.max(0, candles.length - strategy.warmupBars),
+      totalBars: Math.max(0, candles.length - startIndex),
     }),
   };
 }

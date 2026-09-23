@@ -125,3 +125,85 @@ All four pass, so the development result does not hinge on the exact period.
 N = 150 looks best by a wide margin and N = 200 is the weakest of the four;
 per rule 2 the holdout still uses N = 200. Choosing 150 now would be selecting
 on the data this sweep was run on.
+
+### Holdout period, 2022-01-01 → 2025-01-07 (run once, N = 200, nothing changed)
+
+| | regime-sma200 | Same-drawdown allocation (35.6% BTC) | Buy & hold |
+|---|---|---|---|
+| Annualized | **52.01%** | 13.73% | 29.56% |
+| Max drawdown | −29.58% | −29.57% | −67.00% |
+| Sharpe | 1.33 | 0.75 | 0.74 |
+| Time in market | 54% | 100% | 100% |
+| Trades | 8 (4 wins, 4 losses) | — | — |
+
+**Primary criterion: PASS** — beat the same-drawdown allocation by 38.28 points
+a year. It also beat 100% buy-and-hold outright, which it did not do on the
+development period.
+
+The trades:
+
+| Entry | Exit | Entry $ | Exit $ | P&L | Why out |
+|---|---|---|---|---|---|
+| 2023-01-14 | 2023-08-18 | 19,946 | 26,619 | +$319 (+32.1%) | signal |
+| 2023-08-30 | 2023-08-31 | 27,736 | 27,288 | −$37 | signal |
+| 2023-10-17 | 2024-07-05 | 28,534 | 57,001 | +$1,248 (+98.0%) | signal |
+| 2024-07-14 | 2024-08-04 | 59,287 | 60,639 | +$27 | signal |
+| 2024-08-24 | 2024-08-27 | 64,127 | 62,791 | −$83 | signal |
+| 2024-09-25 | 2024-09-26 | 64,323 | 63,089 | −$76 | signal |
+| 2024-09-27 | 2024-10-01 | 65,208 | 63,299 | −$98 | signal |
+| 2024-10-15 | *open at end* | 66,103 | 102,229 | +$1,214 (+53.1%) | marked to market |
+
+## Verdict
+
+**PASS** under the pre-registered rule: it beat the same-drawdown fixed
+allocation on both the development and the holdout period.
+
+## How much to trust it
+
+Less than the headline suggests, for four reasons that should travel with the
+result:
+
+1. **One event dominates the holdout.** The strategy held cash for all of 2022;
+   its first entry was 2023-01-14. Buy-and-hold began the holdout at ~$46k and
+   fell to ~$15.5k. Most of the outperformance against buy-and-hold is that
+   single sidestep — and 2022 being a bear market is precisely the prior
+   knowledge disclosed above.
+2. **Two trades carry 98% of the holdout profit**, and one of them was still open
+   when the data ended, so roughly half the gain is marked to market at the
+   final price rather than realized.
+3. **The sample is small.** 28 trades across ten years, and the thing that
+   actually matters for a regime filter — distinct bear markets — numbers about
+   three. That is very few independent observations.
+4. **It is not uniformly better.** On development it trailed buy-and-hold by
+   24 points a year and had a slightly lower Sharpe than its matched allocation.
+   Its edge is avoiding deep bear markets; in an unbroken bull run it lags.
+
+What the result does establish: this is not ta-ensemble-v1's failure mode. It
+stays in the market through bull runs (54–65% of the time), trades rarely enough
+that costs are negligible, and the development pass held at every N tested.
+It earns the right to be paper traded. It has not earned real money.
+
+## Process notes
+
+- The holdout command was executed three times with identical inputs: the
+  scored run, a re-run after a header-text fix (the window description wrongly
+  counted indicator-history bars as traded bars), and a run with `--json` to
+  list the trades. All three produced the same numbers; nothing about the
+  strategy, data, costs or window changed between them.
+- The equal-drawdown benchmark was checked first against yesterday's
+  independent calculation for ta-ensemble-v1 (19.8% BTC at 17.77%/yr vs
+  20% at 18.4%), before any experiment result existed.
+
+## Reproduce
+
+```bash
+node scripts/fetch-btc-history.mjs --granularity ONE_DAY > data/btc-daily.csv
+
+# development
+pnpm backtest -- --csv data/btc-daily.csv --granularity ONE_DAY --strategy regime \
+  --sma-period 200 --trade-from 2015-01-01 --to 2022-01-01 --full-exposure
+
+# holdout
+pnpm backtest -- --csv data/btc-daily.csv --granularity ONE_DAY --strategy regime \
+  --sma-period 200 --trade-from 2022-01-01 --to 2025-01-07 --full-exposure
+```

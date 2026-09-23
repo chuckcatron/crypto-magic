@@ -14,7 +14,11 @@ import {
   GRANULARITIES,
   TaEnsembleStrategy,
   DEFAULT_FEE_MODEL,
+  REGIME_FILTER_STOP_CONFIG,
+  RegimeFilterStrategy,
+  equalDrawdownAllocation,
   runBacktest,
+  type Strategy,
   type BacktestResult,
   type Candle,
   type Granularity,
@@ -37,6 +41,9 @@ interface Args {
   fullExposure: boolean;
   from: number | null;
   to: number | null;
+  tradeFrom: number | null;
+  strategy: 'ta-ensemble' | 'regime';
+  smaPeriod: number;
 }
 
 function parseArgs(argv: string[]): Args {
@@ -73,7 +80,18 @@ function parseArgs(argv: string[]): Args {
     fullExposure: argv.includes('--full-exposure'),
     from: dateFlag(get('from'), 'from'),
     to: dateFlag(get('to'), 'to'),
+    // Unlike --from, keeps earlier bars as indicator history; trading and scoring
+    // start here. Needed for a holdout window with a fully warmed indicator.
+    tradeFrom: dateFlag(get('trade-from'), 'trade-from'),
+    strategy: strategyFlag(get('strategy')),
+    smaPeriod: numberFlag(get('sma-period'), 200, 'sma-period'),
   };
+}
+
+function strategyFlag(raw: string | undefined): 'ta-ensemble' | 'regime' {
+  if (raw === undefined || raw === 'ta-ensemble') return 'ta-ensemble';
+  if (raw === 'regime') return 'regime';
+  throw new Error('--strategy must be ta-ensemble or regime');
 }
 
 function dateFlag(raw: string | undefined, name: string): number | null {
@@ -94,8 +112,11 @@ async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
   const config = loadConfig({ ...process.env, TRADING_MODE: 'paper' } as NodeJS.ProcessEnv);
 
-  const strategy = new TaEnsembleStrategy(toStrategyConfig(config));
-  const stopConfig = toStopConfig(config);
+  const strategy: Strategy =
+    args.strategy === 'regime'
+      ? new RegimeFilterStrategy({ smaPeriod: args.smaPeriod, atrPeriod: 14 })
+      : new TaEnsembleStrategy(toStrategyConfig(config));
+  const stopConfig = args.strategy === 'regime' ? REGIME_FILTER_STOP_CONFIG : toStopConfig(config);
   let riskLimits = toRiskLimits(config);
 
   // Public market data: no credentials, and an adapter that cannot place orders.
@@ -165,15 +186,28 @@ async function main(): Promise<void> {
       riskLimits,
       feeModel,
       initialEquity: args.equity,
+      ...(args.tradeFrom !== null ? { tradeFrom: args.tradeFrom } : {}),
     });
 
   const result = run(candles);
 
-  report(result, candles.length, strategy.warmupBars, {
+  const startIndex = candles.findIndex((c) => c.openTime >= result.startTime);
+  report(result, candles.length - startIndex, startIndex, {
     positionCap: riskLimits.maxPositionNotional,
     takerBps: args.takerBps,
     slippageBps: args.slippageBps,
   });
+
+  // The pre-registered test (docs/EXPERIMENT-001): beat the fixed BTC allocation
+  // that has the SAME maximum drawdown as the strategy, over the same window.
+  const matched = equalDrawdownAllocation({
+    candles,
+    startIndex,
+    targetDrawdownPct: result.metrics.maxDrawdownPct,
+    initialEquity: args.equity,
+    feeModel,
+  });
+  reportEqualDrawdown(result, matched);
 
   if (args.split) {
     // Two halves, scored separately. An edge that exists in one half and
@@ -205,8 +239,8 @@ const mag = (v: number) => `${Math.abs(v).toFixed(2)}%`;
 
 function report(
   result: BacktestResult,
-  bars: number,
-  warmup: number,
+  tradedBars: number,
+  historyBars: number,
   costs: { positionCap: number; takerBps: number; slippageBps: number },
 ): void {
   const m = result.metrics;
@@ -230,7 +264,7 @@ function report(
     '',
     RULE,
     `  ${result.strategy}  ·  ${result.productId}`,
-    `  ${new Date(result.startTime * 1000).toISOString().slice(0, 10)} → ${new Date(result.endTime * 1000).toISOString().slice(0, 10)}  (${bars} bars, ${warmup} used for warmup)`,
+    `  ${new Date(result.startTime * 1000).toISOString().slice(0, 10)} → ${new Date(result.endTime * 1000).toISOString().slice(0, 10)}  (${tradedBars} bars traded; ${historyBars} earlier bars used only as indicator history)`,
     RULE,
     '',
     // The comparison goes FIRST. Everything below it is detail; this is the
@@ -414,6 +448,31 @@ function splitVerdict(first: BacktestResult, second: BacktestResult): string[] {
     '  Beat the benchmark in one half and not the other. That is what a fitted',
     '  parameter set looks like. Treat the full-period number as unreliable.',
   ];
+}
+
+function reportEqualDrawdown(
+  result: BacktestResult,
+  matched: { label: string; annualizedReturnPct: number; maxDrawdownPct: number; sharpeRatio: number; fraction: number },
+): void {
+  const m = result.metrics;
+  const pass = m.annualizedReturnPct > matched.annualizedReturnPct;
+  const lines = [
+    RULE,
+    '  EQUAL-DRAWDOWN TEST  (is this better than just holding less BTC?)',
+    RULE,
+    '',
+    `                               annualized   max drawdown   sharpe`,
+    `    ${result.strategy.padEnd(26)} ${`${m.annualizedReturnPct.toFixed(2)}%`.padStart(10)}   ${`-${m.maxDrawdownPct.toFixed(2)}%`.padStart(12)}   ${m.sharpeRatio.toFixed(2).padStart(6)}`,
+    `    ${matched.label.padEnd(26)} ${`${matched.annualizedReturnPct.toFixed(2)}%`.padStart(10)}   ${`-${matched.maxDrawdownPct.toFixed(2)}%`.padStart(12)}   ${matched.sharpeRatio.toFixed(2).padStart(6)}`,
+    '',
+    pass
+      ? `  PASS — beat the same-drawdown allocation by ${(m.annualizedReturnPct - matched.annualizedReturnPct).toFixed(2)} points a year.`
+      : `  FAIL — holding ${(matched.fraction * 100).toFixed(1)}% BTC did ${(matched.annualizedReturnPct - m.annualizedReturnPct).toFixed(2)} points a year better at the same drawdown.`,
+    '',
+    RULE,
+    '',
+  ];
+  process.stdout.write(lines.join('\n'));
 }
 
 function mar(annualized: number, drawdown: number): string {

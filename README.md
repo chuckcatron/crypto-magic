@@ -34,11 +34,18 @@ cost anything.
 
 ## Backtest results
 
-**Run on real BTC history, this strategy loses to buy-and-hold on every
-timeframe and every measure.** On daily bars over 2015–2025 it made 7.5% a year
-against holding's 86%; on hourly bars, fees turned a small real edge into −86%.
-A fixed 20% Bitcoin allocation matched its drawdown at 2.5× the return. Full
-results, data validation and reproduction: [`docs/BACKTEST.md`](docs/BACKTEST.md).
+**ta-ensemble-v1 fails.** On real BTC history it loses to buy-and-hold on every
+timeframe and every measure; a fixed 20% Bitcoin allocation matched its drawdown
+at 2.5× the return. See [`docs/BACKTEST.md`](docs/BACKTEST.md).
+
+**A 200-day regime filter passes — provisionally.** Hold BTC while it closes
+above its 200-day average, cash otherwise. Tested under a protocol committed
+before any result existed: developed on 2015–2021, then run once on an untouched
+2022–2025 holdout, where it made 52%/yr at a −30% drawdown against 30%/yr at
+−67% for buy-and-hold. But the holdout pass rests mostly on sitting out 2022,
+two trades carry 98% of its profit, and the sample is about three bear markets.
+It has earned paper trading, not money. See
+[`docs/EXPERIMENT-001-regime-filter.md`](docs/EXPERIMENT-001-regime-filter.md).
 
 ## Before you risk real money
 
@@ -74,6 +81,8 @@ Useful flags:
 | `--csv <path>` | backtest a CSV instead of Coinbase. `node scripts/fetch-btc-history.mjs` builds one from 13 years of Bitstamp data |
 | `--from` / `--to` | restrict a CSV to a date window |
 | `--full-exposure` | lift every cap: fully in or fully out, on the same capital as buy-and-hold. The fair timing test |
+| `--strategy regime --sma-period 200` | the 200-day regime filter instead of ta-ensemble-v1 |
+| `--trade-from` | trade and score from a date, using earlier bars only as indicator history — for holdout windows |
 | `--split` | first-half vs second-half, scored separately |
 | `--taker-bps` / `--slippage-bps` | model a different fee tier, or set both to `0` to separate strategy performance from trading costs |
 | `--days`, `--granularity`, `--equity`, `--json` | window, bar size, starting capital, dump full result |
@@ -271,7 +280,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 274 tests
+pnpm test        # 289 tests
 pnpm typecheck
 ```
 
