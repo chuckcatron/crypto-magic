@@ -110,3 +110,32 @@ cross-exchange check.
 ## Results
 
 *(appended after the runs)*
+
+### Data validation (before any yield was computed)
+
+- Binance: 4,383 payments over 1,461 days, exactly three every day, no gap over
+  8 hours.
+- 40.7% of payments sit at exactly 0.0100% per 8 hours — Binance's built-in
+  interest component when the perpetual trades near spot. Fabricated or
+  corrupted data would not reproduce this.
+- Extremes clamp at exactly ±0.3000% per 8 hours, the cap Binance applied.
+- Against Bybit, an independent exchange: correlation 0.72 over 3,285 matched
+  payments; same sign 82% of the time.
+
+### Development, 2020-01-01 → 2022-01-01 (recorded before the holdout was run)
+
+| | A — always on | B — conditional |
+|---|---|---|
+| **Net yield on capital /yr** | **+16.72%** | +11.10% |
+| Funding on notional /yr | +23.90% | +24.21% |
+| Total costs | 1.11% | 12.29% |
+| Opens + closes | 2 | 24 |
+| Time in the trade | 100% | 81% |
+| Worst 30 days (on capital) | −0.87% | −0.22% |
+| Negative payments | 11% | 11% |
+| **vs ~0.2% cash** | **PASS** | **PASS** |
+
+B earned slightly more funding per unit held but paid 11 points more in costs:
+24 round trips at ~0.47% of capital each cost more than the negative funding it
+avoided. On development, trading around the funding rate was worse than holding
+the carry through it.

@@ -13,3 +13,4 @@ export * from './backtest/types';
 export * from './backtest/benchmark';
 export * from './backtest/metrics';
 export * from './backtest/backtester';
+export * from './carry/carry';
