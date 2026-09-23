@@ -47,6 +47,13 @@ two trades carry 98% of its profit, and the sample is about three bear markets.
 It has earned paper trading, not money. See
 [`docs/EXPERIMENT-001-regime-filter.md`](docs/EXPERIMENT-001-regime-filter.md).
 
+**Funding-rate carry is real income, but not steady income.** Long spot, short
+the perpetual, collect funding. Pre-registered and tested on Binance funding as
+a proxy: +16.7%/yr net in 2020–2021, then roughly what Treasury bills paid in
+2022–2023 — less than cash in each of those years. Stepping in and out around
+the funding rate failed in both periods on switching costs. See
+[`docs/EXPERIMENT-002-funding-carry.md`](docs/EXPERIMENT-002-funding-carry.md).
+
 ## Before you risk real money
 
 ```bash
@@ -280,7 +287,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 289 tests
+pnpm test        # 296 tests
 pnpm typecheck
 ```
 

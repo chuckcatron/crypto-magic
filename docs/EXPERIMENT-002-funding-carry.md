@@ -139,3 +139,67 @@ B earned slightly more funding per unit held but paid 11 points more in costs:
 24 round trips at ~0.47% of capital each cost more than the negative funding it
 avoided. On development, trading around the funding rate was worse than holding
 the carry through it.
+
+### Holdout, 2022-01-01 → 2024-01-01 (run once, nothing changed)
+
+| | A — always on | B — conditional |
+|---|---|---|
+| **Net yield on capital /yr** | **+3.61%** | −1.89% |
+| Funding on notional /yr | +6.02% | +4.86% |
+| Total costs | 0.97% | 9.91% |
+| Opens + closes | 2 | 22 |
+| Time in the trade | 100% | 64% |
+| Worst 30 days (on capital) | −0.15% | −0.11% |
+| Negative payments | 16% | 16% |
+| **vs ~3.5% cash** | **PASS (by 0.11 points)** | **FAIL** |
+
+## Verdict
+
+- **A — always on: PASS by the letter of the protocol, and a tie in substance.**
+  Its holdout margin over cash, 0.11 points, is smaller than the ±0.5-point
+  uncertainty stated for the cash benchmark itself. The protocol said an error
+  of that size "does not change the test"; that was wrong for this outcome,
+  because the margin landed inside it. The honest reading is that on the holdout
+  the carry earned roughly what cash earned, while also carrying exchange and
+  liquidation risk that cash does not.
+- **B — conditional: FAIL.** Trading around the funding rate cost more than it
+  saved in both periods; in the holdout it lost money outright.
+
+### By calendar year (reported after the verdict; does not change it)
+
+| Year | Always-on net on capital | Funding on notional | Approx. cash |
+|---|---|---|---|
+| 2020 | +11.11% | +17.21% | ~0.4% |
+| 2021 | +21.51% | +30.64% | ~0.05% |
+| 2022 | +1.86% | +4.17% | ~2% |
+| 2023 | +4.41% | +7.87% | ~5% |
+
+Taken year by year, the carry trailed cash in both holdout years. Its income is
+a function of how euphoric the market is: when leveraged longs are crowded,
+funding pays handsomely; the rest of the time it pays about what a Treasury bill
+does, with more risk.
+
+## What this means
+
+1. **Funding carry is real income, but not steady income.** It beat cash by
+   roughly 11–21 points a year in a bull market and trailed it afterwards.
+2. **The switching costs are the binding constraint on doing anything smarter.**
+   Every open or close pays ~0.7% per leg on notional, dominated by the retail
+   spot fee. A rule that steps aside when funding is weak cannot work at that
+   cost — it failed in both periods. Whether cheaper spot execution changes that
+   is a new hypothesis and needs its own pre-registered test.
+3. **Today's opportunity is today's funding rate.** Whether carry is worth
+   holding right now depends on the current Coinbase US funding rate against the
+   current yield on cash — neither of which this 2020–2023 proxy can tell you.
+4. **Proxy caveat.** Coinbase US perpetual-style futures may pay systematically
+   different funding from Binance. Nothing here substitutes for measuring it.
+
+## Reproduce
+
+```bash
+F=BTC-USDT_binance_2020-01-01_2024-01-01_funding_history.csv
+curl -sSLO "https://raw.githubusercontent.com/supervik/historical-funding-rates-fetcher/main/data/BTC-USDT/$F"
+cd apps/engine
+npx tsx src/backtest/run-carry.ts --csv ../../$F --from 2020-01-01 --to 2022-01-01 --cash-yield 0.2
+npx tsx src/backtest/run-carry.ts --csv ../../$F --from 2022-01-01 --to 2024-01-01 --cash-yield 3.5
+```
