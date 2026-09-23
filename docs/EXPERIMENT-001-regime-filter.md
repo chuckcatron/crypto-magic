@@ -86,3 +86,42 @@ drawdown exceeds 100% BTC's, it must beat 100% buy-and-hold outright.
 ## Results
 
 *(appended after the runs)*
+
+### Development period, 2015-01-01 → 2022-01-01 (recorded before the holdout was run)
+
+Retail costs, fully invested when in, flat when out.
+
+| | regime-sma200 | Same-drawdown allocation (66.6% BTC) | Buy & hold |
+|---|---|---|---|
+| Annualized | **78.83%** | 70.40% | 102.95% |
+| Max drawdown | −68.38% | −68.37% | −83.43% |
+| Sharpe | 1.26 | 1.31 | 1.32 |
+| Time in market | 65% | 100% | 100% |
+| Trades | 20 (4 wins, 16 losses) | — | — |
+
+**Primary criterion: PASS** — beat the same-drawdown allocation by 8.43 points a
+year.
+
+Noted without adjusting anything:
+
+- Its Sharpe (1.26) is *below* the matched allocation's (1.31). It passes the
+  pre-registered test on return, not on every risk-adjusted measure.
+- Maximum drawdown was still −68%: after the 2017 bubble the 200-day average
+  lagged so far behind price that the exit came well off the peak.
+- Win rate 20%, but the average winner was 8× the average loser — the usual
+  trend-following profile. The disaster stop never fired; all 20 exits were
+  regime signals.
+
+#### Robustness sweep (development only — reported, not selected from)
+
+| N | Annualized | Max drawdown | Sharpe | Trades | Same-DD allocation | Result |
+|---|---|---|---|---|---|---|
+| 100 | 83.66% | −68.18% | 1.32 | 44 | 66.3% BTC → 70.04% | PASS |
+| 150 | 109.25% | −63.45% | 1.53 | 17 | 58.6% BTC → 62.02% | PASS |
+| **200** | **78.83%** | **−68.38%** | **1.26** | **20** | **66.6% BTC → 70.40%** | **PASS** |
+| 250 | 84.99% | −65.33% | 1.29 | 19 | 61.6% BTC → 65.11% | PASS |
+
+All four pass, so the development result does not hinge on the exact period.
+N = 150 looks best by a wide margin and N = 200 is the weakest of the four;
+per rule 2 the holdout still uses N = 200. Choosing 150 now would be selecting
+on the data this sweep was run on.
