@@ -138,14 +138,15 @@ Structured JSON logs grow. Rotate weekly:
 
 - Dashboard: `pnpm dashboard` → http://localhost:3000
 - Live log: `tail -f logs/engine.log | npx pino-pretty`
-- Quick check: `curl -s localhost:4000/api/status | jq`
+- Quick check: `node scripts/cm.mjs` (or `curl -s localhost:4000/api/status | jq`)
+- From your phone: [`REMOTE-ACCESS.md`](REMOTE-ACCESS.md)
 
 Both the engine API and the dashboard bind to `127.0.0.1` only, and both refuse
 requests from web pages (foreign `Origin`), from DNS-rebinding domains
 (non-loopback `Host`), and state changes that lack the local request header.
 **Do not port-forward them** — nothing here is authenticated beyond "you are on
-this machine". For remote access, use a VPN or an SSH tunnel, which keeps the
-request looking local.
+this machine". For remote access, use Tailscale plus SSH, which keeps the
+request local; see [`REMOTE-ACCESS.md`](REMOTE-ACCESS.md).
 
 Calling a state-changing endpoint by hand needs the header:
 

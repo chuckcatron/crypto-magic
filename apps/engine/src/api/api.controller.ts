@@ -12,6 +12,7 @@ import { PostMortemService } from '../insight/postmortem.service';
 import { AlertService } from '../alerts/alert.service';
 import { TradingEngineService } from '../trading/engine.service';
 import { KillSwitchService } from '../trading/kill-switch.service';
+import { DeadmanService } from '../alerts/deadman.service';
 import { PortfolioService } from '../trading/portfolio.service';
 import { RiskService } from '../trading/risk.service';
 import { serialize } from './serializers';
@@ -98,6 +99,7 @@ export class ApiController {
     private readonly state: StateRepository,
     private readonly risk: RiskService,
     private readonly killSwitch: KillSwitchService,
+    private readonly deadman: DeadmanService,
   ) {}
 
   @Get('status')
@@ -106,6 +108,7 @@ export class ApiController {
       ...this.engine.status,
       limits: this.risk.limits,
       haltReasons: await this.risk.haltReasons(),
+      deadman: this.deadman.status,
       serverTime: Date.now(),
     });
   }
@@ -216,6 +219,7 @@ export class ApiController {
       telegram: Boolean(this.config.TELEGRAM_BOT_TOKEN && this.config.TELEGRAM_CHAT_ID),
       ntfy: Boolean(this.config.NTFY_TOPIC),
     };
+    safe.DEADMAN_CONFIGURED = Boolean(this.config.DEADMAN_PING_URL);
     safe.COINBASE_CREDENTIALS_PRESENT = Boolean(
       this.config.COINBASE_API_KEY_NAME && this.config.COINBASE_API_PRIVATE_KEY,
     );

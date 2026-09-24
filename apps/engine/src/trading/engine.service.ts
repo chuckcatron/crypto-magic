@@ -55,6 +55,8 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
   private readonly strategy: TaEnsembleStrategy;
   private ticking = false;
   private started = false;
+  /** When the last pass finished WITHOUT throwing. Liveness, not just uptime. */
+  private lastTickCompletedAt: number | null = null;
 
   constructor(
     @Inject(EXCHANGE) private readonly exchange: ExchangeAdapter,
@@ -134,7 +136,13 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
         ? Math.round(this.marketData.marketDataAgeSeconds)
         : null,
       warmupBars: this.strategy.warmupBars,
+      lastTickCompletedAt: this.lastTickCompletedAt,
     };
+  }
+
+  /** Null until the first pass completes. Read by the dead-man's switch. */
+  get lastSuccessfulTickAt(): number | null {
+    return this.lastTickCompletedAt;
   }
 
   /** One pass. Overlapping passes are skipped rather than queued. */
@@ -148,6 +156,7 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       await this.monitorStops();
       await this.processClosedBars();
       await this.portfolio.recordEquitySnapshot();
+      this.lastTickCompletedAt = Date.now();
     } catch (error) {
       this.log.error({ err: String(error) }, 'tick failed');
       this.events.append({

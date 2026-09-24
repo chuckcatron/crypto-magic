@@ -18,6 +18,7 @@ import { TradeRepository } from '../persistence/repositories/trade.repository';
 import { NullNewsProvider } from '@crypto-magic/insight';
 import { AlertPolicy, FanoutNotifier } from '@crypto-magic/notify';
 import { AlertService } from '../alerts/alert.service';
+import { DeadmanService } from '../alerts/deadman.service';
 import { ALERT_POLICY, NOTIFIER } from '../alerts/tokens';
 import { PostMortemService } from '../insight/postmortem.service';
 import { LLM_CLIENT, NEWS_PROVIDER } from '../insight/tokens';
@@ -94,6 +95,7 @@ describe('TradingEngineService (integration)', () => {
         { provide: NOTIFIER, useValue: new FanoutNotifier([]) },
         { provide: ALERT_POLICY, useValue: new AlertPolicy() },
         AlertService,
+        DeadmanService,
         MarketDataService,
         KillSwitchService,
         PortfolioService,

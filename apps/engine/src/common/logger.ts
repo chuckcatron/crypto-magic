@@ -22,6 +22,7 @@ export function rootLogger(level = process.env.LOG_LEVEL ?? 'info'): Logger {
         'DISCORD_WEBHOOK_URL',
         'TELEGRAM_BOT_TOKEN',
         'NTFY_TOPIC',
+        'DEADMAN_PING_URL',
         'LIVE_TRADING_ACK',
         '*.apiSecret',
         '*.privateKey',

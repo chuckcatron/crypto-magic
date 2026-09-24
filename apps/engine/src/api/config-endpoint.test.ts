@@ -4,7 +4,7 @@ import { configSchema } from '../config/config.schema';
 import { PUBLIC_CONFIG_KEYS } from './api.controller';
 
 /** Anything whose name suggests it grants access to something. */
-const SECRET_SHAPED = /KEY|TOKEN|SECRET|WEBHOOK|PRIVATE|PASSWORD|TOPIC|CHAT_ID|_ACK|CREDENTIAL/i;
+const SECRET_SHAPED = /KEY|TOKEN|SECRET|WEBHOOK|PRIVATE|PASSWORD|TOPIC|CHAT_ID|_ACK|CREDENTIAL|PING_URL/i;
 
 describe('public config allowlist', () => {
   it('contains nothing that looks like a credential', () => {
@@ -40,6 +40,7 @@ describe('public config allowlist', () => {
       NTFY_TOPIC: 'secret-ntfy-topic',
       NEWS_ENABLED: 'true',
       CRYPTOPANIC_API_KEY: 'SECRET-CRYPTOPANIC',
+      DEADMAN_PING_URL: 'https://hc-ping.com/SECRET-DEADMAN-UUID',
       LOG_LEVEL: 'fatal',
     };
     const config = loadConfig(secrets as unknown as NodeJS.ProcessEnv);

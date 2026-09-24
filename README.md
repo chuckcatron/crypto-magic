@@ -139,6 +139,14 @@ touch data/KILL_SWITCH     # blocks new entries; exits still run
 rm data/KILL_SWITCH        # resume
 ```
 
+Or with the `cm` command, which is sized for a phone over SSH:
+
+```bash
+node scripts/cm.mjs          # status at a glance
+node scripts/cm.mjs kill     # kill switch (writes the file directly if the engine is down)
+node scripts/cm.mjs flatten  # kill switch, then sell everything (asks first)
+```
+
 The kill switch is a file, so it survives restarts, works when the API is
 wedged, and can be set from anything that can touch a file. The dashboard has a
 button for it, and a **Flatten all** button that sells everything at market.
@@ -150,6 +158,10 @@ than whatever caused the halt.
 
 See [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — launchd setup, keeping the Mac awake,
 log rotation, and what to do when it misbehaves.
+
+To check on it and stop it from your phone, see
+[`docs/REMOTE-ACCESS.md`](docs/REMOTE-ACCESS.md): Tailscale plus SSH, nothing
+opened to the internet.
 
 ## The strategy
 
@@ -233,8 +245,14 @@ a healthy quiet day looks like too.
 
 So it sends a short daily check-in with equity, open positions and the last 24
 hours of P&L. **If it stops arriving, that is the signal.** This only works if
-you actually notice its absence; it is a weak watchdog, not a strong one. A
-proper external watchdog would be better and this project does not have one.
+you actually notice its absence; it is a weak watchdog, not a strong one.
+
+The strong one is the **dead-man's switch** (`DEADMAN_PING_URL`). While the
+trading loop is completing passes, the engine pings an outside monitor such as
+healthchecks.io every minute; when the pings stop — Mac off, engine crashed or
+wedged, house offline — the monitor alerts you. It is the only alert that does
+not depend on the thing that failed. Setup is in
+[`docs/REMOTE-ACCESS.md`](docs/REMOTE-ACCESS.md).
 
 ## Trade reviews with a local model
 
@@ -287,7 +305,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 296 tests
+pnpm test        # 303 tests
 pnpm typecheck
 ```
 

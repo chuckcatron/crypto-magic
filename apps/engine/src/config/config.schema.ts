@@ -128,6 +128,15 @@ export const configSchema = z
     HEARTBEAT_ENABLED: bool(true),
     HEARTBEAT_UTC_HOUR: z.coerce.number().int().min(0).max(23).default(13),
 
+    /**
+     * Dead-man's switch. The engine pings this URL while it is healthy; an
+     * outside service (healthchecks.io, Uptime Kuma, Better Stack) alerts you
+     * when the pings STOP. The only alert that still works when the Mac is off.
+     * Treat the URL as a secret: anyone holding it can fake "healthy".
+     */
+    DEADMAN_PING_URL: z.string().url().optional(),
+    DEADMAN_INTERVAL_SECONDS: z.coerce.number().int().min(30).default(60),
+
     // --- Runtime ------------------------------------------------------------
     DATABASE_PATH: z.string().default('./data/crypto-magic.db'),
     KILL_SWITCH_FILE: z.string().default('./data/KILL_SWITCH'),
