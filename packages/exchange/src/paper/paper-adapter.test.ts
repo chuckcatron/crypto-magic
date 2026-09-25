@@ -215,3 +215,54 @@ describe('PaperAdapter safety surface', () => {
     ).rejects.toThrow(/rounds to zero/);
   });
 });
+
+describe('PaperAdapter persistence', () => {
+  it('reports every balance after each fill, and a new adapter restores from it exactly', async () => {
+    const saved: Record<string, string>[] = [];
+    const market = new StubMarketData();
+    const adapter = new PaperAdapter({
+      marketData: market,
+      initialBalances: { USD: 1000 },
+      onBalancesChanged: (b) => saved.push(b),
+    });
+
+    await adapter.submitMarketOrder({
+      productId: 'BTC-USD',
+      side: 'BUY',
+      baseSize: D('2'),
+      referencePrice: D(100),
+      clientOrderId: 'persist-1',
+    });
+    expect(saved).toHaveLength(1);
+    expect(saved[0]).toEqual(adapter.balanceSnapshot());
+    // Decimal strings, not floats: JSON must round-trip without drift.
+    expect(Object.values(saved[0]!).every((v) => typeof v === 'string')).toBe(true);
+
+    // "Restart": a fresh adapter seeded from what was saved.
+    const restored = new PaperAdapter({
+      marketData: market,
+      initialBalances: JSON.parse(JSON.stringify(saved[0])),
+    });
+    expect(await restored.getBalances()).toEqual(await adapter.getBalances());
+  });
+
+  it('does not report when an order is rejected', async () => {
+    const saved: Record<string, string>[] = [];
+    const adapter = new PaperAdapter({
+      marketData: new StubMarketData(),
+      initialBalances: { USD: 10 },
+      onBalancesChanged: (b) => saved.push(b),
+    });
+
+    await expect(
+      adapter.submitMarketOrder({
+        productId: 'BTC-USD',
+        side: 'BUY',
+        baseSize: D('5'),
+        referencePrice: D(100),
+        clientOrderId: 'too-big',
+      }),
+    ).rejects.toThrow(/paper account has/);
+    expect(saved).toHaveLength(0);
+  });
+});

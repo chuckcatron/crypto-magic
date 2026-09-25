@@ -1,5 +1,6 @@
 import { GRANULARITIES } from '@crypto-magic/core';
 import { z } from 'zod';
+import { resolveFromRoot } from './paths';
 
 /** Phrase the operator must type to arm live trading. Anything else stays paper. */
 export const LIVE_TRADING_ACK = 'I_UNDERSTAND_THIS_SPENDS_REAL_MONEY';
@@ -138,8 +139,9 @@ export const configSchema = z
     DEADMAN_INTERVAL_SECONDS: z.coerce.number().int().min(30).default(60),
 
     // --- Runtime ------------------------------------------------------------
-    DATABASE_PATH: z.string().default('./data/crypto-magic.db'),
-    KILL_SWITCH_FILE: z.string().default('./data/KILL_SWITCH'),
+    // Relative paths resolve against the repo root, not the working directory.
+    DATABASE_PATH: z.string().default('./data/crypto-magic.db').transform((p) => resolveFromRoot(p)),
+    KILL_SWITCH_FILE: z.string().default('./data/KILL_SWITCH').transform((p) => resolveFromRoot(p)),
     PAPER_STARTING_CASH: numeric(1000),
   })
   .superRefine((cfg, ctx) => {

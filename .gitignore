@@ -19,6 +19,7 @@ data/
 *.db-shm
 logs/
 *.log
+.pre-import-*/
 
 .DS_Store
 coverage/

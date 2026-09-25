@@ -1,5 +1,6 @@
 import { existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { REPO_ROOT } from './paths';
 
 /**
  * Load `.env` before anything reads `process.env`.
@@ -8,7 +9,8 @@ import { resolve } from 'node:path';
  * its side effect as the FIRST import of any entrypoint — config validation
  * runs at module scope, so a later import would be too late.
  */
-const envPath = resolve(process.cwd(), '.env');
+// Always the repo-root .env, however the engine was started (see paths.ts).
+const envPath = resolve(REPO_ROOT, '.env');
 if (existsSync(envPath)) {
   process.loadEnvFile(envPath);
 }

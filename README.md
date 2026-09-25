@@ -159,6 +159,11 @@ than whatever caused the halt.
 See [`docs/RUNBOOK.md`](docs/RUNBOOK.md) — launchd setup, keeping the Mac awake,
 log rotation, and what to do when it misbehaves.
 
+Setting up a Mac, or moving the bot to a new one:
+[`docs/SETUP-AND-MIGRATION.md`](docs/SETUP-AND-MIGRATION.md), with
+`scripts/doctor.sh` (preflight check) and `scripts/migrate.sh` (moves `.env` and
+`data/` safely).
+
 To check on it and stop it from your phone, see
 [`docs/REMOTE-ACCESS.md`](docs/REMOTE-ACCESS.md): Tailscale plus SSH, nothing
 opened to the internet.
@@ -305,7 +310,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 303 tests
+pnpm test        # 314 tests
 pnpm typecheck
 ```
 

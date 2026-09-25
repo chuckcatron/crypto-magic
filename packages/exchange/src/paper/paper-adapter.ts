@@ -15,6 +15,12 @@ export interface PaperAdapterOptions {
   readonly initialBalances: Record<string, number | string>;
   readonly takerBps?: number;
   readonly slippageBps?: number;
+  /**
+   * Called with every balance after each fill, so the caller can persist the
+   * simulated account. Without it, paper money lives only in memory and every
+   * restart would silently reset the account and orphan open positions.
+   */
+  readonly onBalancesChanged?: (balances: Record<string, string>) => void;
 }
 
 /**
@@ -63,6 +69,11 @@ export class PaperAdapter implements ExchangeAdapter {
 
   getTicker(productId: string): Promise<Ticker> {
     return this.options.marketData.getTicker(productId);
+  }
+
+  /** Every balance as a decimal string, keyed by currency. Safe to JSON-encode. */
+  balanceSnapshot(): Record<string, string> {
+    return Object.fromEntries([...this.balances.entries()].map(([c, v]) => [c, v.toFixed()]));
   }
 
   async getBalances(): Promise<Balance[]> {
@@ -139,6 +150,7 @@ export class PaperAdapter implements ExchangeAdapter {
     };
     this.orders.set(order.orderId, order);
     this.byClientOrderId.set(request.clientOrderId, order.orderId);
+    this.options.onBalancesChanged?.(this.balanceSnapshot());
     return order;
   }
 
