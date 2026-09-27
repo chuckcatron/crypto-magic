@@ -159,8 +159,13 @@ html, body {
   color: var(--text-secondary);
   margin-bottom: 6px;
 }
+/* Tiles are narrowest when they all share one row (about 150px of content at
+   the shell's max width), where a five-digit price at 26px spills past the edge.
+   Scale the figure to the tile instead; 26px wherever it fits. */
+.tile { container-type: inline-size; }
 .tile-value {
   font-size: 26px;
+  font-size: clamp(18px, 15cqi, 26px);
   font-weight: 600;
   letter-spacing: -0.02em;
   line-height: 1.1;

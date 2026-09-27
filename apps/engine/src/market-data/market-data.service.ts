@@ -11,6 +11,20 @@ import type { AppConfig } from '../config/config.schema';
 import { EXCHANGE } from '../exchange/tokens';
 import { childLogger } from '../common/logger';
 
+/** Latest price for display. `price` survives a failed refresh; `error` says it is stale. */
+export interface DisplayPrice {
+  productId: string;
+  price: number | null;
+  fetchedAt: number | null;
+  error: string | null;
+}
+
+/**
+ * How long a display price is reused. The dashboard polls every 5 seconds from
+ * every open tab; without this each tab multiplies calls to Coinbase.
+ */
+export const DISPLAY_PRICE_TTL_MS = 4000;
+
 /**
  * Candle and ticker access with a small in-memory cache.
  *
@@ -23,6 +37,8 @@ export class MarketDataService {
   private readonly log = childLogger('market-data');
   private readonly candleCache = new Map<string, Candle[]>();
   private newestBarCloseMs = 0;
+  private readonly displayPrices = new Map<string, DisplayPrice>();
+  private readonly displayPriceRequests = new Map<string, Promise<DisplayPrice>>();
 
   constructor(
     @Inject(EXCHANGE) private readonly exchange: ExchangeAdapter,
@@ -51,6 +67,53 @@ export class MarketDataService {
 
   getTicker(productId: string): Promise<Ticker> {
     return this.exchange.getTicker(productId);
+  }
+
+  /**
+   * Latest price for the dashboard. Never throws, and never for trading.
+   *
+   * Cached for DISPLAY_PRICE_TTL_MS and shared between concurrent callers, so
+   * it can be seconds old — which is why stops and entries call getTicker
+   * directly instead. On failure the last good price is kept and flagged stale,
+   * so an exchange hiccup degrades the tile rather than blanking the dashboard.
+   */
+  displayPrice(productId: string): Promise<DisplayPrice> {
+    const cached = this.displayPrices.get(productId);
+    if (cached?.fetchedAt && !cached.error && Date.now() - cached.fetchedAt < DISPLAY_PRICE_TTL_MS) {
+      return Promise.resolve(cached);
+    }
+
+    const inFlight = this.displayPriceRequests.get(productId);
+    if (inFlight) return inFlight;
+
+    const request = this.exchange
+      .getTicker(productId)
+      .then(
+        (ticker): DisplayPrice => ({
+          productId,
+          price: ticker.price,
+          fetchedAt: ticker.timestamp,
+          error: null,
+        }),
+        (cause: unknown): DisplayPrice => {
+          const error = cause instanceof Error ? cause.message : String(cause);
+          this.log.debug({ productId, error }, 'display price refresh failed');
+          return {
+            productId,
+            price: cached?.price ?? null,
+            fetchedAt: cached?.fetchedAt ?? null,
+            error,
+          };
+        },
+      )
+      .then((result) => {
+        this.displayPrices.set(productId, result);
+        return result;
+      })
+      .finally(() => this.displayPriceRequests.delete(productId));
+
+    this.displayPriceRequests.set(productId, request);
+    return request;
   }
 
   /**
