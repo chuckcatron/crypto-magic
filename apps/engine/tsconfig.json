@@ -7,5 +7,19 @@
     "incremental": false,
     "types": ["node"]
   },
-  "include": ["src/**/*.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "vitest.config.ts"],
+  "references": [
+    {
+      "path": "../../packages/core/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/exchange/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/insight/tsconfig.build.json"
+    },
+    {
+      "path": "../../packages/notify/tsconfig.build.json"
+    }
+  ]
 }

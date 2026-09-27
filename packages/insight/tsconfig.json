@@ -6,5 +6,10 @@
     "composite": false,
     "incremental": false
   },
-  "include": ["src/**/*.ts", "vitest.config.ts"]
+  "include": ["src/**/*.ts", "vitest.config.ts"],
+  "references": [
+    {
+      "path": "../core/tsconfig.build.json"
+    }
+  ]
 }
