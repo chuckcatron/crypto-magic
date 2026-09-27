@@ -35,7 +35,7 @@ node -v                                # v22.x
 
 ```bash
 cd ~
-git clone -b claude/crypto-trading-bot-yqnlng https://github.com/chuckcatron/crypto-magic.git
+git clone -b main https://github.com/chuckcatron/crypto-magic.git
 cd crypto-magic
 pnpm install
 pnpm build
