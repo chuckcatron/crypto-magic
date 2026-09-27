@@ -62,7 +62,7 @@ describe('TradingEngineService (integration)', () => {
       MIN_ORDER_NOTIONAL: '1',
       PROTECTIVE_STOP_ENABLED: 'false',
       LOG_LEVEL: 'fatal',
-    } as NodeJS.ProcessEnv);
+    });
 
     market = new FakeMarketData();
 

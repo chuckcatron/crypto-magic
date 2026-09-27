@@ -12,9 +12,7 @@ const withLiveKeys = {
 describe('createExchange', () => {
   it('in paper mode, builds an adapter that cannot trade EVEN WITH live keys present', () => {
     // The realistic case: keys configured for live, mode flipped back to paper.
-    const exchange = createExchange(
-      loadConfig({ ...withLiveKeys, TRADING_MODE: 'paper' } as NodeJS.ProcessEnv),
-    );
+    const exchange = createExchange(loadConfig({ ...withLiveKeys, TRADING_MODE: 'paper' }));
 
     expect(exchange).toBeInstanceOf(PaperAdapter);
     expect(exchange.isLive).toBe(false);
@@ -31,7 +29,7 @@ describe('createExchange', () => {
         ...withLiveKeys,
         TRADING_MODE: 'live',
         LIVE_TRADING_ACK: 'I_UNDERSTAND_THIS_SPENDS_REAL_MONEY',
-      } as NodeJS.ProcessEnv),
+      }),
     );
     expect(exchange).toBeInstanceOf(CoinbaseAdapter);
     expect(exchange.isLive).toBe(true);
@@ -51,7 +49,7 @@ describe('createExchange', () => {
         TRADING_MODE: 'paper',
         PAPER_STARTING_CASH: '1000',
         LOG_LEVEL: 'fatal',
-      } as NodeJS.ProcessEnv),
+      }),
       state,
     );
     const balances = Object.fromEntries(
@@ -74,7 +72,7 @@ describe('createExchange', () => {
           TRADING_MODE: 'paper',
           PAPER_STARTING_CASH: '1000',
           LOG_LEVEL: 'fatal',
-        } as NodeJS.ProcessEnv),
+        }),
         state,
       );
       const balances = await exchange.getBalances();

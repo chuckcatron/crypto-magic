@@ -173,7 +173,7 @@ describe('exits', () => {
   it('exits on a blow-off top even without a cross', () => {
     const strategy = new TaEnsembleStrategy({ ...fastConfig, rsiExitMax: 70 });
     const closes = [
-      ...Array(120).fill(100),
+      ...Array<number>(120).fill(100),
       ...Array.from({ length: 30 }, (_, i) => 100 * 1.03 ** (i + 1)),
     ];
     const candles = candlesFromCloses(closes);

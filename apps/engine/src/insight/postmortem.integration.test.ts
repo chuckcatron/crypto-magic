@@ -96,7 +96,7 @@ describe('PostMortemService', () => {
       POSTMORTEM_ENABLED: 'true',
       LOG_LEVEL: 'fatal',
       ...overrides,
-    } as NodeJS.ProcessEnv);
+    });
 
     llm = new FakeLlm();
     news = new FakeNews();

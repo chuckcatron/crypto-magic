@@ -58,7 +58,7 @@ describe('rsi', () => {
   });
 
   it('returns 50 for a perfectly flat series rather than dividing by zero', () => {
-    const flat = new Array(30).fill(100);
+    const flat = new Array<number>(30).fill(100);
     expect(rsi(flat, 14).at(-1)).toBe(50);
   });
 

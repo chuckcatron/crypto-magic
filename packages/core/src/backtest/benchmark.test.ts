@@ -18,7 +18,7 @@ describe('buyAndHold', () => {
   });
 
   it('loses to costs on a flat market', () => {
-    const candles = candlesFromCloses(new Array(50).fill(100), { rangePct: 0 });
+    const candles = candlesFromCloses(new Array<number>(50).fill(100), { rangePct: 0 });
     const result = buyAndHold({
       candles,
       startIndex: 0,
@@ -33,7 +33,7 @@ describe('buyAndHold', () => {
     // startIndex would bank that doubling for free and look unbeatable.
     const closes = [
       ...Array.from({ length: 20 }, (_, i) => 100 + i * 5),
-      ...new Array(30).fill(200),
+      ...new Array<number>(30).fill(200),
     ];
     const candles = candlesFromCloses(closes, { rangePct: 0 });
 
@@ -246,7 +246,7 @@ describe('runBacktest tradeFrom', () => {
     const { RegimeFilterStrategy, REGIME_FILTER_STOP_CONFIG } =
       await import('../strategy/regime-filter');
     const { TEST_PRODUCT } = await import('../testing/synthetic');
-    const candles = candlesFromCloses(new Array(100).fill(100), { granularity: 'ONE_DAY' });
+    const candles = candlesFromCloses(new Array<number>(100).fill(100), { granularity: 'ONE_DAY' });
     expect(() =>
       runBacktest({
         candles,
