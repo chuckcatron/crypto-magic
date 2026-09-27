@@ -52,7 +52,13 @@ export class StateRepository implements StateStore {
       .prepare('SELECT * FROM equity_snapshots ORDER BY ts DESC LIMIT ?')
       .all(limit)
       .map((row) => {
-        const r = row as { ts: number; equity: string; cash: string; position_value: string; mode: string };
+        const r = row as {
+          ts: number;
+          equity: string;
+          cash: string;
+          position_value: string;
+          mode: string;
+        };
         return {
           ts: r.ts,
           equity: D(r.equity),

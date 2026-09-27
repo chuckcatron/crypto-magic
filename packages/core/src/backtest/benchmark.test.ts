@@ -31,11 +31,19 @@ describe('buyAndHold', () => {
   it('starts at the strategy warmup bar, so neither side gets a head start', () => {
     // Price doubles during warmup, then stays flat. A benchmark that ignored
     // startIndex would bank that doubling for free and look unbeatable.
-    const closes = [...Array.from({ length: 20 }, (_, i) => 100 + i * 5), ...new Array(30).fill(200)];
+    const closes = [
+      ...Array.from({ length: 20 }, (_, i) => 100 + i * 5),
+      ...new Array(30).fill(200),
+    ];
     const candles = candlesFromCloses(closes, { rangePct: 0 });
 
     const fromZero = buyAndHold({ candles, startIndex: 0, initialEquity: 1000, feeModel: NO_COST });
-    const fromWarmup = buyAndHold({ candles, startIndex: 20, initialEquity: 1000, feeModel: NO_COST });
+    const fromWarmup = buyAndHold({
+      candles,
+      startIndex: 20,
+      initialEquity: 1000,
+      feeModel: NO_COST,
+    });
 
     expect(fromZero.totalReturnPct).toBeGreaterThan(90);
     // Entering at bar 20's OPEN (which is bar 19's close of 195) and exiting at
@@ -107,10 +115,24 @@ describe('backtest results carry their benchmark', () => {
 describe('fixedAllocation', () => {
   it('at 100% tracks buy-and-hold, and at 0% stays exactly flat', async () => {
     const { fixedAllocation } = await import('./benchmark');
-    const candles = candlesFromCloses(randomWalk(400, { drift: 0.002, seed: 9 }), { granularity: 'ONE_DAY' });
-    const full = fixedAllocation({ candles, startIndex: 0, fraction: 1, initialEquity: 1000, feeModel: NO_COST });
+    const candles = candlesFromCloses(randomWalk(400, { drift: 0.002, seed: 9 }), {
+      granularity: 'ONE_DAY',
+    });
+    const full = fixedAllocation({
+      candles,
+      startIndex: 0,
+      fraction: 1,
+      initialEquity: 1000,
+      feeModel: NO_COST,
+    });
     const bh = buyAndHold({ candles, startIndex: 0, initialEquity: 1000, feeModel: NO_COST });
-    const none = fixedAllocation({ candles, startIndex: 0, fraction: 0, initialEquity: 1000, feeModel: NO_COST });
+    const none = fixedAllocation({
+      candles,
+      startIndex: 0,
+      fraction: 0,
+      initialEquity: 1000,
+      feeModel: NO_COST,
+    });
 
     expect(full.totalReturnPct).toBeCloseTo(bh.totalReturnPct, 0);
     expect(none.finalEquity).toBe(1000);
@@ -119,18 +141,35 @@ describe('fixedAllocation', () => {
 
   it('a smaller BTC share means a smaller drawdown', async () => {
     const { fixedAllocation } = await import('./benchmark');
-    const candles = candlesFromCloses(randomWalk(600, { volatility: 0.04, seed: 21 }), { granularity: 'ONE_DAY' });
+    const candles = candlesFromCloses(randomWalk(600, { volatility: 0.04, seed: 21 }), {
+      granularity: 'ONE_DAY',
+    });
     const dd = (fraction: number) =>
-      fixedAllocation({ candles, startIndex: 0, fraction, initialEquity: 1000, feeModel: NO_COST }).maxDrawdownPct;
+      fixedAllocation({ candles, startIndex: 0, fraction, initialEquity: 1000, feeModel: NO_COST })
+        .maxDrawdownPct;
     expect(dd(0.1)).toBeLessThan(dd(0.5));
     expect(dd(0.5)).toBeLessThan(dd(1));
   });
 
   it('pays fees on rebalancing, so a costly version ends below a free one', async () => {
     const { fixedAllocation } = await import('./benchmark');
-    const candles = candlesFromCloses(randomWalk(600, { volatility: 0.04, seed: 4 }), { granularity: 'ONE_DAY' });
-    const free = fixedAllocation({ candles, startIndex: 0, fraction: 0.3, initialEquity: 1000, feeModel: NO_COST });
-    const costly = fixedAllocation({ candles, startIndex: 0, fraction: 0.3, initialEquity: 1000, feeModel: DEFAULT_FEE_MODEL });
+    const candles = candlesFromCloses(randomWalk(600, { volatility: 0.04, seed: 4 }), {
+      granularity: 'ONE_DAY',
+    });
+    const free = fixedAllocation({
+      candles,
+      startIndex: 0,
+      fraction: 0.3,
+      initialEquity: 1000,
+      feeModel: NO_COST,
+    });
+    const costly = fixedAllocation({
+      candles,
+      startIndex: 0,
+      fraction: 0.3,
+      initialEquity: 1000,
+      feeModel: DEFAULT_FEE_MODEL,
+    });
     expect(costly.finalEquity).toBeLessThan(free.finalEquity);
   });
 });
@@ -138,9 +177,15 @@ describe('fixedAllocation', () => {
 describe('equalDrawdownAllocation', () => {
   it('finds the BTC share whose drawdown matches the target', async () => {
     const { equalDrawdownAllocation } = await import('./benchmark');
-    const candles = candlesFromCloses(randomWalk(800, { volatility: 0.04, seed: 13 }), { granularity: 'ONE_DAY' });
+    const candles = candlesFromCloses(randomWalk(800, { volatility: 0.04, seed: 13 }), {
+      granularity: 'ONE_DAY',
+    });
     const result = equalDrawdownAllocation({
-      candles, startIndex: 0, targetDrawdownPct: 20, initialEquity: 1000, feeModel: DEFAULT_FEE_MODEL,
+      candles,
+      startIndex: 0,
+      targetDrawdownPct: 20,
+      initialEquity: 1000,
+      feeModel: DEFAULT_FEE_MODEL,
     });
     expect(result.maxDrawdownPct).toBeCloseTo(20, 0);
     expect(result.fraction).toBeGreaterThan(0);
@@ -149,9 +194,15 @@ describe('equalDrawdownAllocation', () => {
 
   it('caps at 100% when the target is deeper than holding everything', async () => {
     const { equalDrawdownAllocation } = await import('./benchmark');
-    const candles = candlesFromCloses(randomWalk(300, { volatility: 0.02, seed: 2 }), { granularity: 'ONE_DAY' });
+    const candles = candlesFromCloses(randomWalk(300, { volatility: 0.02, seed: 2 }), {
+      granularity: 'ONE_DAY',
+    });
     const result = equalDrawdownAllocation({
-      candles, startIndex: 0, targetDrawdownPct: 99, initialEquity: 1000, feeModel: NO_COST,
+      candles,
+      startIndex: 0,
+      targetDrawdownPct: 99,
+      initialEquity: 1000,
+      feeModel: NO_COST,
     });
     expect(result.fraction).toBe(1);
   });
@@ -160,7 +211,8 @@ describe('equalDrawdownAllocation', () => {
 describe('runBacktest tradeFrom', () => {
   it('uses earlier bars only as history: no trade and no benchmark before the start date', async () => {
     const { runBacktest } = await import('./backtester');
-    const { RegimeFilterStrategy, REGIME_FILTER_STOP_CONFIG } = await import('../strategy/regime-filter');
+    const { RegimeFilterStrategy, REGIME_FILTER_STOP_CONFIG } =
+      await import('../strategy/regime-filter');
     const { TEST_PRODUCT } = await import('../testing/synthetic');
 
     const closes = Array.from({ length: 300 }, (_, i) => 100 + i); // steady uptrend
@@ -172,7 +224,12 @@ describe('runBacktest tradeFrom', () => {
       strategy: new RegimeFilterStrategy({ smaPeriod: 50, atrPeriod: 14 }),
       product: TEST_PRODUCT,
       stopConfig: REGIME_FILTER_STOP_CONFIG,
-      riskLimits: { ...(await import('../risk/limits')).DEFAULT_RISK_LIMITS, maxPositionNotional: 1e9, maxTotalNotional: 1e9, riskPerTradePct: 100 },
+      riskLimits: {
+        ...(await import('../risk/limits')).DEFAULT_RISK_LIMITS,
+        maxPositionNotional: 1e9,
+        maxTotalNotional: 1e9,
+        riskPerTradePct: 100,
+      },
       initialEquity: 1000,
       tradeFrom,
     });
@@ -186,7 +243,8 @@ describe('runBacktest tradeFrom', () => {
 
   it('refuses a start date after the data ends', async () => {
     const { runBacktest } = await import('./backtester');
-    const { RegimeFilterStrategy, REGIME_FILTER_STOP_CONFIG } = await import('../strategy/regime-filter');
+    const { RegimeFilterStrategy, REGIME_FILTER_STOP_CONFIG } =
+      await import('../strategy/regime-filter');
     const { TEST_PRODUCT } = await import('../testing/synthetic');
     const candles = candlesFromCloses(new Array(100).fill(100), { granularity: 'ONE_DAY' });
     expect(() =>

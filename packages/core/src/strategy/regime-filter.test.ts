@@ -5,7 +5,12 @@ import { REGIME_FILTER_STOP_CONFIG, RegimeFilterStrategy } from './regime-filter
 
 const strategy = new RegimeFilterStrategy({ smaPeriod: 20, atrPeriod: 14 });
 const position = openPosition({
-  productId: 'BTC-USD', baseSize: 1, entryPrice: 100, atrValue: 2, openedAt: 0, config: DEFAULT_STOP_CONFIG,
+  productId: 'BTC-USD',
+  baseSize: 1,
+  entryPrice: 100,
+  atrValue: 2,
+  openedAt: 0,
+  config: DEFAULT_STOP_CONFIG,
 });
 
 describe('RegimeFilterStrategy', () => {

@@ -67,7 +67,9 @@ export class RiskEngine {
   }
 
   assess(intent: OrderIntent, state: RiskState): RiskDecision {
-    return intent.side === 'SELL' ? this.assessExit(intent, state) : this.assessEntry(intent, state);
+    return intent.side === 'SELL'
+      ? this.assessExit(intent, state)
+      : this.assessEntry(intent, state);
   }
 
   /**
@@ -138,9 +140,7 @@ export class RiskEngine {
 
     const remainingDailyLoss = D(this.limits.maxDailyLoss).plus(D(state.realizedPnlToday));
     if (remainingDailyLoss.lt(this.limits.maxDailyLoss * 0.25)) {
-      warnings.push(
-        `only ${remainingDailyLoss.toFixed(2)} of the daily loss budget remains`,
-      );
+      warnings.push(`only ${remainingDailyLoss.toFixed(2)} of the daily loss budget remains`);
     }
 
     if (rejections.length > 0) return fail(rejections, warnings);

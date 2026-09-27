@@ -94,12 +94,15 @@ describe('parsePostMortemResponse', () => {
   });
 
   it('normalizes a verdict with different casing or separators', () => {
-    expect(parsePostMortemResponse(JSON.stringify({ ...valid, verdict: 'Sound-Process-Lost' }))?.verdict)
-      .toBe('sound_process_lost');
+    expect(
+      parsePostMortemResponse(JSON.stringify({ ...valid, verdict: 'Sound-Process-Lost' }))?.verdict,
+    ).toBe('sound_process_lost');
   });
 
   it('rejects a verdict outside the taxonomy rather than guessing', () => {
-    expect(parsePostMortemResponse(JSON.stringify({ ...valid, verdict: 'pretty good' }))).toBeNull();
+    expect(
+      parsePostMortemResponse(JSON.stringify({ ...valid, verdict: 'pretty good' })),
+    ).toBeNull();
   });
 
   it('rejects a verdict with no summary, which is a label not an analysis', () => {
@@ -118,7 +121,9 @@ describe('parsePostMortemResponse', () => {
   });
 
   it('coerces a string into a single-item list', () => {
-    const result = parsePostMortemResponse(JSON.stringify({ ...valid, whatWorked: 'just the stop' }));
+    const result = parsePostMortemResponse(
+      JSON.stringify({ ...valid, whatWorked: 'just the stop' }),
+    );
     expect(result?.whatWorked).toEqual(['just the stop']);
   });
 
@@ -147,7 +152,11 @@ describe('parsePostMortemResponse', () => {
   });
 
   it('only reports usedNews when the model said exactly true', () => {
-    expect(parsePostMortemResponse(JSON.stringify({ ...valid, usedNews: 'yes' }))?.usedNews).toBe(false);
-    expect(parsePostMortemResponse(JSON.stringify({ ...valid, usedNews: true }))?.usedNews).toBe(true);
+    expect(parsePostMortemResponse(JSON.stringify({ ...valid, usedNews: 'yes' }))?.usedNews).toBe(
+      false,
+    );
+    expect(parsePostMortemResponse(JSON.stringify({ ...valid, usedNews: true }))?.usedNews).toBe(
+      true,
+    );
   });
 });

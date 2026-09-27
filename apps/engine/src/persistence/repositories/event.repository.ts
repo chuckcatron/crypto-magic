@@ -83,7 +83,14 @@ export class EventRepository implements EventStore {
       .prepare('SELECT * FROM events ORDER BY ts DESC, id DESC LIMIT ?')
       .all(limit)
       .map((row) => {
-        const r = row as { id: number; ts: number; level: string; kind: string; message: string; data: string | null };
+        const r = row as {
+          id: number;
+          ts: number;
+          level: string;
+          kind: string;
+          message: string;
+          data: string | null;
+        };
         return {
           id: r.id,
           ts: r.ts,

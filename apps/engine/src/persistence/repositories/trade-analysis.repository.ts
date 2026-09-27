@@ -30,10 +30,12 @@ export class TradeAnalysisRepository implements TradeAnalysisStore {
     const rows = this.db
       .prepare(`SELECT * FROM trade_analyses WHERE trade_id IN (${placeholders})`)
       .all(...tradeIds);
-    return new Map(rows.map((row) => {
-      const analysis = toAnalysis(row as never);
-      return [analysis.tradeId, analysis];
-    }));
+    return new Map(
+      rows.map((row) => {
+        const analysis = toAnalysis(row as never);
+        return [analysis.tradeId, analysis];
+      }),
+    );
   }
 
   save(analysis: StoredTradeAnalysis): void {

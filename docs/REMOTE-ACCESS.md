@@ -12,11 +12,11 @@ opening anything on the Mac to the internet.
 
 Three pieces:
 
-| Piece | What it does | Why this one |
-|---|---|---|
-| **Tailscale** | Puts the Mac and your phone on a private network | No router port-forwarding; the Mac is invisible to the internet |
-| **SSH + `cm`** | Status, kill switch, flatten, restart from a terminal | The engine and dashboard stay bound to `127.0.0.1`; SSH makes your request local |
-| **Dead-man's switch** | Alerts you when the bot goes *silent* | Every other alert is sent by the bot, so none can fire when the bot is dead |
+| Piece                 | What it does                                          | Why this one                                                                     |
+| --------------------- | ----------------------------------------------------- | -------------------------------------------------------------------------------- |
+| **Tailscale**         | Puts the Mac and your phone on a private network      | No router port-forwarding; the Mac is invisible to the internet                  |
+| **SSH + `cm`**        | Status, kill switch, flatten, restart from a terminal | The engine and dashboard stay bound to `127.0.0.1`; SSH makes your request local |
+| **Dead-man's switch** | Alerts you when the bot goes _silent_                 | Every other alert is sent by the bot, so none can fire when the bot is dead      |
 
 **Never** port-forward 3000 or 4000 on your router, and never put them behind
 Tailscale Funnel. Nothing in the engine or dashboard is authenticated beyond
@@ -36,7 +36,7 @@ Tailscale Funnel. Nothing in the engine or dashboard is authenticated beyond
 ### SSH (Remote Login)
 
 1. **System Settings → General → Sharing → Remote Login**: on.
-2. Click the **ⓘ** next to it and set *Allow access for* to **Only these users**,
+2. Click the **ⓘ** next to it and set _Allow access for_ to **Only these users**,
    with just your account.
 
 Password login gets switched off in step 3, once your phone's key works.
@@ -94,7 +94,7 @@ sudo sshd -t && echo "config OK"
 
 Then turn **Remote Login** off and on again in System Settings to apply it.
 
-**Keep your current SSH session open** and check from the phone that a *new*
+**Keep your current SSH session open** and check from the phone that a _new_
 connection still works before you close anything. To confirm passwords are now
 refused, from another computer on the network run
 `ssh -o PubkeyAuthentication=no you@mac-mini`. It should say
@@ -136,15 +136,15 @@ The engine never logs it and never shows it in the API.
 
 Connect from the SSH app, then:
 
-| Command | What it does |
-|---|---|
-| `cm` | Status: mode, kill switch, halts, loop health, dead-man, equity, positions |
-| `cm kill [reason]` | Kill switch on. New entries blocked; stops and exits keep running |
-| `cm release` | Kill switch off |
-| `cm flatten` | Kill switch on, **then** sell every position at market. Asks you to type `FLATTEN` |
-| `cm events [n]` | Last n engine events |
-| `cm logs [n]` | Last n log lines, condensed for a small screen |
-| `cm restart` | Restart the engine service and wait for it to answer |
+| Command            | What it does                                                                       |
+| ------------------ | ---------------------------------------------------------------------------------- |
+| `cm`               | Status: mode, kill switch, halts, loop health, dead-man, equity, positions         |
+| `cm kill [reason]` | Kill switch on. New entries blocked; stops and exits keep running                  |
+| `cm release`       | Kill switch off                                                                    |
+| `cm flatten`       | Kill switch on, **then** sell every position at market. Asks you to type `FLATTEN` |
+| `cm events [n]`    | Last n engine events                                                               |
+| `cm logs [n]`      | Last n log lines, condensed for a small screen                                     |
+| `cm restart`       | Restart the engine service and wait for it to answer                               |
 
 `cm kill` works even when the engine is not answering: it writes the kill switch
 file directly, which the engine checks before every entry and at every startup.
@@ -156,7 +156,7 @@ hourly bar could buy straight back in.
 
 Set up a **local port forward** in the SSH app: local port `3000` →
 `127.0.0.1:3000` on the Mac. In Blink this is `ssh -L 3000:127.0.0.1:3000 mac-mini`;
-in Termius it is under *Port Forwarding*. Then open <http://localhost:3000> on
+in Termius it is under _Port Forwarding_. Then open <http://localhost:3000> on
 the phone.
 
 iOS may pause the SSH app when you switch to the browser, which can drop the

@@ -83,16 +83,16 @@ one half and vanishes in the other is a fitted parameter, not an edge.
 
 Useful flags:
 
-| flag | what it does |
-|---|---|
-| `--csv <path>` | backtest a CSV instead of Coinbase. `node scripts/fetch-btc-history.mjs` builds one from 13 years of Bitstamp data |
-| `--from` / `--to` | restrict a CSV to a date window |
-| `--full-exposure` | lift every cap: fully in or fully out, on the same capital as buy-and-hold. The fair timing test |
-| `--strategy regime --sma-period 200` | the 200-day regime filter instead of ta-ensemble-v1 |
-| `--trade-from` | trade and score from a date, using earlier bars only as indicator history — for holdout windows |
-| `--split` | first-half vs second-half, scored separately |
-| `--taker-bps` / `--slippage-bps` | model a different fee tier, or set both to `0` to separate strategy performance from trading costs |
-| `--days`, `--granularity`, `--equity`, `--json` | window, bar size, starting capital, dump full result |
+| flag                                            | what it does                                                                                                       |
+| ----------------------------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| `--csv <path>`                                  | backtest a CSV instead of Coinbase. `node scripts/fetch-btc-history.mjs` builds one from 13 years of Bitstamp data |
+| `--from` / `--to`                               | restrict a CSV to a date window                                                                                    |
+| `--full-exposure`                               | lift every cap: fully in or fully out, on the same capital as buy-and-hold. The fair timing test                   |
+| `--strategy regime --sma-period 200`            | the 200-day regime filter instead of ta-ensemble-v1                                                                |
+| `--trade-from`                                  | trade and score from a date, using earlier bars only as indicator history — for holdout windows                    |
+| `--split`                                       | first-half vs second-half, scored separately                                                                       |
+| `--taker-bps` / `--slippage-bps`                | model a different fee tier, or set both to `0` to separate strategy performance from trading costs                 |
+| `--days`, `--granularity`, `--equity`, `--json` | window, bar size, starting capital, dump full result                                                               |
 
 ### Trading costs are probably your binding constraint
 
@@ -175,18 +175,18 @@ to be a baseline that anything cleverer has to beat in the backtester first.
 
 An **EMA(12/26) cross up** is the trigger. Four things can veto it:
 
-| Veto | Why |
-|---|---|
-| price below EMA(200) | don't buy a downtrend |
-| RSI > 80 | don't chase a parabolic move |
-| RSI < 45 | a bullish cross this weak is a dead-cat bounce |
-| ATR outside 0.15–8% | too quiet to cover fees, or too wild to stop sensibly |
+| Veto                 | Why                                                   |
+| -------------------- | ----------------------------------------------------- |
+| price below EMA(200) | don't buy a downtrend                                 |
+| RSI > 80             | don't chase a parabolic move                          |
+| RSI < 45             | a bullish cross this weak is a dead-cat bounce        |
+| ATR outside 0.15–8%  | too quiet to cover fees, or too wild to stop sensibly |
 
 Survivors get a 0–1 confidence score which **sizes** the position (0.5×–1×)
 rather than gating it. Exits are the mirror cross, RSI > 88, an ATR trailing
 stop, or the max holding period.
 
-Note what is *not* here: no shorting, no leverage, no margin, no averaging down,
+Note what is _not_ here: no shorting, no leverage, no margin, no averaging down,
 no scaling into a losing position. The `ExchangeAdapter` port does not expose
 any of it, so a strategy bug cannot reach it.
 
@@ -219,11 +219,11 @@ seen fire is not an alerting setup.
 
 What reaches you at the default `warning` threshold:
 
-| | |
-|---|---|
-| 🔴 critical | kill switch engaged · trading halted · positions disagree with the exchange |
-| 🟡 warning | order rejected · engine errors |
-| 🔵 info | positions opened and closed, engine start/stop (set `ALERT_MIN_SEVERITY=info`) |
+|             |                                                                                |
+| ----------- | ------------------------------------------------------------------------------ |
+| 🔴 critical | kill switch engaged · trading halted · positions disagree with the exchange    |
+| 🟡 warning  | order rejected · engine errors                                                 |
+| 🔵 info     | positions opened and closed, engine start/stop (set `ALERT_MIN_SEVERITY=info`) |
 
 ### Why it won't cry wolf
 
@@ -273,10 +273,10 @@ After a trade closes, a background worker hands the model the entry reasons, the
 indicators, the exit reason and the real prices, and asks it to judge **process
 and outcome separately**:
 
-| | won | lost |
-|---|---|---|
-| **sound process** | worked | the normal cost of trend following |
-| **flawed process** | got lucky — the dangerous one | at least it was cheap |
+|                    | won                           | lost                               |
+| ------------------ | ----------------------------- | ---------------------------------- |
+| **sound process**  | worked                        | the normal cost of trend following |
+| **flawed process** | got lucky — the dangerous one | at least it was cheap              |
 
 That distinction is the entire point. A 45%-win-rate strategy feels like failure
 from the inside, and the instinct is to change it after a losing streak. A

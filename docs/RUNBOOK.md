@@ -9,8 +9,8 @@ A sleeping laptop does not manage stops. Pick one:
 caffeinate -dimsu -w $(pgrep -f 'crypto-magic.*dist/main.js')
 ```
 
-Or permanently, in **System Settings → Battery → Options**: enable *Prevent
-automatic sleeping on power adapter when the display is off*. A closed lid on
+Or permanently, in **System Settings → Battery → Options**: enable _Prevent
+automatic sleeping on power adapter when the display is off_. A closed lid on
 battery will still sleep — keep it plugged in.
 
 This is why the exchange-side protective stop exists. Assume the Mac will be
@@ -45,10 +45,12 @@ Pick at least one. All three can run together; each is tried independently so
 one being down does not stop the others.
 
 **ntfy** (easiest to receive on a phone):
+
 ```bash
 # Install the ntfy app on your phone, subscribe to a topic you invent, then:
 NTFY_TOPIC=crypto-magic-8f3k2p9wqz
 ```
+
 The topic is the only secret. Anyone who knows it can read your alerts and
 anyone can publish to it, so make it long and random. Alert bodies deliberately
 never contain API keys or balances.
@@ -65,13 +67,13 @@ Do this before you trust it, and again after you change anything.
 
 ### What each alert means
 
-| Alert | What to do |
-|---|---|
-| 🔴 Kill switch ENGAGED | Something stopped the bot from opening positions. Read the reason in the body. Exits still run. |
-| 🔴 Trading halted | A breaker tripped — daily loss, losing streak, stale data, rate limit. Usually self-clearing; if it repeats daily, the caps or the strategy need attention. |
-| 🔴 Reconciliation mismatch | The bot and the exchange disagree about what you hold. **Check the exchange first.** |
-| 🟡 Order rejected | Often transient. Repeated rejections mean a config or balance problem. |
-| 🟡 Engine error | Usually a network blip. Collapses to one alert per 15 minutes. |
+| Alert                      | What to do                                                                                                                                                  |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 🔴 Kill switch ENGAGED     | Something stopped the bot from opening positions. Read the reason in the body. Exits still run.                                                             |
+| 🔴 Trading halted          | A breaker tripped — daily loss, losing streak, stale data, rate limit. Usually self-clearing; if it repeats daily, the caps or the strategy need attention. |
+| 🔴 Reconciliation mismatch | The bot and the exchange disagree about what you hold. **Check the exchange first.**                                                                        |
+| 🟡 Order rejected          | Often transient. Repeated rejections mean a config or balance problem.                                                                                      |
+| 🟡 Engine error            | Usually a network blip. Collapses to one alert per 15 minutes.                                                                                              |
 
 ### Tuning the noise
 

@@ -58,7 +58,9 @@ export function validateRiskLimits(l: RiskLimits): void {
     throw new RangeError('maxPositionNotional cannot exceed maxTotalNotional');
   }
   if (l.minOrderNotional > l.maxPositionNotional) {
-    throw new RangeError('minOrderNotional cannot exceed maxPositionNotional — no order could ever pass');
+    throw new RangeError(
+      'minOrderNotional cannot exceed maxPositionNotional — no order could ever pass',
+    );
   }
   if (!Number.isInteger(l.maxOpenPositions) || l.maxOpenPositions < 1) {
     throw new RangeError('maxOpenPositions must be a positive integer');

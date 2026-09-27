@@ -56,9 +56,9 @@ describe('checkLocalRequest — mutations', () => {
   });
 
   it('refuses a foreign Origin even if it somehow sent the header', () => {
-    expect(
-      checkLocalRequest(req('POST', { ...local, origin: 'https://evil.example' })).ok,
-    ).toBe(false);
+    expect(checkLocalRequest(req('POST', { ...local, origin: 'https://evil.example' })).ok).toBe(
+      false,
+    );
   });
 
   it('refuses the opaque "null" origin used by sandboxed iframes and file:// pages', () => {
@@ -67,7 +67,10 @@ describe('checkLocalRequest — mutations', () => {
 
   it('refuses a mutation without the header even from a local caller', () => {
     const verdict = checkLocalRequest(req('POST', { host: '127.0.0.1:4000' }));
-    expect(verdict).toMatchObject({ ok: false, reason: expect.stringContaining(LOCAL_REQUEST_HEADER) });
+    expect(verdict).toMatchObject({
+      ok: false,
+      reason: expect.stringContaining(LOCAL_REQUEST_HEADER),
+    });
   });
 
   it('requires the header value to be exactly "1"', () => {

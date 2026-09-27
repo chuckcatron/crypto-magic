@@ -9,7 +9,7 @@ export type Series = (number | undefined)[];
 
 export function sma(values: number[], period: number): Series {
   assertPeriod(period);
-  const out: Series = new Array(values.length).fill(undefined);
+  const out: Series = new Array<number | undefined>(values.length).fill(undefined);
   let sum = 0;
   for (let i = 0; i < values.length; i++) {
     sum += values[i]!;
@@ -25,7 +25,7 @@ export function sma(values: number[], period: number): Series {
  */
 export function ema(values: number[], period: number): Series {
   assertPeriod(period);
-  const out: Series = new Array(values.length).fill(undefined);
+  const out: Series = new Array<number | undefined>(values.length).fill(undefined);
   if (values.length < period) return out;
 
   const k = 2 / (period + 1);
@@ -44,7 +44,7 @@ export function ema(values: number[], period: number): Series {
 /** Relative Strength Index using Wilder's smoothing. Returns 0..100. */
 export function rsi(values: number[], period = 14): Series {
   assertPeriod(period);
-  const out: Series = new Array(values.length).fill(undefined);
+  const out: Series = new Array<number | undefined>(values.length).fill(undefined);
   if (values.length <= period) return out;
 
   let gainSum = 0;
@@ -77,7 +77,7 @@ function toRsi(avgGain: number, avgLoss: number): number {
 }
 
 export function trueRange(candles: Candle[]): Series {
-  const out: Series = new Array(candles.length).fill(undefined);
+  const out: Series = new Array<number | undefined>(candles.length).fill(undefined);
   for (let i = 0; i < candles.length; i++) {
     const c = candles[i]!;
     if (i === 0) {
@@ -93,7 +93,7 @@ export function trueRange(candles: Candle[]): Series {
 /** Average True Range using Wilder's smoothing — the volatility unit we size and stop with. */
 export function atr(candles: Candle[], period = 14): Series {
   assertPeriod(period);
-  const out: Series = new Array(candles.length).fill(undefined);
+  const out: Series = new Array<number | undefined>(candles.length).fill(undefined);
   if (candles.length < period + 1) return out;
 
   const tr = trueRange(candles);

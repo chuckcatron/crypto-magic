@@ -17,7 +17,11 @@ import { OrderRepository } from '../persistence/repositories/order.repository';
 import { PositionRepository } from '../persistence/repositories/position.repository';
 import { StateRepository } from '../persistence/repositories/state.repository';
 import { TradeRepository } from '../persistence/repositories/trade.repository';
-import { FakeMarketData, candlesEndingNow, seriesCrossingUpOnLastBar } from '../testing/fake-exchange';
+import {
+  FakeMarketData,
+  candlesEndingNow,
+  seriesCrossingUpOnLastBar,
+} from '../testing/fake-exchange';
 import { TradingEngineService } from './engine.service';
 import { ExecutorService } from './executor.service';
 import { KillSwitchService } from './kill-switch.service';

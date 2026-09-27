@@ -22,7 +22,10 @@ describe('runCarry — always on', () => {
   });
 
   it('opens and closes exactly once, paying both legs each time', () => {
-    const result = runCarry(series(new Array(100).fill(0)), { ...EXPERIMENT_002_CONFIG, mode: 'always' });
+    const result = runCarry(series(new Array(100).fill(0)), {
+      ...EXPERIMENT_002_CONFIG,
+      mode: 'always',
+    });
     expect(result.switches).toBe(2);
     // 70bps per side on notional (capital / 1.5), twice.
     expect(result.totalCostPct).toBeCloseTo((0.007 / 1.5) * 2 * 100, 1);
@@ -59,6 +62,8 @@ describe('runCarry — conditional', () => {
 describe('runCarry — validation', () => {
   it('rejects out-of-order payments', () => {
     const events = series([0.0001, 0.0001]);
-    expect(() => runCarry([events[1]!, events[0]!], { ...free, mode: 'always' })).toThrow(/ascending/);
+    expect(() => runCarry([events[1]!, events[0]!], { ...free, mode: 'always' })).toThrow(
+      /ascending/,
+    );
   });
 });

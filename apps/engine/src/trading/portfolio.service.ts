@@ -5,7 +5,10 @@ import { APP_CONFIG } from '../config/tokens';
 import type { AppConfig } from '../config/config.schema';
 import { EXCHANGE } from '../exchange/tokens';
 import { MarketDataService } from '../market-data/market-data.service';
-import { PositionRepository, type StoredPosition } from '../persistence/repositories/position.repository';
+import {
+  PositionRepository,
+  type StoredPosition,
+} from '../persistence/repositories/position.repository';
 import { StateRepository } from '../persistence/repositories/state.repository';
 import { childLogger } from '../common/logger';
 

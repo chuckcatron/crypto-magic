@@ -37,7 +37,10 @@ export const configSchema = z
     // --- Market -------------------------------------------------------------
     PRODUCTS: z.string().default('BTC-USD').transform(csv),
     GRANULARITY: z.enum(GRANULARITIES).default('ONE_HOUR'),
-    QUOTE_CURRENCY: z.string().default('USD').transform((s) => s.toUpperCase()),
+    QUOTE_CURRENCY: z
+      .string()
+      .default('USD')
+      .transform((s) => s.toUpperCase()),
 
     // --- Risk limits --------------------------------------------------------
     MAX_TOTAL_NOTIONAL: numeric(100),
@@ -140,8 +143,14 @@ export const configSchema = z
 
     // --- Runtime ------------------------------------------------------------
     // Relative paths resolve against the repo root, not the working directory.
-    DATABASE_PATH: z.string().default('./data/crypto-magic.db').transform((p) => resolveFromRoot(p)),
-    KILL_SWITCH_FILE: z.string().default('./data/KILL_SWITCH').transform((p) => resolveFromRoot(p)),
+    DATABASE_PATH: z
+      .string()
+      .default('./data/crypto-magic.db')
+      .transform((p) => resolveFromRoot(p)),
+    KILL_SWITCH_FILE: z
+      .string()
+      .default('./data/KILL_SWITCH')
+      .transform((p) => resolveFromRoot(p)),
     PAPER_STARTING_CASH: numeric(1000),
   })
   .superRefine((cfg, ctx) => {
@@ -214,7 +223,6 @@ export const configSchema = z
     ) {
       // Not fatal — you may genuinely want to watch it yourself — but running
       // real money 24/7 with no way to be told it stopped deserves a shout.
-      // eslint-disable-next-line no-console
       console.warn(
         '\n  ⚠  LIVE MODE WITH NO ALERT CHANNEL CONFIGURED.\n' +
           '     If the bot halts itself at 3am, nothing will tell you.\n' +

@@ -38,11 +38,20 @@ describe('createExchange', () => {
   });
 
   it('in paper mode, restores the simulated account saved by a previous run', async () => {
-    const store = new Map<string, string>([[PAPER_BALANCES_KEY, '{"USD":"812.34","BTC":"0.0021"}']]);
-    const state = { get: (k: string) => store.get(k) ?? null, set: (k: string, v: string) => void store.set(k, v) };
+    const store = new Map<string, string>([
+      [PAPER_BALANCES_KEY, '{"USD":"812.34","BTC":"0.0021"}'],
+    ]);
+    const state = {
+      get: (k: string) => store.get(k) ?? null,
+      set: (k: string, v: string) => void store.set(k, v),
+    };
 
     const exchange = createExchange(
-      loadConfig({ TRADING_MODE: 'paper', PAPER_STARTING_CASH: '1000', LOG_LEVEL: 'fatal' } as NodeJS.ProcessEnv),
+      loadConfig({
+        TRADING_MODE: 'paper',
+        PAPER_STARTING_CASH: '1000',
+        LOG_LEVEL: 'fatal',
+      } as NodeJS.ProcessEnv),
       state,
     );
     const balances = Object.fromEntries(
@@ -53,19 +62,34 @@ describe('createExchange', () => {
 
   it('starts a fresh paper account when nothing, or something unreadable, was saved', async () => {
     for (const saved of [undefined, 'not json', '{"USD":-5}', '{"usd":"1"}', '[]', '{}']) {
-      const store = new Map<string, string>(saved === undefined ? [] : [[PAPER_BALANCES_KEY, saved]]);
-      const state = { get: (k: string) => store.get(k) ?? null, set: (k: string, v: string) => void store.set(k, v) };
+      const store = new Map<string, string>(
+        saved === undefined ? [] : [[PAPER_BALANCES_KEY, saved]],
+      );
+      const state = {
+        get: (k: string) => store.get(k) ?? null,
+        set: (k: string, v: string) => void store.set(k, v),
+      };
       const exchange = createExchange(
-        loadConfig({ TRADING_MODE: 'paper', PAPER_STARTING_CASH: '1000', LOG_LEVEL: 'fatal' } as NodeJS.ProcessEnv),
+        loadConfig({
+          TRADING_MODE: 'paper',
+          PAPER_STARTING_CASH: '1000',
+          LOG_LEVEL: 'fatal',
+        } as NodeJS.ProcessEnv),
         state,
       );
       const balances = await exchange.getBalances();
-      expect(balances.map((b) => [b.currency, b.available.toFixed()]), String(saved)).toEqual([['USD', '1000']]);
+      expect(
+        balances.map((b) => [b.currency, b.available.toFixed()]),
+        String(saved),
+      ).toEqual([['USD', '1000']]);
     }
   });
 
   it('accepts only currency codes mapped to non-negative decimal strings', () => {
-    expect(loadPaperBalances('{"USD":"1000","BTC":"0.00000001"}')).toEqual({ USD: '1000', BTC: '0.00000001' });
+    expect(loadPaperBalances('{"USD":"1000","BTC":"0.00000001"}')).toEqual({
+      USD: '1000',
+      BTC: '0.00000001',
+    });
     expect(loadPaperBalances('{"USD":"1e3"}')).toBeNull();
     expect(loadPaperBalances('{"USD":1000}')).toBeNull();
     expect(loadPaperBalances(null)).toBeNull();

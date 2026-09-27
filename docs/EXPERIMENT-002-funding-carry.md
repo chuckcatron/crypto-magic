@@ -14,7 +14,7 @@ more traders want leveraged longs — longs pay shorts. The short leg collects i
 
 That is the income. It is not risk-free:
 
-- **Funding can turn negative** and the short then *pays*. It happened in the
+- **Funding can turn negative** and the short then _pays_. It happened in the
   May 2021 crash and through much of 2022.
 - **Liquidation of the short leg.** A sharp rally makes the short lose money on
   the futures account while the matching gain sits in the spot account. Without
@@ -49,10 +49,10 @@ Experiment 001, this weakens a pass more than a fail.
 
 ## Windows
 
-| Period | Window |
-|---|---|
+| Period          | Window                  |
+| --------------- | ----------------------- |
 | **Development** | 2020-01-01 → 2022-01-01 |
-| **Holdout** | 2022-01-01 → 2024-01-01 |
+| **Holdout**     | 2022-01-01 → 2024-01-01 |
 
 ## Assumptions, fixed in advance
 
@@ -84,10 +84,10 @@ A strategy **passes** a period if its **net annualized yield on capital**
 exceeds the **approximate yield on cash** for that period — 3-month US Treasury
 bills, averaged:
 
-| Period | Approximate cash yield |
-|---|---|
-| Development 2020–2021 | ~0.2% |
-| Holdout 2022–2023 | ~3.5% |
+| Period                | Approximate cash yield |
+| --------------------- | ---------------------- |
+| Development 2020–2021 | ~0.2%                  |
+| Holdout 2022–2023     | ~3.5%                  |
 
 (Averages of ~0.4% for 2020, ~0.05% for 2021, ~2% for 2022, ~5% for 2023.
 These are approximate figures from memory, not a verified series; a margin of
@@ -109,7 +109,7 @@ cross-exchange check.
 
 ## Results
 
-*(appended after the runs)*
+_(appended after the runs)_
 
 ### Data validation (before any yield was computed)
 
@@ -124,16 +124,16 @@ cross-exchange check.
 
 ### Development, 2020-01-01 → 2022-01-01 (recorded before the holdout was run)
 
-| | A — always on | B — conditional |
-|---|---|---|
-| **Net yield on capital /yr** | **+16.72%** | +11.10% |
-| Funding on notional /yr | +23.90% | +24.21% |
-| Total costs | 1.11% | 12.29% |
-| Opens + closes | 2 | 24 |
-| Time in the trade | 100% | 81% |
-| Worst 30 days (on capital) | −0.87% | −0.22% |
-| Negative payments | 11% | 11% |
-| **vs ~0.2% cash** | **PASS** | **PASS** |
+|                              | A — always on | B — conditional |
+| ---------------------------- | ------------- | --------------- |
+| **Net yield on capital /yr** | **+16.72%**   | +11.10%         |
+| Funding on notional /yr      | +23.90%       | +24.21%         |
+| Total costs                  | 1.11%         | 12.29%          |
+| Opens + closes               | 2             | 24              |
+| Time in the trade            | 100%          | 81%             |
+| Worst 30 days (on capital)   | −0.87%        | −0.22%          |
+| Negative payments            | 11%           | 11%             |
+| **vs ~0.2% cash**            | **PASS**      | **PASS**        |
 
 B earned slightly more funding per unit held but paid 11 points more in costs:
 24 round trips at ~0.47% of capital each cost more than the negative funding it
@@ -142,16 +142,16 @@ the carry through it.
 
 ### Holdout, 2022-01-01 → 2024-01-01 (run once, nothing changed)
 
-| | A — always on | B — conditional |
-|---|---|---|
-| **Net yield on capital /yr** | **+3.61%** | −1.89% |
-| Funding on notional /yr | +6.02% | +4.86% |
-| Total costs | 0.97% | 9.91% |
-| Opens + closes | 2 | 22 |
-| Time in the trade | 100% | 64% |
-| Worst 30 days (on capital) | −0.15% | −0.11% |
-| Negative payments | 16% | 16% |
-| **vs ~3.5% cash** | **PASS (by 0.11 points)** | **FAIL** |
+|                              | A — always on             | B — conditional |
+| ---------------------------- | ------------------------- | --------------- |
+| **Net yield on capital /yr** | **+3.61%**                | −1.89%          |
+| Funding on notional /yr      | +6.02%                    | +4.86%          |
+| Total costs                  | 0.97%                     | 9.91%           |
+| Opens + closes               | 2                         | 22              |
+| Time in the trade            | 100%                      | 64%             |
+| Worst 30 days (on capital)   | −0.15%                    | −0.11%          |
+| Negative payments            | 16%                       | 16%             |
+| **vs ~3.5% cash**            | **PASS (by 0.11 points)** | **FAIL**        |
 
 ## Verdict
 
@@ -168,11 +168,11 @@ the carry through it.
 ### By calendar year (reported after the verdict; does not change it)
 
 | Year | Always-on net on capital | Funding on notional | Approx. cash |
-|---|---|---|---|
-| 2020 | +11.11% | +17.21% | ~0.4% |
-| 2021 | +21.51% | +30.64% | ~0.05% |
-| 2022 | +1.86% | +4.17% | ~2% |
-| 2023 | +4.41% | +7.87% | ~5% |
+| ---- | ------------------------ | ------------------- | ------------ |
+| 2020 | +11.11%                  | +17.21%             | ~0.4%        |
+| 2021 | +21.51%                  | +30.64%             | ~0.05%       |
+| 2022 | +1.86%                   | +4.17%              | ~2%          |
+| 2023 | +4.41%                   | +7.87%              | ~5%          |
 
 Taken year by year, the carry trailed cash in both holdout years. Its income is
 a function of how euphoric the market is: when leveraged longs are crowded,

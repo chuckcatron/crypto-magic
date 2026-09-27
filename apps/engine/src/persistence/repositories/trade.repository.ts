@@ -56,9 +56,9 @@ export class TradeRepository implements TradeStore {
 
   /** Realized P&L since a timestamp. Drives the daily loss circuit breaker. */
   realizedPnlSince(sinceMs: number): Decimal {
-    const rows = this.db
-      .prepare('SELECT pnl FROM trades WHERE exit_time >= ?')
-      .all(sinceMs) as { pnl: string }[];
+    const rows = this.db.prepare('SELECT pnl FROM trades WHERE exit_time >= ?').all(sinceMs) as {
+      pnl: string;
+    }[];
     return rows.reduce((sum, row) => sum.plus(D(row.pnl)), D(0));
   }
 

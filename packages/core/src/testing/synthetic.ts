@@ -44,7 +44,10 @@ export function candlesFromCloses(
 }
 
 /** Deterministic pseudo-random walk — seeded so tests never flake. */
-export function randomWalk(length: number, opts: { start?: number; volatility?: number; drift?: number; seed?: number } = {}): number[] {
+export function randomWalk(
+  length: number,
+  opts: { start?: number; volatility?: number; drift?: number; seed?: number } = {},
+): number[] {
   let seed = opts.seed ?? 42;
   const next = () => {
     // xorshift32: small, deterministic, good enough for test fixtures.

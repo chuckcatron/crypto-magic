@@ -69,7 +69,10 @@ export async function postWithTimeout(
     const response = await fetch(url, { ...init, signal: controller.signal });
     if (!response.ok) {
       const body = (await response.text().catch(() => '')).slice(0, 200);
-      throw new NotificationError(channel, scrub(`HTTP ${response.status} ${body}`.trim(), secrets));
+      throw new NotificationError(
+        channel,
+        scrub(`HTTP ${response.status} ${body}`.trim(), secrets),
+      );
     }
   } catch (error) {
     if (error instanceof NotificationError) throw error;

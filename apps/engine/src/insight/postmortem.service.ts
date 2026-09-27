@@ -1,4 +1,9 @@
-import { Inject, Injectable, type OnApplicationBootstrap, type OnModuleDestroy } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  type OnApplicationBootstrap,
+  type OnModuleDestroy,
+} from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import {
   buildPostMortemPrompt,
@@ -134,7 +139,10 @@ export class PostMortemService implements OnApplicationBootstrap, OnModuleDestro
       if (!analysis) {
         // Not an exception: small models fail to produce clean JSON sometimes.
         // Record the attempt so we retry a couple of times and then move on.
-        this.analyses.recordFailure(tradeId, `unparseable response: ${response.text.slice(0, 200)}`);
+        this.analyses.recordFailure(
+          tradeId,
+          `unparseable response: ${response.text.slice(0, 200)}`,
+        );
         this.log.warn({ tradeId, model: response.model }, 'model returned unparseable analysis');
         return false;
       }

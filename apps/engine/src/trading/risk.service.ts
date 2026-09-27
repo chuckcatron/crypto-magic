@@ -68,7 +68,10 @@ export class RiskService {
     return { decision: this.engine.assess(intent, state), state };
   }
 
-  checkSlippage(referencePrice: Parameters<RiskEngine['checkSlippage']>[0], fillPrice: Parameters<RiskEngine['checkSlippage']>[1]) {
+  checkSlippage(
+    referencePrice: Parameters<RiskEngine['checkSlippage']>[0],
+    fillPrice: Parameters<RiskEngine['checkSlippage']>[1],
+  ) {
     return this.engine.checkSlippage(referencePrice, fillPrice);
   }
 

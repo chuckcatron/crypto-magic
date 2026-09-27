@@ -19,7 +19,16 @@ import { Readable } from 'node:stream';
 
 const SOURCE =
   'https://raw.githubusercontent.com/ff137/bitstamp-btcusd-minute-data/main/data/historical/btcusd_bitstamp_1min_2012-2025.csv.gz';
-const BUCKET = { ONE_MINUTE: 60, FIVE_MINUTE: 300, FIFTEEN_MINUTE: 900, THIRTY_MINUTE: 1800, ONE_HOUR: 3600, TWO_HOUR: 7200, SIX_HOUR: 21600, ONE_DAY: 86400 };
+const BUCKET = {
+  ONE_MINUTE: 60,
+  FIVE_MINUTE: 300,
+  FIFTEEN_MINUTE: 900,
+  THIRTY_MINUTE: 1800,
+  ONE_HOUR: 3600,
+  TWO_HOUR: 7200,
+  SIX_HOUR: 21600,
+  ONE_DAY: 86400,
+};
 
 const arg = (name) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -33,7 +42,10 @@ const from = arg('from') ? Date.parse(`${arg('from')}T00:00:00Z`) / 1000 : 0;
 const response = await fetch(SOURCE);
 if (!response.ok || !response.body) throw new Error(`download failed: HTTP ${response.status}`);
 
-const lines = createInterface({ input: Readable.fromWeb(response.body).pipe(createGunzip()), crlfDelay: Infinity });
+const lines = createInterface({
+  input: Readable.fromWeb(response.body).pipe(createGunzip()),
+  crlfDelay: Infinity,
+});
 const buckets = new Map();
 let header = null;
 let rows = 0;
@@ -57,8 +69,8 @@ for await (const line of lines) {
     buckets.set(key, { first: t, last: t, o, h, l, c, v });
     continue;
   }
-  if (t < b.first) (b.first = t), (b.o = o);
-  if (t > b.last) (b.last = t), (b.c = c);
+  if (t < b.first) ((b.first = t), (b.o = o));
+  if (t > b.last) ((b.last = t), (b.c = c));
   if (h > b.h) b.h = h;
   if (l < b.l) b.l = l;
   b.v += v;
@@ -70,4 +82,6 @@ for (const [t, b] of [...buckets.entries()].sort((a, b) => a[0] - b[0])) {
 }
 process.stdout.write(out.join('\n') + '\n');
 process.stderr.write(`${rows} minute bars -> ${buckets.size} ${granularity} bars\n`);
-process.stderr.write('Note: the final bar may be a partial period; pass --to to the backtest to drop it.\n');
+process.stderr.write(
+  'Note: the final bar may be a partial period; pass --to to the backtest to drop it.\n',
+);

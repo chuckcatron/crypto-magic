@@ -79,7 +79,11 @@ export class MarketDataService {
    */
   displayPrice(productId: string): Promise<DisplayPrice> {
     const cached = this.displayPrices.get(productId);
-    if (cached?.fetchedAt && !cached.error && Date.now() - cached.fetchedAt < DISPLAY_PRICE_TTL_MS) {
+    if (
+      cached?.fetchedAt &&
+      !cached.error &&
+      Date.now() - cached.fetchedAt < DISPLAY_PRICE_TTL_MS
+    ) {
       return Promise.resolve(cached);
     }
 

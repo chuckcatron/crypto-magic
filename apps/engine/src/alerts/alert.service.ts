@@ -1,4 +1,9 @@
-import { Inject, Injectable, type OnApplicationBootstrap, type OnModuleDestroy } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  type OnApplicationBootstrap,
+  type OnModuleDestroy,
+} from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { D } from '@crypto-magic/core';
 import {
@@ -162,7 +167,10 @@ export class AlertService implements OnApplicationBootstrap, OnModuleDestroy {
             'alert reached NO channel',
           );
         } else if (failed.length > 0) {
-          this.log.warn({ title: alert.title, failed: failed.map((f) => f.channel) }, 'alert partially delivered');
+          this.log.warn(
+            { title: alert.title, failed: failed.map((f) => f.channel) },
+            'alert partially delivered',
+          );
         }
       }
     } catch (error) {

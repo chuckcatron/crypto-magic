@@ -23,7 +23,11 @@ import { ALERT_POLICY, NOTIFIER } from '../alerts/tokens';
 import { PostMortemService } from '../insight/postmortem.service';
 import { LLM_CLIENT, NEWS_PROVIDER } from '../insight/tokens';
 import { TradeAnalysisRepository } from '../persistence/repositories/trade-analysis.repository';
-import { FakeMarketData, candlesEndingNow, seriesCrossingUpOnLastBar } from '../testing/fake-exchange';
+import {
+  FakeMarketData,
+  candlesEndingNow,
+  seriesCrossingUpOnLastBar,
+} from '../testing/fake-exchange';
 import { TradingEngineService } from './engine.service';
 import { ExecutorService } from './executor.service';
 import { KillSwitchService } from './kill-switch.service';
@@ -294,10 +298,7 @@ describe('TradingEngineService (integration)', () => {
 
     const closed = trades.recent()[0]!;
     expect(closed.stopPrice?.toNumber()).toBeCloseTo(position.stopPrice.toNumber(), 8);
-    expect(closed.takeProfitPrice?.toNumber()).toBeCloseTo(
-      position.takeProfitPrice!.toNumber(),
-      8,
-    );
+    expect(closed.takeProfitPrice?.toNumber()).toBeCloseTo(position.takeProfitPrice!.toNumber(), 8);
   });
 
   it('never exposes credentials through the config endpoint', () => {

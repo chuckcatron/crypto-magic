@@ -1,4 +1,9 @@
-import { Inject, Injectable, type OnApplicationBootstrap, type OnModuleDestroy } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  type OnApplicationBootstrap,
+  type OnModuleDestroy,
+} from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import {
   D,
@@ -22,7 +27,10 @@ import type { AppConfig } from '../config/config.schema';
 import { EXCHANGE } from '../exchange/tokens';
 import { MarketDataService } from '../market-data/market-data.service';
 import { EventRepository } from '../persistence/repositories/event.repository';
-import { PositionRepository, type StoredPosition } from '../persistence/repositories/position.repository';
+import {
+  PositionRepository,
+  type StoredPosition,
+} from '../persistence/repositories/position.repository';
 import { StateRepository } from '../persistence/repositories/state.repository';
 import { TradeRepository } from '../persistence/repositories/trade.repository';
 import { childLogger } from '../common/logger';
@@ -191,7 +199,12 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
 
         if (reason) {
           this.log.warn(
-            { productId: position.productId, price: price.toFixed(), stop: position.stopPrice.toFixed(), reason },
+            {
+              productId: position.productId,
+              price: price.toFixed(),
+              stop: position.stopPrice.toFixed(),
+              reason,
+            },
             'stop triggered',
           );
           await this.closePosition(position, reason, price);
@@ -346,7 +359,10 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
 
     const { decision } = await this.risk.assess(intent);
     if (!decision.approved) {
-      this.log.warn({ productId, rejections: decision.rejections }, 'risk engine refused the entry');
+      this.log.warn(
+        { productId, rejections: decision.rejections },
+        'risk engine refused the entry',
+      );
       this.events.append({
         level: 'warn',
         kind: 'risk_rejected',
@@ -536,7 +552,11 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
         { productId: position.productId, remaining: remaining.toFixed() },
         'exit filled only partially; keeping the remainder open',
       );
-      this.positions.upsert({ ...position, baseSize: remaining, entryFee: position.entryFee.mul(D(1).minus(soldFraction)) });
+      this.positions.upsert({
+        ...position,
+        baseSize: remaining,
+        entryFee: position.entryFee.mul(D(1).minus(soldFraction)),
+      });
     } else {
       this.positions.remove(position.productId);
     }
@@ -554,7 +574,11 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       level: pnl.gte(0) ? 'info' : 'warn',
       kind: 'position_closed',
       message: `closed ${position.productId} (${reason}) P&L ${pnl.toFixed(2)}`,
-      data: { pnl: pnl.toFixed(), fees: fees.toFixed(), exitPrice: order.averageFillPrice.toFixed() },
+      data: {
+        pnl: pnl.toFixed(),
+        fees: fees.toFixed(),
+        exitPrice: order.averageFillPrice.toFixed(),
+      },
     });
   }
 

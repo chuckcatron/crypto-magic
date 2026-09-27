@@ -28,10 +28,15 @@ export function openDatabase(path: string): Db {
 
 function migrate(db: Db): void {
   const log = childLogger('migrations');
-  db.exec('CREATE TABLE IF NOT EXISTS _migrations (id TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)');
+  db.exec(
+    'CREATE TABLE IF NOT EXISTS _migrations (id TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)',
+  );
 
   const applied = new Set(
-    db.prepare('SELECT id FROM _migrations').all().map((row) => (row as { id: string }).id),
+    db
+      .prepare('SELECT id FROM _migrations')
+      .all()
+      .map((row) => (row as { id: string }).id),
   );
 
   for (const migration of MIGRATIONS) {

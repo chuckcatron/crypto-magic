@@ -12,7 +12,10 @@ describe('MarketDataService.displayPrice', () => {
     vi.setSystemTime(new Date('2026-01-01T00:00:00Z'));
     market = new FakeMarketData();
     market.price = 84_000;
-    service = new MarketDataService(market, loadConfig({ LOG_LEVEL: 'fatal' } as NodeJS.ProcessEnv));
+    service = new MarketDataService(
+      market,
+      loadConfig({ LOG_LEVEL: 'fatal' } as NodeJS.ProcessEnv),
+    );
   });
 
   afterEach(() => vi.useRealTimers());

@@ -9,7 +9,11 @@ import type { TradeAnalysis } from '@/lib/api';
  */
 export function TradeReview({ analysis }: { analysis: TradeAnalysis | null }) {
   if (!analysis) {
-    return <p className="review-pending">No review yet — the local model writes these in the background.</p>;
+    return (
+      <p className="review-pending">
+        No review yet — the local model writes these in the background.
+      </p>
+    );
   }
 
   return (

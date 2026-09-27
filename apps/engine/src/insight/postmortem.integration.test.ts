@@ -2,7 +2,13 @@ import { Test, type TestingModule } from '@nestjs/testing';
 import { ScheduleModule } from '@nestjs/schedule';
 import { beforeEach, afterEach, describe, expect, it } from 'vitest';
 import { D } from '@crypto-magic/core';
-import type { LlmClient, LlmRequest, LlmResponse, NewsItem, NewsProvider } from '@crypto-magic/insight';
+import type {
+  LlmClient,
+  LlmRequest,
+  LlmResponse,
+  NewsItem,
+  NewsProvider,
+} from '@crypto-magic/insight';
 import { APP_CONFIG } from '../config/tokens';
 import { loadConfig, type AppConfig } from '../config/config.schema';
 import { openDatabase } from '../persistence/database';

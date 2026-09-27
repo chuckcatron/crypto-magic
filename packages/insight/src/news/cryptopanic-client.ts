@@ -71,16 +71,18 @@ export class CryptoPanicClient implements NewsProvider {
       const payload = (await response.json()) as { results?: CryptoPanicPost[] };
       const symbols = new Set(query.symbols.map((s) => s.toUpperCase()));
 
-      return (payload.results ?? [])
-        .map((post) => toNewsItem(post))
-        .filter((item): item is NewsItem & { symbols: string[] } => item !== null)
-        // The API returns recent posts, not a time range, so the trade's window
-        // is applied here.
-        .filter((item) => item.publishedAt >= query.since && item.publishedAt <= query.until)
-        .filter((item) => item.symbols.length === 0 || item.symbols.some((s) => symbols.has(s)))
-        .sort((a, b) => b.publishedAt - a.publishedAt)
-        .slice(0, query.limit ?? 12)
-        .map(({ symbols: _ignored, ...item }) => item);
+      return (
+        (payload.results ?? [])
+          .map((post) => toNewsItem(post))
+          .filter((item): item is NewsItem & { symbols: string[] } => item !== null)
+          // The API returns recent posts, not a time range, so the trade's window
+          // is applied here.
+          .filter((item) => item.publishedAt >= query.since && item.publishedAt <= query.until)
+          .filter((item) => item.symbols.length === 0 || item.symbols.some((s) => symbols.has(s)))
+          .sort((a, b) => b.publishedAt - a.publishedAt)
+          .slice(0, query.limit ?? 12)
+          .map(({ symbols: _ignored, ...item }) => item)
+      );
     } catch {
       // Never propagate. News is decoration on a post-mortem; a failure here
       // must not surface anywhere near the engine.

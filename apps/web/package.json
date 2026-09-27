@@ -6,7 +6,6 @@
     "dev": "next dev -H 127.0.0.1 -p 3000",
     "build": "next build",
     "start": "next start -H 127.0.0.1 -p 3000",
-    "lint": "next lint",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

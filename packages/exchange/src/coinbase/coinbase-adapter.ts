@@ -166,7 +166,9 @@ export class CoinbaseAdapter implements ExchangeAdapter {
     const raw = await this.fetchProduct(productId);
     const price = Number.parseFloat(raw.price);
     if (!Number.isFinite(price) || price <= 0) {
-      throw new ExchangeError(`Coinbase returned a nonsensical price for ${productId}: ${raw.price}`);
+      throw new ExchangeError(
+        `Coinbase returned a nonsensical price for ${productId}: ${raw.price}`,
+      );
     }
     return { productId, price, timestamp: Date.now() };
   }
@@ -369,7 +371,10 @@ export class CoinbaseAdapter implements ExchangeAdapter {
    * engage the kill switch and let a human check the exchange" logic depends on
    * seeing the FIRST failure, not the fourth.
    */
-  private async call<T>(operation: () => Promise<T>, options: { retry?: boolean } = {}): Promise<T> {
+  private async call<T>(
+    operation: () => Promise<T>,
+    options: { retry?: boolean } = {},
+  ): Promise<T> {
     const maxRetries = options.retry === false ? 0 : this.maxRetries;
     let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
@@ -443,6 +448,11 @@ function isRetryable(error: unknown): boolean {
  * character log line, and a bot that retries every 30 seconds for a year writes
  * it about a million times. Keep the parts that identify the failure.
  */
+/** A field worth printing, or undefined — never "[object Object]". */
+function scalar(value: unknown): string | undefined {
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : undefined;
+}
+
 function describeError(error: unknown): string {
   if (typeof error === 'object' && error !== null) {
     const e = error as {
@@ -452,11 +462,11 @@ function describeError(error: unknown): string {
       requestParams?: { method?: unknown; endpoint?: unknown };
     };
     const parts: string[] = [];
-    if (e.code !== undefined) parts.push(`HTTP ${String(e.code)}`);
+    const code = scalar(e.code);
+    if (code) parts.push(`HTTP ${code}`);
     if (typeof e.message === 'string' && e.message) parts.push(e.message);
-    if (e.requestParams?.endpoint) {
-      parts.push(`(${String(e.requestParams.method ?? 'GET')} ${String(e.requestParams.endpoint)})`);
-    }
+    const endpoint = scalar(e.requestParams?.endpoint);
+    if (endpoint) parts.push(`(${scalar(e.requestParams?.method) ?? 'GET'} ${endpoint})`);
     if (typeof e.body === 'string' && e.body) parts.push(`- ${truncate(e.body, 160)}`);
     if (parts.length > 0) return parts.join(' ');
   }

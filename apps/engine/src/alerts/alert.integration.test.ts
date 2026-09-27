@@ -1,7 +1,12 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { ScheduleModule } from '@nestjs/schedule';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { AlertPolicy, FanoutNotifier, type Alert, type NotificationChannel } from '@crypto-magic/notify';
+import {
+  AlertPolicy,
+  FanoutNotifier,
+  type Alert,
+  type NotificationChannel,
+} from '@crypto-magic/notify';
 import { APP_CONFIG } from '../config/tokens';
 import { loadConfig, type AppConfig } from '../config/config.schema';
 import { openDatabase } from '../persistence/database';
@@ -118,7 +123,11 @@ describe('AlertService', () => {
   describe('flood protection', () => {
     it('collapses a failure repeating every tick into one alert', async () => {
       for (let i = 0; i < 40; i++) {
-        events.append({ level: 'error', kind: 'error', message: 'failed to process BTC-USD: HTTP 403' });
+        events.append({
+          level: 'error',
+          kind: 'error',
+          message: 'failed to process BTC-USD: HTTP 403',
+        });
       }
       await settle();
 
@@ -212,7 +221,9 @@ describe('AlertService', () => {
 
     it('reports itself disabled and never subscribes', () => {
       expect(service.status.enabled).toBe(false);
-      expect(() => events.append({ level: 'error', kind: 'kill_switch', message: 'x' })).not.toThrow();
+      expect(() =>
+        events.append({ level: 'error', kind: 'kill_switch', message: 'x' }),
+      ).not.toThrow();
     });
   });
 });

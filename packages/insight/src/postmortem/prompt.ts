@@ -150,7 +150,10 @@ function extractJsonObject(raw: string): string | null {
 
 function normalizeVerdict(value: unknown): Verdict | null {
   if (typeof value !== 'string') return null;
-  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  const normalized = value
+    .trim()
+    .toLowerCase()
+    .replace(/[\s-]+/g, '_');
   return (VERDICTS as readonly string[]).includes(normalized) ? (normalized as Verdict) : null;
 }
 

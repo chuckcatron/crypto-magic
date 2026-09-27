@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { D, type Candle, type Granularity, type ProductSpec, type Ticker } from '@crypto-magic/core';
+import { D, type Candle, type ProductSpec, type Ticker } from '@crypto-magic/core';
 import type { Balance, ExchangeAdapter, OrderResult } from '../types';
 import { PaperAdapter } from './paper-adapter';
 
@@ -102,7 +102,11 @@ describe('PaperAdapter buys', () => {
   it('debits the fee on top of the quote spend', async () => {
     const adapter = makeAdapter(1000);
     const order = await adapter.submitMarketOrder({
-      productId: 'BTC-USD', side: 'BUY', baseSize: D(1), referencePrice: D(100), clientOrderId: 'fee',
+      productId: 'BTC-USD',
+      side: 'BUY',
+      baseSize: D(1),
+      referencePrice: D(100),
+      clientOrderId: 'fee',
     });
     const spent = order.filledSize.mul(order.averageFillPrice);
     expect(order.fee.toNumber()).toBeCloseTo(spent.mul(0.006).toNumber(), 8);
@@ -130,7 +134,11 @@ describe('PaperAdapter sells', () => {
   it('is sized in BASE currency and credits proceeds net of fee', async () => {
     const adapter = makeAdapter(1000);
     const buy = await adapter.submitMarketOrder({
-      productId: 'BTC-USD', side: 'BUY', baseSize: D(1), referencePrice: D(100), clientOrderId: 'b',
+      productId: 'BTC-USD',
+      side: 'BUY',
+      baseSize: D(1),
+      referencePrice: D(100),
+      clientOrderId: 'b',
     });
     const usdAfterBuy = await balanceOf(adapter, 'USD');
 
@@ -158,7 +166,11 @@ describe('PaperAdapter sells', () => {
     const adapter = makeAdapter(1000);
     await expect(
       adapter.submitMarketOrder({
-        productId: 'BTC-USD', side: 'SELL', baseSize: D(1), referencePrice: D(100), clientOrderId: 's2',
+        productId: 'BTC-USD',
+        side: 'SELL',
+        baseSize: D(1),
+        referencePrice: D(100),
+        clientOrderId: 's2',
       }),
     ).rejects.toThrow(/holds/);
   });
@@ -168,7 +180,11 @@ describe('PaperAdapter round trip', () => {
   it('loses money at an unchanged price, because fees and slippage are real', async () => {
     const adapter = makeAdapter(1000);
     const buy = await adapter.submitMarketOrder({
-      productId: 'BTC-USD', side: 'BUY', baseSize: D(1), referencePrice: D(100), clientOrderId: 'b',
+      productId: 'BTC-USD',
+      side: 'BUY',
+      baseSize: D(1),
+      referencePrice: D(100),
+      clientOrderId: 'b',
     });
     await adapter.submitMarketOrder({
       productId: 'BTC-USD',
@@ -185,10 +201,18 @@ describe('PaperAdapter idempotency', () => {
   it('returns the original order instead of filling a repeated client order id twice', async () => {
     const adapter = makeAdapter(1000);
     const first = await adapter.submitMarketOrder({
-      productId: 'BTC-USD', side: 'BUY', baseSize: D(1), referencePrice: D(100), clientOrderId: 'dup',
+      productId: 'BTC-USD',
+      side: 'BUY',
+      baseSize: D(1),
+      referencePrice: D(100),
+      clientOrderId: 'dup',
     });
     const second = await adapter.submitMarketOrder({
-      productId: 'BTC-USD', side: 'BUY', baseSize: D(1), referencePrice: D(100), clientOrderId: 'dup',
+      productId: 'BTC-USD',
+      side: 'BUY',
+      baseSize: D(1),
+      referencePrice: D(100),
+      clientOrderId: 'dup',
     });
 
     expect(second.orderId).toBe(first.orderId);
