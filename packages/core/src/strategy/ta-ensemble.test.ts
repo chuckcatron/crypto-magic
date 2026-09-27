@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest';
 import { DEFAULT_STOP_CONFIG, openPosition } from '../position/stops';
 import { candlesFromCloses, flatThenRally } from '../testing/synthetic';
-import { DEFAULT_TA_ENSEMBLE_CONFIG, TaEnsembleStrategy, type TaEnsembleConfig } from './ta-ensemble';
+import {
+  DEFAULT_TA_ENSEMBLE_CONFIG,
+  TaEnsembleStrategy,
+  type TaEnsembleConfig,
+} from './ta-ensemble';
 
 const fastConfig: TaEnsembleConfig = {
   ...DEFAULT_TA_ENSEMBLE_CONFIG,
@@ -20,9 +24,9 @@ const heldPosition = openPosition({
 
 describe('config validation', () => {
   it('rejects a fast EMA that is not faster than the slow one', () => {
-    expect(() => new TaEnsembleStrategy({ ...DEFAULT_TA_ENSEMBLE_CONFIG, emaFastPeriod: 30 })).toThrow(
-      /emaFastPeriod/,
-    );
+    expect(
+      () => new TaEnsembleStrategy({ ...DEFAULT_TA_ENSEMBLE_CONFIG, emaFastPeriod: 30 }),
+    ).toThrow(/emaFastPeriod/);
   });
 
   it('rejects an inverted RSI band', () => {
@@ -47,7 +51,8 @@ describe('config validation', () => {
   it('derives warmup from the longest indicator it uses', () => {
     expect(new TaEnsembleStrategy(DEFAULT_TA_ENSEMBLE_CONFIG).warmupBars).toBe(201);
     expect(
-      new TaEnsembleStrategy({ ...DEFAULT_TA_ENSEMBLE_CONFIG, requireTrendFilter: false }).warmupBars,
+      new TaEnsembleStrategy({ ...DEFAULT_TA_ENSEMBLE_CONFIG, requireTrendFilter: false })
+        .warmupBars,
     ).toBe(27);
   });
 });
@@ -114,7 +119,11 @@ describe('entries', () => {
     const strategy = new TaEnsembleStrategy({ ...fastConfig, minAtrPct: 5 });
     const candles = candlesFromCloses(flatThenRally(120, 40));
     for (let i = strategy.warmupBars; i < candles.length; i++) {
-      const signal = strategy.evaluate({ candles: candles.slice(0, i + 1), position: null, now: 0 });
+      const signal = strategy.evaluate({
+        candles: candles.slice(0, i + 1),
+        position: null,
+        now: 0,
+      });
       expect(signal.action).not.toBe('ENTER_LONG');
     }
   });
@@ -146,7 +155,10 @@ describe('exits', () => {
 
   it('exits when the trend rolls over', () => {
     const strategy = new TaEnsembleStrategy(fastConfig);
-    const closes = [...flatThenRally(120, 40), ...Array.from({ length: 40 }, (_, i) => 116 - i * 1.5)];
+    const closes = [
+      ...flatThenRally(120, 40),
+      ...Array.from({ length: 40 }, (_, i) => 116 - i * 1.5),
+    ];
     const candles = candlesFromCloses(closes);
 
     const exits = candles.filter(
@@ -160,7 +172,10 @@ describe('exits', () => {
 
   it('exits on a blow-off top even without a cross', () => {
     const strategy = new TaEnsembleStrategy({ ...fastConfig, rsiExitMax: 70 });
-    const closes = [...Array(120).fill(100), ...Array.from({ length: 30 }, (_, i) => 100 * 1.03 ** (i + 1))];
+    const closes = [
+      ...Array(120).fill(100),
+      ...Array.from({ length: 30 }, (_, i) => 100 * 1.03 ** (i + 1)),
+    ];
     const candles = candlesFromCloses(closes);
     const signal = strategy.evaluate({ candles, position: heldPosition, now: 0 });
     expect(signal.action).toBe('EXIT_LONG');

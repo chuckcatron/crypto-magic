@@ -72,13 +72,15 @@ describe('validateRiskLimits', () => {
   });
 
   it('rejects a minimum order larger than the position cap', () => {
-    expect(() => validateRiskLimits({ ...limits, minOrderNotional: 50, maxPositionNotional: 25 })).toThrow(
-      /no order could ever pass/,
-    );
+    expect(() =>
+      validateRiskLimits({ ...limits, minOrderNotional: 50, maxPositionNotional: 25 }),
+    ).toThrow(/no order could ever pass/);
   });
 
   it('rejects risking more than the whole account per trade', () => {
-    expect(() => validateRiskLimits({ ...limits, riskPerTradePct: 150 })).toThrow(/riskPerTradePct/);
+    expect(() => validateRiskLimits({ ...limits, riskPerTradePct: 150 })).toThrow(
+      /riskPerTradePct/,
+    );
   });
 });
 
@@ -103,12 +105,24 @@ describe('sizePosition', () => {
 
   it('buys more units when the stop is tighter, for the same dollar risk', () => {
     const wide = sizePosition({
-      equity: 1000, availableQuote: 1000, entryPrice: 100, stopPrice: 90,
-      openNotional: 0, product, limits: { ...limits, maxPositionNotional: 1000, maxTotalNotional: 1000 }, confidence: 1,
+      equity: 1000,
+      availableQuote: 1000,
+      entryPrice: 100,
+      stopPrice: 90,
+      openNotional: 0,
+      product,
+      limits: { ...limits, maxPositionNotional: 1000, maxTotalNotional: 1000 },
+      confidence: 1,
     });
     const tight = sizePosition({
-      equity: 1000, availableQuote: 1000, entryPrice: 100, stopPrice: 98,
-      openNotional: 0, product, limits: { ...limits, maxPositionNotional: 1000, maxTotalNotional: 1000 }, confidence: 1,
+      equity: 1000,
+      availableQuote: 1000,
+      entryPrice: 100,
+      stopPrice: 98,
+      openNotional: 0,
+      product,
+      limits: { ...limits, maxPositionNotional: 1000, maxTotalNotional: 1000 },
+      confidence: 1,
     });
     expect(tight.baseSize.toNumber()).toBeGreaterThan(wide.baseSize.toNumber());
     // Both risk ~10 dollars to the stop.
@@ -118,8 +132,13 @@ describe('sizePosition', () => {
 
   it('scales down with low confidence but never up', () => {
     const args = {
-      equity: 1000, availableQuote: 1000, entryPrice: 100, stopPrice: 90, openNotional: 0,
-      product, limits: { ...limits, maxPositionNotional: 1000, maxTotalNotional: 1000 },
+      equity: 1000,
+      availableQuote: 1000,
+      entryPrice: 100,
+      stopPrice: 90,
+      openNotional: 0,
+      product,
+      limits: { ...limits, maxPositionNotional: 1000, maxTotalNotional: 1000 },
     };
     const weak = sizePosition({ ...args, confidence: 0 });
     const strong = sizePosition({ ...args, confidence: 1 });
@@ -128,8 +147,14 @@ describe('sizePosition', () => {
 
   it('respects the remaining total notional budget', () => {
     const result = sizePosition({
-      equity: 1000, availableQuote: 1000, entryPrice: 100, stopPrice: 90,
-      openNotional: 90, product, limits, confidence: 1,
+      equity: 1000,
+      availableQuote: 1000,
+      entryPrice: 100,
+      stopPrice: 90,
+      openNotional: 90,
+      product,
+      limits,
+      confidence: 1,
     });
     expect(result.baseSize.mul(100).toNumber()).toBeLessThanOrEqual(10);
     expect(result.constraints).toContain('capped by maxTotalNotional');
@@ -137,32 +162,56 @@ describe('sizePosition', () => {
 
   it('refuses when the total notional cap is already spent', () => {
     const result = sizePosition({
-      equity: 1000, availableQuote: 1000, entryPrice: 100, stopPrice: 90,
-      openNotional: 100, product, limits, confidence: 1,
+      equity: 1000,
+      availableQuote: 1000,
+      entryPrice: 100,
+      stopPrice: 90,
+      openNotional: 100,
+      product,
+      limits,
+      confidence: 1,
     });
     expect(result.rejected).toMatch(/total notional cap already used/);
   });
 
   it('refuses a stop that is not below entry', () => {
     const result = sizePosition({
-      equity: 1000, availableQuote: 1000, entryPrice: 100, stopPrice: 100,
-      openNotional: 0, product, limits, confidence: 1,
+      equity: 1000,
+      availableQuote: 1000,
+      entryPrice: 100,
+      stopPrice: 100,
+      openNotional: 0,
+      product,
+      limits,
+      confidence: 1,
     });
     expect(result.rejected).toMatch(/stop price must be below entry/);
   });
 
   it('refuses a dust order below the exchange minimum', () => {
     const result = sizePosition({
-      equity: 10, availableQuote: 10, entryPrice: 100, stopPrice: 90,
-      openNotional: 0, product, limits: { ...limits, minOrderNotional: 5 }, confidence: 1,
+      equity: 10,
+      availableQuote: 10,
+      entryPrice: 100,
+      stopPrice: 90,
+      openNotional: 0,
+      product,
+      limits: { ...limits, minOrderNotional: 5 },
+      confidence: 1,
     });
     expect(result.rejected).toMatch(/below exchange minimum/);
   });
 
   it('refuses a product that is not tradable', () => {
     const result = sizePosition({
-      equity: 1000, availableQuote: 1000, entryPrice: 100, stopPrice: 90,
-      openNotional: 0, product: { ...product, tradingDisabled: true }, limits, confidence: 1,
+      equity: 1000,
+      availableQuote: 1000,
+      entryPrice: 100,
+      stopPrice: 90,
+      openNotional: 0,
+      product: { ...product, tradingDisabled: true },
+      limits,
+      confidence: 1,
     });
     expect(result.rejected).toMatch(/trading disabled/);
   });
@@ -170,8 +219,14 @@ describe('sizePosition', () => {
   it('rounds the size down to the exchange increment, never up', () => {
     const coarse: ProductSpec = { ...product, baseIncrement: '0.1' };
     const result = sizePosition({
-      equity: 1000, availableQuote: 1000, entryPrice: 100, stopPrice: 90,
-      openNotional: 0, product: coarse, limits, confidence: 1,
+      equity: 1000,
+      availableQuote: 1000,
+      entryPrice: 100,
+      stopPrice: 90,
+      openNotional: 0,
+      product: coarse,
+      limits,
+      confidence: 1,
     });
     expect(result.baseSize.toNumber()).toBe(0.2); // 0.25 floored to 0.1
   });
@@ -189,11 +244,15 @@ describe('RiskEngine halts', () => {
   });
 
   it('halts at the daily loss limit', () => {
-    expect(engine.haltReasons({ ...baseState, realizedPnlToday: -10 })).toContain('daily_loss_limit');
+    expect(engine.haltReasons({ ...baseState, realizedPnlToday: -10 })).toContain(
+      'daily_loss_limit',
+    );
   });
 
   it('halts after too many losses in a row', () => {
-    expect(engine.haltReasons({ ...baseState, consecutiveLosses: 4 })).toContain('consecutive_losses');
+    expect(engine.haltReasons({ ...baseState, consecutiveLosses: 4 })).toContain(
+      'consecutive_losses',
+    );
   });
 
   it('halts when the order rate limit is reached', () => {

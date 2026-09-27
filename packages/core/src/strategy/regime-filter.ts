@@ -60,7 +60,10 @@ export class RegimeFilterStrategy implements Strategy {
 
     const i = candles.length - 1;
     const close = candles[i]!.close;
-    const average = sma(candles.map((c) => c.close), this.config.smaPeriod)[i];
+    const average = sma(
+      candles.map((c) => c.close),
+      this.config.smaPeriod,
+    )[i];
     const volatility = atr(candles, this.config.atrPeriod)[i];
 
     const indicators = {
@@ -77,7 +80,9 @@ export class RegimeFilterStrategy implements Strategy {
       return {
         action: 'ENTER_LONG',
         confidence: 1,
-        reasons: [`close ${close.toFixed(2)} above SMA${this.config.smaPeriod} ${average.toFixed(2)}`],
+        reasons: [
+          `close ${close.toFixed(2)} above SMA${this.config.smaPeriod} ${average.toFixed(2)}`,
+        ],
         indicators,
       };
     }
@@ -85,7 +90,9 @@ export class RegimeFilterStrategy implements Strategy {
       return {
         action: 'EXIT_LONG',
         confidence: 1,
-        reasons: [`close ${close.toFixed(2)} fell below SMA${this.config.smaPeriod} ${average.toFixed(2)}`],
+        reasons: [
+          `close ${close.toFixed(2)} fell below SMA${this.config.smaPeriod} ${average.toFixed(2)}`,
+        ],
         exitReason: 'signal',
         indicators,
       };

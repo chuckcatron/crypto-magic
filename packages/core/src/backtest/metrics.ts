@@ -18,7 +18,8 @@ export function computeMetrics(args: {
   const grossProfit = wins.reduce((s, t) => s + t.pnl.toNumber(), 0);
   const grossLoss = Math.abs(losses.reduce((s, t) => s + t.pnl.toNumber(), 0));
 
-  const totalReturnPct = initialEquity > 0 ? ((finalEquity - initialEquity) / initialEquity) * 100 : 0;
+  const totalReturnPct =
+    initialEquity > 0 ? ((finalEquity - initialEquity) / initialEquity) * 100 : 0;
 
   const elapsed = elapsedSeconds(equityCurve);
   const years = elapsed / SECONDS_PER_YEAR;

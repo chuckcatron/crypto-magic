@@ -91,7 +91,11 @@ describe('TelegramChannel', () => {
     const request = captured[0]!;
     expect(request.method).toBe('POST');
     expect(request.url).toBe('/botTOKEN123/sendMessage');
-    const payload = JSON.parse(request.body) as { chat_id: string; text: string; parse_mode: string };
+    const payload = JSON.parse(request.body) as {
+      chat_id: string;
+      text: string;
+      parse_mode: string;
+    };
     expect(payload.chat_id).toBe('CHAT456');
     expect(payload.parse_mode).toBe('HTML');
     expect(payload.text).toContain('Kill switch engaged');
@@ -111,8 +115,12 @@ describe('TelegramChannel', () => {
     await channel.send(alert({ severity: 'info' }));
     await channel.send(alert({ severity: 'critical' }));
 
-    expect((JSON.parse(captured[0]!.body) as { disable_notification: boolean }).disable_notification).toBe(true);
-    expect((JSON.parse(captured[1]!.body) as { disable_notification: boolean }).disable_notification).toBe(false);
+    expect(
+      (JSON.parse(captured[0]!.body) as { disable_notification: boolean }).disable_notification,
+    ).toBe(true);
+    expect(
+      (JSON.parse(captured[1]!.body) as { disable_notification: boolean }).disable_notification,
+    ).toBe(false);
   });
 });
 

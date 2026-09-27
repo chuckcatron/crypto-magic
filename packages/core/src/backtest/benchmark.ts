@@ -134,7 +134,15 @@ export function fixedAllocation(args: {
   const label = `${(fraction * 100).toFixed(1)}% BTC, rest cash`;
 
   if (window.length < 2) {
-    return { label, finalEquity: initialEquity, totalReturnPct: 0, annualizedReturnPct: 0, maxDrawdownPct: 0, sharpeRatio: 0, exposurePct: 100 };
+    return {
+      label,
+      finalEquity: initialEquity,
+      totalReturnPct: 0,
+      annualizedReturnPct: 0,
+      maxDrawdownPct: 0,
+      sharpeRatio: 0,
+      exposurePct: 100,
+    };
   }
 
   let btc = (initialEquity * fraction) / window[0]!.open;

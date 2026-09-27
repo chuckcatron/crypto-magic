@@ -166,7 +166,9 @@ export class CoinbaseAdapter implements ExchangeAdapter {
     const raw = await this.fetchProduct(productId);
     const price = Number.parseFloat(raw.price);
     if (!Number.isFinite(price) || price <= 0) {
-      throw new ExchangeError(`Coinbase returned a nonsensical price for ${productId}: ${raw.price}`);
+      throw new ExchangeError(
+        `Coinbase returned a nonsensical price for ${productId}: ${raw.price}`,
+      );
     }
     return { productId, price, timestamp: Date.now() };
   }
@@ -369,7 +371,10 @@ export class CoinbaseAdapter implements ExchangeAdapter {
    * engage the kill switch and let a human check the exchange" logic depends on
    * seeing the FIRST failure, not the fourth.
    */
-  private async call<T>(operation: () => Promise<T>, options: { retry?: boolean } = {}): Promise<T> {
+  private async call<T>(
+    operation: () => Promise<T>,
+    options: { retry?: boolean } = {},
+  ): Promise<T> {
     const maxRetries = options.retry === false ? 0 : this.maxRetries;
     let lastError: unknown;
     for (let attempt = 0; attempt <= maxRetries; attempt++) {

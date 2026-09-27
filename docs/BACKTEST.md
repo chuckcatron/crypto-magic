@@ -16,15 +16,15 @@ aggregated to daily and hourly UTC bars. No missing days.
 
 Checked two ways before trusting it:
 
-| Landmark | Date | Expected | Dataset | Diff |
-|---|---|---|---|---|
-| Dec 2017 bubble peak (high) | 2017-12-17 | 19,700 | 19,666 | −0.2% |
-| Dec 2018 bear bottom (close) | 2018-12-15 | 3,240 | 3,180 | −1.9% |
-| COVID crash (close) | 2020-03-12 | 4,970 | 4,842 | −2.6% |
-| Nov 2021 all-time high | 2021-11-10 | 69,000 | 69,000 | 0.0% |
-| Nov 2022 post-FTX low | 2022-11-21 | 15,500 | 15,479 | −0.1% |
-| Mar 2024 all-time high | 2024-03-14 | 73,800 | 73,794 | 0.0% |
-| Dec 2024 first $100k day | 2024-12-05 | 103,900 | 103,647 | −0.2% |
+| Landmark                     | Date       | Expected | Dataset | Diff  |
+| ---------------------------- | ---------- | -------- | ------- | ----- |
+| Dec 2017 bubble peak (high)  | 2017-12-17 | 19,700   | 19,666  | −0.2% |
+| Dec 2018 bear bottom (close) | 2018-12-15 | 3,240    | 3,180   | −1.9% |
+| COVID crash (close)          | 2020-03-12 | 4,970    | 4,842   | −2.6% |
+| Nov 2021 all-time high       | 2021-11-10 | 69,000   | 69,000  | 0.0%  |
+| Nov 2022 post-FTX low        | 2022-11-21 | 15,500   | 15,479  | −0.1% |
+| Mar 2024 all-time high       | 2024-03-14 | 73,800   | 73,794  | 0.0%  |
+| Dec 2024 first $100k day     | 2024-12-05 | 103,900  | 103,647 | −0.2% |
 
 And against an independent investing.com daily series: median daily-close
 disagreement **0.23%** across 2,041 overlapping days (2015–2020).
@@ -36,20 +36,20 @@ unless marked zero-cost.
 
 **Full exposure** means every cap is lifted: fully invested when in a trade,
 flat when out, on the same capital as buy-and-hold. The only difference from
-holding is *when*, which is the question a timing signal has to answer. It is a
+holding is _when_, which is the question a timing signal has to answer. It is a
 measurement mode, not a way to run the bot.
 
 ### Daily bars, Jan 2015 → Jan 2025 (10 years)
 
-| | Strategy | Zero-cost | Buy & hold |
-|---|---|---|---|
-| Total return | +98% | +168% | +36,092% |
-| Annualized | 7.5% | — | 86.3% |
-| Max drawdown | −28.3% | — | −83.4% |
-| Sharpe | 0.55 | 0.77 | 1.25 |
-| Return / drawdown | 0.26 | 0.47 | 1.03 |
-| Trades | 24 | 24 | — |
-| Time in market | 8% | — | 100% |
+|                   | Strategy | Zero-cost | Buy & hold |
+| ----------------- | -------- | --------- | ---------- |
+| Total return      | +98%     | +168%     | +36,092%   |
+| Annualized        | 7.5%     | —         | 86.3%      |
+| Max drawdown      | −28.3%   | —         | −83.4%     |
+| Sharpe            | 0.55     | 0.77      | 1.25       |
+| Return / drawdown | 0.26     | 0.47      | 1.03       |
+| Trades            | 24       | 24        | —          |
+| Time in market    | 8%       | —         | 100%       |
 
 Split: +73% vs +2,497% (first half), +6% vs +959% (second half). **Lost both.**
 
@@ -60,13 +60,13 @@ market 92% of the time through the largest bull runs in the asset's history.
 
 ### Hourly bars, Nov 2022 → Jan 2025
 
-| | Strategy | Zero-cost | Buy & hold |
-|---|---|---|---|
-| Total return | **−86%** | +39% | +456% |
-| Sharpe | −5.66 | 1.21 | 1.93 |
-| Profit factor | 0.18 | 1.39 | — |
-| Trades | 178 | 178 | — |
-| Fees | $889 on $1,000 | $0 | — |
+|               | Strategy       | Zero-cost | Buy & hold |
+| ------------- | -------------- | --------- | ---------- |
+| Total return  | **−86%**       | +39%      | +456%      |
+| Sharpe        | −5.66          | 1.21      | 1.93       |
+| Profit factor | 0.18           | 1.39      | —          |
+| Trades        | 178            | 178       | —          |
+| Fees          | $889 on $1,000 | $0        | —          |
 
 Split: −64% vs +128%, −62% vs +145%. **Lost both.**
 
@@ -80,11 +80,11 @@ The bot as you would actually run it deploys about 3% of the account into a
 trade, so its total return is not comparable to buy-and-hold; look at edge per
 trade instead.
 
-| | Daily (10y) | Hourly (2y) |
-|---|---|---|
-| Profit factor | 2.14 | 0.21 |
-| Expectancy per trade | +$0.89 | −$0.28 |
-| Cost per round trip vs average winner | 10% | **101%** |
+|                                       | Daily (10y) | Hourly (2y) |
+| ------------------------------------- | ----------- | ----------- |
+| Profit factor                         | 2.14        | 0.21        |
+| Expectancy per trade                  | +$0.89      | −$0.28      |
+| Cost per round trip vs average winner | 10%         | **101%**    |
 
 At the hourly default, **each trade's fees exceed the average winning trade.**
 
@@ -93,13 +93,13 @@ At the hourly default, **each trade's fees exceed the average winning trade.**
 Fixed BTC share, rest in cash (0% interest), rebalanced monthly, paying fees on
 every rebalance, over the same window the daily strategy traded:
 
-| BTC share | Annualized | Max drawdown |
-|---|---|---|
-| 10% | 9.2% | −14.8% |
-| **20%** | **18.4%** | **−27.6%** |
-| 30% | 27.7% | −38.6% |
-| 100% | 86.5% | −83.4% |
-| *the strategy* | *7.5%* | *−28.3%* |
+| BTC share      | Annualized | Max drawdown |
+| -------------- | ---------- | ------------ |
+| 10%            | 9.2%       | −14.8%       |
+| **20%**        | **18.4%**  | **−27.6%**   |
+| 30%            | 27.7%      | −38.6%       |
+| 100%           | 86.5%      | −83.4%       |
+| _the strategy_ | _7.5%_     | _−28.3%_     |
 
 **20% Bitcoin and nothing else matched the strategy's drawdown at 2.5× its
 return.** 10% beat it on both. The strategy's only advantage over holding is
@@ -109,10 +109,10 @@ fully explained by holding less.
 
 Before running this I put three predictions on record:
 
-| Prediction | Result |
-|---|---|
-| Hourly loses to buy-and-hold | ✓ badly |
-| Most of the hourly gap is fees | ✓ +39% → −86% |
+| Prediction                       | Result                                                             |
+| -------------------------------- | ------------------------------------------------------------------ |
+| Hourly loses to buy-and-hold     | ✓ badly                                                            |
+| Most of the hourly gap is fees   | ✓ +39% → −86%                                                      |
 | Daily is "close" to buy-and-hold | **✗ wrong** — 7.5% vs 86%/yr, and a lower Sharpe even at zero cost |
 
 ## Caveats

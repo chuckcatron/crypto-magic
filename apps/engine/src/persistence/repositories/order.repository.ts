@@ -33,7 +33,9 @@ export class OrderRepository implements OrderStore {
    * already reached the exchange and must not be repeated.
    */
   findByClientOrderId(clientOrderId: string): StoredOrder | null {
-    const row = this.db.prepare('SELECT * FROM orders WHERE client_order_id = ?').get(clientOrderId);
+    const row = this.db
+      .prepare('SELECT * FROM orders WHERE client_order_id = ?')
+      .get(clientOrderId);
     return row ? toOrder(row as never) : null;
   }
 

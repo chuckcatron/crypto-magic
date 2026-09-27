@@ -53,7 +53,8 @@ export interface CarryResult {
 export function runCarry(events: readonly FundingEvent[], config: CarryConfig): CarryResult {
   if (events.length < 2) throw new Error('carry backtest needs at least two funding payments');
   for (let i = 1; i < events.length; i++) {
-    if (events[i]!.time <= events[i - 1]!.time) throw new Error('funding payments must be strictly ascending');
+    if (events[i]!.time <= events[i - 1]!.time)
+      throw new Error('funding payments must be strictly ascending');
   }
 
   const legCost = (config.spotCostBps + config.perpCostBps) / 10_000;
@@ -120,7 +121,8 @@ export function runCarry(events: readonly FundingEvent[], config: CarryConfig): 
   return {
     startTime: events[0]!.time,
     endTime: events.at(-1)!.time,
-    netAnnualizedPct: years > 0 && equity > 0 ? (Math.pow(equity / initial, 1 / years) - 1) * 100 : 0,
+    netAnnualizedPct:
+      years > 0 && equity > 0 ? (Math.pow(equity / initial, 1 / years) - 1) * 100 : 0,
     grossFundingAnnualizedPct: years > 0 ? (grossFunding / years) * 100 : 0,
     totalCostPct: (costs / initial) * 100,
     switches,

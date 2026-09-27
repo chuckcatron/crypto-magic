@@ -40,30 +40,30 @@ security review; `exchange.module.test.ts` pins it.
 Every order passes a risk engine that knows nothing about the strategy's
 reasoning. Defaults:
 
-| Cap | Default |
-|---|---|
-| Total exposure | $100 |
-| Per position | $25 |
-| Open positions | 4 |
-| Risk per trade | 1% of equity |
-| Daily realized loss | $10 → halt |
-| Consecutive losses | 4 → halt |
-| Orders per hour | 12 |
-| Slippage | 0.5% → kill switch |
+| Cap                 | Default            |
+| ------------------- | ------------------ |
+| Total exposure      | $100               |
+| Per position        | $25                |
+| Open positions      | 4                  |
+| Risk per trade      | 1% of equity       |
+| Daily realized loss | $10 → halt         |
+| Consecutive losses  | 4 → halt           |
+| Orders per hour     | 12                 |
+| Slippage            | 0.5% → kill switch |
 
 A strategy bug that wants to buy $50,000 of anything gets $25.
 
 ### Exits are never blocked
 
 Every halt — kill switch, daily loss, losing streak, stale data, rate limit —
-stops *entries only*. A halt that trapped you in a losing position would be
+stops _entries only_. A halt that trapped you in a losing position would be
 worse than the thing that caused it.
 
 ### Orders cannot duplicate
 
-Each order carries a deterministic id derived from what it is *for* — mode,
+Each order carries a deterministic id derived from what it is _for_ — mode,
 product, side, the bar that triggered it, purpose — not from when it was sent.
-The intent is written to SQLite *before* the network call. Crash mid-order,
+The intent is written to SQLite _before_ the network call. Crash mid-order,
 restart, and the same decision produces the same id, which is refused locally.
 
 An ambiguous submission failure is never retried. It engages the kill switch so
@@ -86,7 +86,7 @@ position is the case it exists for.
 ### Money is never a float
 
 Sizes and prices are arbitrary-precision decimals end to end, stored as TEXT in
-SQLite and serialized as strings over the API. Sizes always round *down*.
+SQLite and serialized as strings over the API. Sizes always round _down_.
 
 ### A web page cannot drive the bot
 
@@ -160,7 +160,7 @@ Be clear-eyed about the gaps.
   or go down mid-position. The bot handles the API errors; it cannot handle not
   being able to sell.
 - **Gap risk.** Crypto trades 24/7 but still gaps. A stop at $59,000 does not
-  fill at $59,000 if the market prints $52,000 next. Stops bound your *intent*,
+  fill at $59,000 if the market prints $52,000 next. Stops bound your _intent_,
   not your worst case.
 - **Your Mac.** If it sleeps, loses Wi-Fi, or runs out of disk, the engine stops
   managing positions. The exchange-side stop is the backstop; see the runbook.

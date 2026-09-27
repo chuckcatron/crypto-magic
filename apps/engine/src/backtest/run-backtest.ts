@@ -54,14 +54,17 @@ function parseArgs(argv: string[]): Args {
 
   const granularity = (get('granularity') ?? process.env.GRANULARITY ?? 'ONE_HOUR') as Granularity;
   if (!GRANULARITIES.includes(granularity)) {
-    throw new Error(`unknown granularity "${granularity}"; expected one of ${GRANULARITIES.join(', ')}`);
+    throw new Error(
+      `unknown granularity "${granularity}"; expected one of ${GRANULARITIES.join(', ')}`,
+    );
   }
 
   const days = Number(get('days') ?? 365);
   if (!Number.isFinite(days) || days <= 0) throw new Error('--days must be a positive number');
 
   const equity = Number(get('equity') ?? 1000);
-  if (!Number.isFinite(equity) || equity <= 0) throw new Error('--equity must be a positive number');
+  if (!Number.isFinite(equity) || equity <= 0)
+    throw new Error('--equity must be a positive number');
 
   return {
     product: (get('product') ?? process.env.PRODUCTS?.split(',')[0] ?? 'BTC-USD').toUpperCase(),
@@ -104,7 +107,8 @@ function dateFlag(raw: string | undefined, name: string): number | null {
 function numberFlag(raw: string | undefined, fallback: number, name: string): number {
   if (raw === undefined) return fallback;
   const value = Number(raw);
-  if (!Number.isFinite(value) || value < 0) throw new Error(`--${name} must be a non-negative number`);
+  if (!Number.isFinite(value) || value < 0)
+    throw new Error(`--${name} must be a non-negative number`);
   return value;
 }
 
@@ -359,12 +363,7 @@ function report(
  * trade is only worth taking if you would actually have held through the
  * alternative. Saying so explicitly matters more than the numbers above it.
  */
-function verdict(
-  stratReturn: number,
-  stratDd: number,
-  bhReturn: number,
-  bhDd: number,
-): string[] {
+function verdict(stratReturn: number, stratDd: number, bhReturn: number, bhDd: number): string[] {
   const beatReturn = stratReturn > bhReturn;
   const lessPain = stratDd < bhDd;
   const gap = stratReturn - bhReturn;
@@ -413,15 +412,27 @@ function reportSplit(first: BacktestResult, second: BacktestResult): void {
     '',
     `                          ${'1st half'.padStart(12)}   ${'2nd half'.padStart(12)}`,
     row('Strategy return', pct(first.metrics.totalReturnPct), pct(second.metrics.totalReturnPct)),
-    row('Buy & hold return', pct(first.benchmark.totalReturnPct), pct(second.benchmark.totalReturnPct)),
+    row(
+      'Buy & hold return',
+      pct(first.benchmark.totalReturnPct),
+      pct(second.benchmark.totalReturnPct),
+    ),
     row(
       'Beat the benchmark?',
       first.metrics.totalReturnPct > first.benchmark.totalReturnPct ? 'yes' : 'no',
       second.metrics.totalReturnPct > second.benchmark.totalReturnPct ? 'yes' : 'no',
     ),
-    row('Max drawdown', `-${first.metrics.maxDrawdownPct.toFixed(1)}%`, `-${second.metrics.maxDrawdownPct.toFixed(1)}%`),
+    row(
+      'Max drawdown',
+      `-${first.metrics.maxDrawdownPct.toFixed(1)}%`,
+      `-${second.metrics.maxDrawdownPct.toFixed(1)}%`,
+    ),
     row('Trades', String(first.metrics.totalTrades), String(second.metrics.totalTrades)),
-    row('Win rate', `${first.metrics.winRate.toFixed(0)}%`, `${second.metrics.winRate.toFixed(0)}%`),
+    row(
+      'Win rate',
+      `${first.metrics.winRate.toFixed(0)}%`,
+      `${second.metrics.winRate.toFixed(0)}%`,
+    ),
     '',
     ...splitVerdict(first, second),
     '',
@@ -436,10 +447,16 @@ function splitVerdict(first: BacktestResult, second: BacktestResult): string[] {
   const beatSecond = second.metrics.totalReturnPct > second.benchmark.totalReturnPct;
 
   if (beatFirst && beatSecond) {
-    return ['  Beat the benchmark in BOTH halves. That is the most encouraging thing', '  a backtest can tell you — though two halves is still a small sample.'];
+    return [
+      '  Beat the benchmark in BOTH halves. That is the most encouraging thing',
+      '  a backtest can tell you — though two halves is still a small sample.',
+    ];
   }
   if (!beatFirst && !beatSecond) {
-    return ['  Lost to the benchmark in both halves. Consistent, at least. The strategy', '  as configured does not beat holding this asset.'];
+    return [
+      '  Lost to the benchmark in both halves. Consistent, at least. The strategy',
+      '  as configured does not beat holding this asset.',
+    ];
   }
   return [
     '  Beat the benchmark in one half and not the other. That is what a fitted',
@@ -449,7 +466,13 @@ function splitVerdict(first: BacktestResult, second: BacktestResult): string[] {
 
 function reportEqualDrawdown(
   result: BacktestResult,
-  matched: { label: string; annualizedReturnPct: number; maxDrawdownPct: number; sharpeRatio: number; fraction: number },
+  matched: {
+    label: string;
+    annualizedReturnPct: number;
+    maxDrawdownPct: number;
+    sharpeRatio: number;
+    fraction: number;
+  },
 ): void {
   const m = result.metrics;
   const pass = m.annualizedReturnPct > matched.annualizedReturnPct;
@@ -489,13 +512,20 @@ function tally(values: string[]): string[] {
 
 /** Decimals serialize as strings; JSON numbers would reintroduce float error. */
 function replacer(_key: string, value: unknown): unknown {
-  if (value && typeof value === 'object' && 'toFixed' in value && typeof value.toFixed === 'function') {
+  if (
+    value &&
+    typeof value === 'object' &&
+    'toFixed' in value &&
+    typeof value.toFixed === 'function'
+  ) {
     return (value as { toFixed: () => string }).toFixed();
   }
   return value;
 }
 
 main().catch((error: unknown) => {
-  process.stderr.write(`\nBacktest failed: ${error instanceof Error ? error.message : String(error)}\n`);
+  process.stderr.write(
+    `\nBacktest failed: ${error instanceof Error ? error.message : String(error)}\n`,
+  );
   process.exitCode = 1;
 });

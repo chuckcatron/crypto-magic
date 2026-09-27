@@ -61,8 +61,16 @@ export function toStrategyConfig(cfg: AppConfig): TaEnsembleConfig {
 @Module({
   providers: [
     { provide: APP_CONFIG, useFactory: () => loadConfig() },
-    { provide: RISK_LIMITS, useFactory: (cfg: AppConfig) => toRiskLimits(cfg), inject: [APP_CONFIG] },
-    { provide: STOP_CONFIG, useFactory: (cfg: AppConfig) => toStopConfig(cfg), inject: [APP_CONFIG] },
+    {
+      provide: RISK_LIMITS,
+      useFactory: (cfg: AppConfig) => toRiskLimits(cfg),
+      inject: [APP_CONFIG],
+    },
+    {
+      provide: STOP_CONFIG,
+      useFactory: (cfg: AppConfig) => toStopConfig(cfg),
+      inject: [APP_CONFIG],
+    },
     {
       provide: STRATEGY_CONFIG,
       useFactory: (cfg: AppConfig) => toStrategyConfig(cfg),

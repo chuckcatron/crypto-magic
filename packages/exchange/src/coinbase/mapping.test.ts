@@ -4,7 +4,14 @@ import { toCandle, toOrderResult, toOrderStatus, toProductSpec } from './mapping
 describe('toCandle', () => {
   it('parses Coinbase string numerics into a typed candle', () => {
     const candle = toCandle(
-      { start: '1700000000', low: '99.5', high: '101.25', open: '100', close: '100.75', volume: '12.5' },
+      {
+        start: '1700000000',
+        low: '99.5',
+        high: '101.25',
+        open: '100',
+        close: '100.75',
+        volume: '12.5',
+      },
       'BTC-USD',
       'ONE_HOUR',
     );
@@ -78,9 +85,16 @@ describe('toOrderResult', () => {
 
   it('surfaces a rejection message', () => {
     const result = toOrderResult({
-      order_id: 'o2', client_order_id: 'c2', product_id: 'BTC-USD', side: 'BUY',
-      status: 'FAILED', filled_size: '0', average_filled_price: '0', total_fees: '0',
-      created_time: '2026-01-01T00:00:00Z', reject_message: 'insufficient funds',
+      order_id: 'o2',
+      client_order_id: 'c2',
+      product_id: 'BTC-USD',
+      side: 'BUY',
+      status: 'FAILED',
+      filled_size: '0',
+      average_filled_price: '0',
+      total_fees: '0',
+      created_time: '2026-01-01T00:00:00Z',
+      reject_message: 'insufficient funds',
     });
     expect(result.rejectReason).toBe('insufficient funds');
   });

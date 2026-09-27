@@ -64,7 +64,9 @@ export function parseNumber(raw: string | undefined): number {
 export function loadCsv(path: string, productId: string, granularity: Granularity): Candle[] {
   // Strip a UTF-8 byte-order mark, which Excel and investing.com both prepend
   // and which would otherwise glue itself to the first column name.
-  const text = readFileSync(path, 'utf8').replace(/^\uFEFF/, '').trim();
+  const text = readFileSync(path, 'utf8')
+    .replace(/^\uFEFF/, '')
+    .trim();
   const lines = text.split(/\r?\n/).filter((line) => line.trim().length > 0);
   if (lines.length < 2) throw new Error(`${path} has no data rows`);
 
@@ -136,4 +138,3 @@ export function parseTime(raw: string | undefined): number {
   const fallback = Date.parse(raw);
   return Number.isFinite(fallback) ? Math.floor(fallback / 1000) : Number.NaN;
 }
-

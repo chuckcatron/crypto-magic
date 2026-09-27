@@ -66,7 +66,11 @@ export class ExecutorService {
     const existing = this.orders.findByClientOrderId(intent.idempotencyKey);
     if (existing) {
       this.log.warn(
-        { clientOrderId: intent.idempotencyKey, orderId: existing.orderId, status: existing.status },
+        {
+          clientOrderId: intent.idempotencyKey,
+          orderId: existing.orderId,
+          status: existing.status,
+        },
         'refusing duplicate order: this idempotency key has already been submitted',
       );
       return { submitted: false, order: null, skippedReason: 'duplicate idempotency key' };
@@ -189,11 +193,17 @@ export class ExecutorService {
           if (isTerminal(fetched)) return fetched;
         }
       } catch (error) {
-        this.log.warn({ orderId: order.orderId, err: String(error) }, 'could not poll order status');
+        this.log.warn(
+          { orderId: order.orderId, err: String(error) },
+          'could not poll order status',
+        );
       }
     }
 
-    this.log.error({ orderId: order.orderId, status: latest.status }, 'order never reached a terminal state');
+    this.log.error(
+      { orderId: order.orderId, status: latest.status },
+      'order never reached a terminal state',
+    );
     return latest;
   }
 

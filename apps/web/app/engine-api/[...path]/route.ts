@@ -62,7 +62,11 @@ function engineUrl(): string {
   return (process.env.ENGINE_URL ?? 'http://127.0.0.1:4000').replace(/\/$/, '');
 }
 
-async function forward(request: Request, path: string[], method: 'GET' | 'POST'): Promise<Response> {
+async function forward(
+  request: Request,
+  path: string[],
+  method: 'GET' | 'POST',
+): Promise<Response> {
   const refused = rejectForeign(request);
   if (refused) return refused;
 

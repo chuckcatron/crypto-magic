@@ -77,10 +77,7 @@ export interface TradeRow {
 }
 
 export type Verdict =
-  | 'sound_process_won'
-  | 'sound_process_lost'
-  | 'flawed_process_won'
-  | 'flawed_process_lost';
+  'sound_process_won' | 'sound_process_lost' | 'flawed_process_won' | 'flawed_process_lost';
 
 export interface TradeAnalysis {
   tradeId: number;
@@ -251,7 +248,10 @@ export function timeAgo(ms: number): string {
  * won is the one to worry about. Both halves are always spelled out in words,
  * so the distinction never rests on colour alone.
  */
-export const VERDICT_DISPLAY: Record<Verdict, { process: string; outcome: string; tone: 'ok' | 'warn' }> = {
+export const VERDICT_DISPLAY: Record<
+  Verdict,
+  { process: string; outcome: string; tone: 'ok' | 'warn' }
+> = {
   sound_process_won: { process: 'Sound process', outcome: 'won', tone: 'ok' },
   sound_process_lost: { process: 'Sound process', outcome: 'lost', tone: 'ok' },
   flawed_process_won: { process: 'Flawed process', outcome: 'won', tone: 'warn' },

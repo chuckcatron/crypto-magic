@@ -62,7 +62,9 @@ describe('loadCsv', () => {
   });
 
   it('tolerates quoted cells', () => {
-    const candles = load(`"timestamp","open","high","low","close"\n"1672531200","100","110","90","105"`);
+    const candles = load(
+      `"timestamp","open","high","low","close"\n"1672531200","100","110","90","105"`,
+    );
     expect(candles[0]!.open).toBe(100);
   });
 
@@ -72,16 +74,12 @@ describe('loadCsv', () => {
   });
 
   it('sorts out-of-order rows, because the backtester requires ascending bars', () => {
-    const candles = load(
-      `${header}\n1672534800,105,115,95,108,9\n1672531200,100,110,90,105,12`,
-    );
+    const candles = load(`${header}\n1672534800,105,115,95,108,9\n1672531200,100,110,90,105,12`);
     expect(candles.map((c) => c.openTime)).toEqual([1_672_531_200, 1_672_534_800]);
   });
 
   it('de-duplicates repeated timestamps', () => {
-    const candles = load(
-      `${header}\n1672531200,100,110,90,105,12\n1672531200,100,110,90,107,12`,
-    );
+    const candles = load(`${header}\n1672531200,100,110,90,105,12\n1672531200,100,110,90,107,12`);
     expect(candles).toHaveLength(1);
   });
 
@@ -113,7 +111,11 @@ describe('loadCsv', () => {
 
 describe('parseCsvLine', () => {
   it('keeps commas inside quoted fields', () => {
-    expect(parseCsvLine('"Aug 02, 2020","11,105.8","x"')).toEqual(['Aug 02, 2020', '11,105.8', 'x']);
+    expect(parseCsvLine('"Aug 02, 2020","11,105.8","x"')).toEqual([
+      'Aug 02, 2020',
+      '11,105.8',
+      'x',
+    ]);
   });
 
   it('treats a doubled quote as a literal quote', () => {

@@ -8,7 +8,12 @@
  * supervik/historical-funding-rates-fetcher.
  */
 import { readFileSync } from 'node:fs';
-import { EXPERIMENT_002_CONFIG, runCarry, type CarryResult, type FundingEvent } from '@crypto-magic/core';
+import {
+  EXPERIMENT_002_CONFIG,
+  runCarry,
+  type CarryResult,
+  type FundingEvent,
+} from '@crypto-magic/core';
 
 const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);
@@ -29,7 +34,9 @@ const events: FundingEvent[] = readFileSync(csv, 'utf8')
     const [, date, rate] = line.split(',');
     return { time: Date.parse(`${date!.trim().replace(' ', 'T')}Z`) / 1000, rate: Number(rate) };
   })
-  .filter((e) => Number.isFinite(e.time) && Number.isFinite(e.rate) && e.time >= from && e.time < to)
+  .filter(
+    (e) => Number.isFinite(e.time) && Number.isFinite(e.rate) && e.time >= from && e.time < to,
+  )
   .sort((a, b) => a.time - b.time);
 
 const always = runCarry(events, { ...EXPERIMENT_002_CONFIG, mode: 'always' });
@@ -40,7 +47,8 @@ const pct = (v: number) => `${v >= 0 ? '+' : ''}${v.toFixed(2)}%`;
 const verdict = (r: CarryResult) =>
   Number.isFinite(cashYield) ? (r.netAnnualizedPct > cashYield ? 'PASS' : 'FAIL') : '—';
 
-const row = (label: string, a: string, b: string) => `    ${label.padEnd(30)}${a.padStart(12)}   ${b.padStart(12)}`;
+const row = (label: string, a: string, b: string) =>
+  `    ${label.padEnd(30)}${a.padStart(12)}   ${b.padStart(12)}`;
 process.stdout.write(
   [
     '',
@@ -48,15 +56,37 @@ process.stdout.write(
     `  capital ${EXPERIMENT_002_CONFIG.capitalMultiple}x notional · spot ${EXPERIMENT_002_CONFIG.spotCostBps}bps + perp ${EXPERIMENT_002_CONFIG.perpCostBps}bps per side`,
     '',
     `                                      always on    conditional`,
-    row('Net yield on capital /yr', pct(always.netAnnualizedPct), pct(conditional.netAnnualizedPct)),
-    row('Funding on notional /yr', pct(always.grossFundingAnnualizedPct), pct(conditional.grossFundingAnnualizedPct)),
-    row('Total costs', `${always.totalCostPct.toFixed(2)}%`, `${conditional.totalCostPct.toFixed(2)}%`),
+    row(
+      'Net yield on capital /yr',
+      pct(always.netAnnualizedPct),
+      pct(conditional.netAnnualizedPct),
+    ),
+    row(
+      'Funding on notional /yr',
+      pct(always.grossFundingAnnualizedPct),
+      pct(conditional.grossFundingAnnualizedPct),
+    ),
+    row(
+      'Total costs',
+      `${always.totalCostPct.toFixed(2)}%`,
+      `${conditional.totalCostPct.toFixed(2)}%`,
+    ),
     row('Opens + closes', String(always.switches), String(conditional.switches)),
-    row('Time in the trade', `${always.timeInCarryPct.toFixed(0)}%`, `${conditional.timeInCarryPct.toFixed(0)}%`),
+    row(
+      'Time in the trade',
+      `${always.timeInCarryPct.toFixed(0)}%`,
+      `${conditional.timeInCarryPct.toFixed(0)}%`,
+    ),
     row('Worst 30 days (on capital)', pct(always.worst30DayPct), pct(conditional.worst30DayPct)),
-    row('Payments that were negative', `${always.negativeSharePct.toFixed(0)}%`, `${always.negativeSharePct.toFixed(0)}%`),
+    row(
+      'Payments that were negative',
+      `${always.negativeSharePct.toFixed(0)}%`,
+      `${always.negativeSharePct.toFixed(0)}%`,
+    ),
     '',
-    Number.isFinite(cashYield) ? row(`vs cash yield ${cashYield}%/yr`, verdict(always), verdict(conditional)) : '',
+    Number.isFinite(cashYield)
+      ? row(`vs cash yield ${cashYield}%/yr`, verdict(always), verdict(conditional))
+      : '',
     '',
   ].join('\n'),
 );

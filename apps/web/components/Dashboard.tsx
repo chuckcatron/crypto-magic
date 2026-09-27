@@ -97,7 +97,8 @@ export function Dashboard() {
     );
   }
 
-  const { status, portfolio, prices, positions, trades, events, equity, metrics, insight, alerts } = data;
+  const { status, portfolio, prices, positions, trades, events, equity, metrics, insight, alerts } =
+    data;
   const lastAlert = alerts.recent.at(-1);
   const alertsBroken =
     alerts.enabled && lastAlert !== undefined && lastAlert.results.every((r) => !r.ok);
@@ -125,16 +126,28 @@ export function Dashboard() {
           </span>
         )}
         <span
-          className={alerts.enabled ? (alertsBroken ? 'badge badge--halted' : 'badge') : 'badge badge--halted'}
+          className={
+            alerts.enabled
+              ? alertsBroken
+                ? 'badge badge--halted'
+                : 'badge'
+              : 'badge badge--halted'
+          }
           title={
             alerts.enabled
               ? `alerting via ${alerts.channels.join(', ')} · ${alerts.sent} sent, ${alerts.dropped} suppressed`
               : 'no alert channels configured — you will not be told if this stops'
           }
         >
-          {alerts.enabled ? (alertsBroken ? '⚠ alerts failing' : `🔔 ${alerts.channels.join(', ')}`) : '🔕 no alerts'}
+          {alerts.enabled
+            ? alertsBroken
+              ? '⚠ alerts failing'
+              : `🔔 ${alerts.channels.join(', ')}`
+            : '🔕 no alerts'}
         </span>
-        {status.killSwitchEngaged && <span className="badge badge--halted">⛔ kill switch engaged</span>}
+        {status.killSwitchEngaged && (
+          <span className="badge badge--halted">⛔ kill switch engaged</span>
+        )}
         <div className="header-spacer" />
         <button
           className="btn"
@@ -202,8 +215,11 @@ export function Dashboard() {
       {alertsBroken && (
         <div className="banner">
           <strong>The last alert reached no channel.</strong>{' '}
-          {lastAlert?.results.map((r) => r.error).filter(Boolean).join('; ')} — alerting is
-          configured but not working, which is worse than knowing it is off.
+          {lastAlert?.results
+            .map((r) => r.error)
+            .filter(Boolean)
+            .join('; ')}{' '}
+          — alerting is configured but not working, which is worse than knowing it is off.
         </div>
       )}
       {testResult && (

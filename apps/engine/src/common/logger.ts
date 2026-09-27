@@ -33,7 +33,12 @@ export function rootLogger(level = process.env.LOG_LEVEL ?? 'info'): Logger {
       censor: '[redacted]',
     },
     ...(process.stdout.isTTY
-      ? { transport: { target: 'pino-pretty', options: { colorize: true, translateTime: 'HH:MM:ss' } } }
+      ? {
+          transport: {
+            target: 'pino-pretty',
+            options: { colorize: true, translateTime: 'HH:MM:ss' },
+          },
+        }
       : {}),
   });
   return root;

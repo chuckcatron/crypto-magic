@@ -1,4 +1,12 @@
-import { D, Decimal, floorToIncrement, type Candle, type Granularity, type ProductSpec, type Ticker } from '@crypto-magic/core';
+import {
+  D,
+  Decimal,
+  floorToIncrement,
+  type Candle,
+  type Granularity,
+  type ProductSpec,
+  type Ticker,
+} from '@crypto-magic/core';
 import {
   ExchangeError,
   type Balance,

@@ -112,7 +112,11 @@ describe('AlertPolicy rate limiting', () => {
 
 describe('AlertPolicy realistic flood', () => {
   it('turns a failure repeating every 30s for an hour into a handful of alerts', () => {
-    const policy = new AlertPolicy({ minSeverity: 'warning', cooldownSeconds: 900, maxPerHour: 12 });
+    const policy = new AlertPolicy({
+      minSeverity: 'warning',
+      cooldownSeconds: 900,
+      maxPerHour: 12,
+    });
     let sent = 0;
     // Exactly the Coinbase 403 loop observed in this session.
     for (let i = 0; i < 120; i++) {
@@ -122,7 +126,11 @@ describe('AlertPolicy realistic flood', () => {
   });
 
   it('still delivers a critical arriving in the middle of that flood', () => {
-    const policy = new AlertPolicy({ minSeverity: 'warning', cooldownSeconds: 900, maxPerHour: 12 });
+    const policy = new AlertPolicy({
+      minSeverity: 'warning',
+      cooldownSeconds: 900,
+      maxPerHour: 12,
+    });
     for (let i = 0; i < 60; i++) policy.decide('warning', 'error:noise', T0 + i * 30_000);
     expect(policy.decide('critical', 'kill_switch:engaged', T0 + 900_000).send).toBe(true);
   });

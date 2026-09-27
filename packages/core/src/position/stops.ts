@@ -27,7 +27,11 @@ export const DEFAULT_STOP_CONFIG: StopConfig = {
   maxHoldingBars: 240,
 };
 
-export function initialStopPrice(entryPrice: Numeric, atrValue: Numeric, multiple: number): Decimal {
+export function initialStopPrice(
+  entryPrice: Numeric,
+  atrValue: Numeric,
+  multiple: number,
+): Decimal {
   const stop = D(entryPrice).minus(D(atrValue).mul(multiple));
   // A stop at or below zero is meaningless; clamp to a token fraction of entry
   // so the position still has a defined risk unit.
@@ -76,14 +80,18 @@ export function ratchetStop(
   const price = D(currentPrice);
   const highWater = Decimal.max(position.highWaterPrice, price);
   if (!config.trailingEnabled) {
-    return highWater.eq(position.highWaterPrice) ? position : { ...position, highWaterPrice: highWater };
+    return highWater.eq(position.highWaterPrice)
+      ? position
+      : { ...position, highWaterPrice: highWater };
   }
 
   const activationPrice = position.averageEntryPrice.plus(
     position.entryAtr.mul(config.trailActivationAtrMultiple),
   );
   if (highWater.lt(activationPrice)) {
-    return highWater.eq(position.highWaterPrice) ? position : { ...position, highWaterPrice: highWater };
+    return highWater.eq(position.highWaterPrice)
+      ? position
+      : { ...position, highWaterPrice: highWater };
   }
 
   const candidate = highWater.minus(position.entryAtr.mul(config.atrStopMultiple));
@@ -122,11 +130,7 @@ export function checkStops(args: {
 }
 
 /** The price a stop-triggered exit is assumed to fill at. */
-export function exitFillPrice(
-  position: Position,
-  reason: ExitReason,
-  barClose: Numeric,
-): Decimal {
+export function exitFillPrice(position: Position, reason: ExitReason, barClose: Numeric): Decimal {
   switch (reason) {
     case 'stop_loss':
     case 'trailing_stop':

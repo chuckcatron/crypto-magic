@@ -76,7 +76,9 @@ export function EquityCurve({ points, startingEquity }: Props) {
       hi,
       plotW,
       plotH,
-      path: values.map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' '),
+      path: values
+        .map((v, i) => `${i === 0 ? 'M' : 'L'}${x(i).toFixed(2)},${y(v).toFixed(2)}`)
+        .join(' '),
       area:
         `M${x(0).toFixed(2)},${(PAD.top + plotH).toFixed(2)} ` +
         values.map((v, i) => `L${x(i).toFixed(2)},${y(v).toFixed(2)}`).join(' ') +
@@ -89,7 +91,9 @@ export function EquityCurve({ points, startingEquity }: Props) {
   }, [points, startingEquity]);
 
   if (!model) {
-    return <p className="empty">Not enough history yet — the curve appears after a few engine ticks.</p>;
+    return (
+      <p className="empty">Not enough history yet — the curve appears after a few engine ticks.</p>
+    );
   }
 
   const last = model.values[model.values.length - 1];

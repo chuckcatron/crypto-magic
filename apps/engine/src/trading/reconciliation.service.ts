@@ -69,7 +69,11 @@ export class ReconciliationService {
         // Trust the exchange, always. Taking the smaller of the two is not safer:
         // believing we hold less than we do strands coins outside the stop logic.
         this.log.warn(
-          { productId: position.productId, recorded: position.baseSize.toFixed(), actual: held.toFixed() },
+          {
+            productId: position.productId,
+            recorded: position.baseSize.toFixed(),
+            actual: held.toFixed(),
+          },
           'position size disagrees with the exchange; adopting the exchange value',
         );
         this.positions.upsert({ ...position, baseSize: held });

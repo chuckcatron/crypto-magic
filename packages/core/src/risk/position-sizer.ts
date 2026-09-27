@@ -56,7 +56,12 @@ export function sizePosition(input: SizingInput): SizingResult {
   let size = scaled.div(riskPerUnit);
   constraints.push(`risk budget ${scaled.toFixed(2)} / ${riskPerUnit.toFixed(2)} per unit`);
 
-  size = applyCap(size, D(limits.maxPositionNotional).div(entry), constraints, 'maxPositionNotional');
+  size = applyCap(
+    size,
+    D(limits.maxPositionNotional).div(entry),
+    constraints,
+    'maxPositionNotional',
+  );
 
   const remainingBudget = D(limits.maxTotalNotional).minus(D(input.openNotional));
   if (remainingBudget.lte(0)) return reject('total notional cap already used');
@@ -78,7 +83,9 @@ export function sizePosition(input: SizingInput): SizingResult {
     );
   }
   if (notional.lt(product.minMarketFunds)) {
-    return reject(`notional ${notional.toFixed(2)} below product minimum ${product.minMarketFunds}`);
+    return reject(
+      `notional ${notional.toFixed(2)} below product minimum ${product.minMarketFunds}`,
+    );
   }
 
   return { baseSize: size, notional, constraints, rejected: null };

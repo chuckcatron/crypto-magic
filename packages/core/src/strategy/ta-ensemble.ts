@@ -139,7 +139,15 @@ export class TaEnsembleStrategy implements Strategy {
       return this.evaluateExit({ fast, slow, i, rsiNow, indicators });
     }
     return this.evaluateEntry({
-      fast, slow, i, rsiNow, close, trendNow, atrPct, atrNow, indicators,
+      fast,
+      slow,
+      i,
+      rsiNow,
+      close,
+      trendNow,
+      atrPct,
+      atrNow,
+      indicators,
     });
   }
 
@@ -154,9 +162,7 @@ export class TaEnsembleStrategy implements Strategy {
     const reasons: string[] = [];
 
     if (crossedBelow(fast, slow, i)) {
-      reasons.push(
-        `EMA${this.config.emaFastPeriod} crossed below EMA${this.config.emaSlowPeriod}`,
-      );
+      reasons.push(`EMA${this.config.emaFastPeriod} crossed below EMA${this.config.emaSlowPeriod}`);
     }
     if (rsiNow > this.config.rsiExitMax) {
       reasons.push(`RSI ${rsiNow.toFixed(1)} above blow-off threshold ${this.config.rsiExitMax}`);

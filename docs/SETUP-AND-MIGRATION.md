@@ -5,13 +5,13 @@ arrives, without losing the paper account, open positions or history.
 
 The design that makes the move easy:
 
-| What | Where it lives | How it moves |
-|---|---|---|
-| Code | git | `git clone` on the new Mac, then build |
-| Settings and secrets | `.env` (never committed) | `scripts/migrate.sh` |
-| Everything the bot remembers: paper account, positions, trades, equity curve, kill switch | `data/` (never committed) | `scripts/migrate.sh` |
-| Machine-specific choices (which local model, and so on) | a few lines in `.env` | edit after import |
-| launchd service, Tailscale, SSH keys, Ollama | the Mac itself | set up again (about 20 minutes) |
+| What                                                                                      | Where it lives            | How it moves                           |
+| ----------------------------------------------------------------------------------------- | ------------------------- | -------------------------------------- |
+| Code                                                                                      | git                       | `git clone` on the new Mac, then build |
+| Settings and secrets                                                                      | `.env` (never committed)  | `scripts/migrate.sh`                   |
+| Everything the bot remembers: paper account, positions, trades, equity curve, kill switch | `data/` (never committed) | `scripts/migrate.sh`                   |
+| Machine-specific choices (which local model, and so on)                                   | a few lines in `.env`     | edit after import                      |
+| launchd service, Tailscale, SSH keys, Ollama                                              | the Mac itself            | set up again (about 20 minutes)        |
 
 Keep `DATABASE_PATH` and `KILL_SWITCH_FILE` at their defaults. Relative paths
 resolve against the repo root, so they move with the repo. `./scripts/doctor.sh`
@@ -54,13 +54,13 @@ chmod 600 .env
 
 Edit `.env`. For this weekend:
 
-| Setting | Value | Why |
-|---|---|---|
-| `TRADING_MODE` | `paper` (the default) | No real money, and no API key needed |
-| `PAPER_STARTING_CASH` | what you would actually trade, e.g. `1000` | So the paper results mean something |
-| `NTFY_TOPIC` | a long random name, e.g. `crypto-magic-8f3k2p9wqz` | Easiest alert channel: install the **ntfy** app on your iPhone and subscribe to that topic |
-| `DEADMAN_PING_URL` | from healthchecks.io | Alerts you when the bot goes silent (docs/REMOTE-ACCESS.md, step 4) |
-| `LLM_ENABLED` | `false` for now | 16 GB is tight for a local model next to everything else; turn it on at the Studio |
+| Setting               | Value                                              | Why                                                                                        |
+| --------------------- | -------------------------------------------------- | ------------------------------------------------------------------------------------------ |
+| `TRADING_MODE`        | `paper` (the default)                              | No real money, and no API key needed                                                       |
+| `PAPER_STARTING_CASH` | what you would actually trade, e.g. `1000`         | So the paper results mean something                                                        |
+| `NTFY_TOPIC`          | a long random name, e.g. `crypto-magic-8f3k2p9wqz` | Easiest alert channel: install the **ntfy** app on your iPhone and subscribe to that topic |
+| `DEADMAN_PING_URL`    | from healthchecks.io                               | Alerts you when the bot goes silent (docs/REMOTE-ACCESS.md, step 4)                        |
+| `LLM_ENABLED`         | `false` for now                                    | 16 GB is tight for a local model next to everything else; turn it on at the Studio         |
 
 ### 4. First run, in the foreground (15 min)
 
@@ -96,8 +96,8 @@ account is saved in the database, so restarts no longer reset it.
 
 - Plugged in, **lid open**. A closed lid sleeps the Mac no matter what else you set.
 - Amphetamine: start a session set to **Indefinitely**.
-- **System Settings → Battery → Options:** turn on *Prevent automatic sleeping on
-  power adapter when the display is off*.
+- **System Settings → Battery → Options:** turn on _Prevent automatic sleeping on
+  power adapter when the display is off_.
 
 ### 7. Phone access (30 min)
 

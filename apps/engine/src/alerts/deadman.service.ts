@@ -1,4 +1,9 @@
-import { Inject, Injectable, type OnApplicationBootstrap, type OnModuleDestroy } from '@nestjs/common';
+import {
+  Inject,
+  Injectable,
+  type OnApplicationBootstrap,
+  type OnModuleDestroy,
+} from '@nestjs/common';
 import { SchedulerRegistry } from '@nestjs/schedule';
 import { scrub } from '@crypto-magic/notify';
 import { APP_CONFIG } from '../config/tokens';
@@ -43,7 +48,9 @@ export class DeadmanService implements OnApplicationBootstrap, OnModuleDestroy {
 
   onApplicationBootstrap(): void {
     if (!this.config.DEADMAN_PING_URL) {
-      this.log.info('dead-man switch disabled — set DEADMAN_PING_URL to be told when the bot goes silent');
+      this.log.info(
+        'dead-man switch disabled — set DEADMAN_PING_URL to be told when the bot goes silent',
+      );
       return;
     }
     const interval = setInterval(
@@ -52,7 +59,10 @@ export class DeadmanService implements OnApplicationBootstrap, OnModuleDestroy {
     );
     this.scheduler.addInterval(DEADMAN_INTERVAL, interval);
     this.started = true;
-    this.log.info({ everySeconds: this.config.DEADMAN_INTERVAL_SECONDS }, 'dead-man switch enabled');
+    this.log.info(
+      { everySeconds: this.config.DEADMAN_INTERVAL_SECONDS },
+      'dead-man switch enabled',
+    );
   }
 
   onModuleDestroy(): void {
@@ -102,7 +112,10 @@ export class DeadmanService implements OnApplicationBootstrap, OnModuleDestroy {
 
     this.inFlight = true;
     try {
-      const response = await fetch(url, { method: 'GET', signal: AbortSignal.timeout(PING_TIMEOUT_MS) });
+      const response = await fetch(url, {
+        method: 'GET',
+        signal: AbortSignal.timeout(PING_TIMEOUT_MS),
+      });
       if (!response.ok) throw new Error(`HTTP ${response.status}`);
       this.lastPingAt = now;
       this.lastResult = 'sent';

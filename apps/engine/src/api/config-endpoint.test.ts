@@ -4,7 +4,8 @@ import { configSchema } from '../config/config.schema';
 import { PUBLIC_CONFIG_KEYS } from './api.controller';
 
 /** Anything whose name suggests it grants access to something. */
-const SECRET_SHAPED = /KEY|TOKEN|SECRET|WEBHOOK|PRIVATE|PASSWORD|TOPIC|CHAT_ID|_ACK|CREDENTIAL|PING_URL/i;
+const SECRET_SHAPED =
+  /KEY|TOKEN|SECRET|WEBHOOK|PRIVATE|PASSWORD|TOPIC|CHAT_ID|_ACK|CREDENTIAL|PING_URL/i;
 
 describe('public config allowlist', () => {
   it('contains nothing that looks like a credential', () => {
@@ -18,8 +19,9 @@ describe('public config allowlist', () => {
     // This is the regression the review found: secrets added to the config
     // after the endpoint was written were served in plain text. Enumerate the
     // live schema so a new one is caught the day it is added.
-    const shape = (configSchema as unknown as { _def: { schema: { shape: Record<string, unknown> } } })
-      ._def.schema.shape;
+    const shape = (
+      configSchema as unknown as { _def: { schema: { shape: Record<string, unknown> } } }
+    )._def.schema.shape;
     const secretFields = Object.keys(shape).filter(
       (key) => SECRET_SHAPED.test(key) && key !== 'LLM_MAX_TOKENS',
     );

@@ -66,7 +66,9 @@ async function api(method, path, { body, timeoutMs = 15_000 } = {}) {
     data = text;
   }
   if (!response.ok) {
-    throw new Error(`engine answered HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`);
+    throw new Error(
+      `engine answered HTTP ${response.status}: ${typeof data === 'string' ? data : JSON.stringify(data)}`,
+    );
   }
   return data;
 }
@@ -100,7 +102,9 @@ async function status() {
   const [s, p] = await Promise.all([api('GET', '/status'), api('GET', '/portfolio')]);
 
   const mode = s.live ? red(bold('LIVE')) : green('PAPER');
-  console.log(`${bold('crypto-magic')} · ${mode} · ${s.products.join(', ')} · ${s.granularity} · ${s.strategy}`);
+  console.log(
+    `${bold('crypto-magic')} · ${mode} · ${s.products.join(', ')} · ${s.granularity} · ${s.strategy}`,
+  );
 
   row('Kill switch', s.killSwitchEngaged ? red(bold('ENGAGED — no new entries')) : green('off'));
   row('Halted', s.haltReasons?.length ? yellow(s.haltReasons.join('; ')) : green('no'));
@@ -108,7 +112,12 @@ async function status() {
   const loopAge = s.lastTickCompletedAt ? Date.now() - s.lastTickCompletedAt : null;
   const loopText = `last pass ${ago(s.lastTickCompletedAt)}`;
   row('Loop', loopAge !== null && loopAge < 180_000 ? green(loopText) : red(loopText));
-  row('Market data', s.marketDataAgeSeconds === null ? yellow('none yet') : `newest bar ${ago(Date.now() - s.marketDataAgeSeconds * 1000)}`);
+  row(
+    'Market data',
+    s.marketDataAgeSeconds === null
+      ? yellow('none yet')
+      : `newest bar ${ago(Date.now() - s.marketDataAgeSeconds * 1000)}`,
+  );
 
   const d = s.deadman;
   if (!d?.enabled) row('Dead-man', yellow('off (set DEADMAN_PING_URL)'));
@@ -123,12 +132,20 @@ async function status() {
     row('Positions', 'none');
     return;
   }
-  const cost = p.positions.reduce((sum, x) => sum + Number(x.baseSize) * Number(x.averageEntryPrice), 0);
+  const cost = p.positions.reduce(
+    (sum, x) => sum + Number(x.baseSize) * Number(x.averageEntryPrice),
+    0,
+  );
   const unrealized = Number(p.positionValue) - cost;
-  row('Positions', `${p.positions.length} · unrealized ${unrealized >= 0 ? green(`+${usd(unrealized)}`) : red(usd(unrealized))}`);
+  row(
+    'Positions',
+    `${p.positions.length} · unrealized ${unrealized >= 0 ? green(`+${usd(unrealized)}`) : red(usd(unrealized))}`,
+  );
   for (const x of p.positions) {
     console.log(
-      fit(`  ${x.productId} ${Number(x.baseSize)} @ ${usd(x.averageEntryPrice)} · stop ${usd(x.stopPrice)} · ${ago(x.openedAt)}`),
+      fit(
+        `  ${x.productId} ${Number(x.baseSize)} @ ${usd(x.averageEntryPrice)} · stop ${usd(x.stopPrice)} · ${ago(x.openedAt)}`,
+      ),
     );
   }
 }
@@ -144,7 +161,9 @@ async function kill(reasonWords) {
     // engine checks for it on every decision, and again at startup.
     mkdirSync(dirname(KILL_SWITCH_FILE), { recursive: true });
     writeFileSync(KILL_SWITCH_FILE, `${new Date().toISOString()}\n${reason}\n`, 'utf8');
-    console.log(red(bold('Kill switch ENGAGED (engine not responding — wrote the file directly).')));
+    console.log(
+      red(bold('Kill switch ENGAGED (engine not responding — wrote the file directly).')),
+    );
     console.log(dim(KILL_SWITCH_FILE));
   }
 }
@@ -157,13 +176,24 @@ async function release(flags) {
     if (!(error instanceof EngineUnreachable)) throw error;
     if (!flags.includes('--offline')) {
       console.log(red('Engine not responding; nothing released.'));
-      console.log('Start it first (cm restart), or run `cm release --offline` to delete the file anyway.');
+      console.log(
+        'Start it first (cm restart), or run `cm release --offline` to delete the file anyway.',
+      );
       process.exitCode = 1;
       return;
     }
-    if (!flags.includes('--yes') && !(await confirm('Delete the kill switch file while the engine is down? Type RELEASE', 'RELEASE'))) return;
+    if (
+      !flags.includes('--yes') &&
+      !(await confirm(
+        'Delete the kill switch file while the engine is down? Type RELEASE',
+        'RELEASE',
+      ))
+    )
+      return;
     rmSync(KILL_SWITCH_FILE, { force: true });
-    console.log(green('Kill switch file removed.') + ' Entries are allowed when the engine starts.');
+    console.log(
+      green('Kill switch file removed.') + ' Entries are allowed when the engine starts.',
+    );
   }
 }
 
@@ -175,10 +205,16 @@ async function flatten(flags) {
     return;
   }
   const what = `${p.positions.length} position(s) worth ~${usd(p.positionValue)} in ${s.live ? 'LIVE' : 'paper'} mode`;
-  if (!flags.includes('--yes') && !(await confirm(`Sell ${what} at market? Type FLATTEN`, 'FLATTEN'))) return;
+  if (
+    !flags.includes('--yes') &&
+    !(await confirm(`Sell ${what} at market? Type FLATTEN`, 'FLATTEN'))
+  )
+    return;
 
   // Engage first, or the next bar could buy straight back in.
-  await api('POST', '/kill-switch/engage', { body: { reason: 'flatten requested remotely with cm' } });
+  await api('POST', '/kill-switch/engage', {
+    body: { reason: 'flatten requested remotely with cm' },
+  });
   const result = await api('POST', '/flatten', { timeoutMs: 120_000 });
   console.log(`${red(bold('Kill switch ENGAGED'))} and ${result.closed} position(s) closed.`);
   console.log(dim('Run `cm` to confirm, and `cm release` when you want it trading again.'));
@@ -197,7 +233,9 @@ async function events([n]) {
 function logs([n]) {
   const limit = clampCount(n, 30);
   if (!existsSync(LOG_FILE)) {
-    console.log(`No log file at ${LOG_FILE}. Is the engine installed with scripts/install-launchd.sh?`);
+    console.log(
+      `No log file at ${LOG_FILE}. Is the engine installed with scripts/install-launchd.sh?`,
+    );
     return;
   }
   // Read only the tail: the file grows forever.
@@ -207,7 +245,9 @@ function logs([n]) {
     try {
       const entry = JSON.parse(raw);
       const level = levels[entry.level] ?? entry.level;
-      const line = fit(`${clock(Date.parse(entry.time))} ${String(level).padEnd(5)} ${entry.context ?? ''} ${entry.msg ?? ''}`);
+      const line = fit(
+        `${clock(Date.parse(entry.time))} ${String(level).padEnd(5)} ${entry.context ?? ''} ${entry.msg ?? ''}`,
+      );
       console.log(entry.level >= 50 ? red(line) : entry.level >= 40 ? yellow(line) : line);
     } catch {
       console.log(fit(raw));

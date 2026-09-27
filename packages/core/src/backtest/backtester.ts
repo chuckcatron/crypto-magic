@@ -1,6 +1,12 @@
 import { atr } from '../indicators';
 import { D, Decimal } from '../money';
-import { checkStops, exitFillPrice, openPosition, ratchetStop, type StopConfig } from '../position/stops';
+import {
+  checkStops,
+  exitFillPrice,
+  openPosition,
+  ratchetStop,
+  type StopConfig,
+} from '../position/stops';
 import { DEFAULT_RISK_LIMITS, type RiskLimits } from '../risk/limits';
 import { sizePosition } from '../risk/position-sizer';
 import type { Candle, ProductSpec } from '../types/market';
@@ -9,7 +15,13 @@ import type { ExitReason, Position, Signal } from '../types/trading';
 import type { Strategy } from '../strategy/types';
 import { buyAndHold } from './benchmark';
 import { computeMetrics } from './metrics';
-import { DEFAULT_FEE_MODEL, type BacktestResult, type BacktestTrade, type EquityPoint, type FeeModel } from './types';
+import {
+  DEFAULT_FEE_MODEL,
+  type BacktestResult,
+  type BacktestTrade,
+  type EquityPoint,
+  type FeeModel,
+} from './types';
 
 export interface BacktestOptions {
   readonly candles: Candle[];
