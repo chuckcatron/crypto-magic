@@ -7,6 +7,7 @@ import {
   fetchDashboard,
   flattenAll,
   money,
+  price,
   releaseKillSwitch,
   sendTestAlert,
   signedMoney,
@@ -96,7 +97,7 @@ export function Dashboard() {
     );
   }
 
-  const { status, portfolio, positions, trades, events, equity, metrics, insight, alerts } = data;
+  const { status, portfolio, prices, positions, trades, events, equity, metrics, insight, alerts } = data;
   const lastAlert = alerts.recent.at(-1);
   const alertsBroken =
     alerts.enabled && lastAlert !== undefined && lastAlert.results.every((r) => !r.ok);
@@ -229,6 +230,22 @@ export function Dashboard() {
           }
           sub={`${money(portfolio.cash)} cash · ${money(portfolio.positionValue)} in positions`}
         />
+        {prices.map((quote) => (
+          <StatTile
+            key={quote.productId}
+            label={`${quote.productId} price`}
+            value={quote.price === null ? '—' : price(quote.price)}
+            sub={
+              quote.error
+                ? quote.fetchedAt
+                  ? `⚠ stale — last good ${timeAgo(quote.fetchedAt)}`
+                  : '⚠ price unavailable'
+                : quote.fetchedAt
+                  ? `live · updated ${timeAgo(quote.fetchedAt)}`
+                  : undefined
+            }
+          />
+        ))}
         <StatTile
           label="Realized P&L"
           value={signedMoney(metrics.realizedPnl)}

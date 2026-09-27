@@ -11,7 +11,7 @@ interface Props {
 
 export function StatTile({ label, value, sub, delta, hero = false }: Props) {
   return (
-    <div className="card">
+    <div className="card tile">
       <div className="tile-label">{label}</div>
       <div className={hero ? 'tile-value tile-value--hero' : 'tile-value'}>{value}</div>
       {delta && (

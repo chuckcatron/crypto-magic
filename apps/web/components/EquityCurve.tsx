@@ -13,6 +13,33 @@ interface Props {
   startingEquity: number | null;
 }
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+/** Short date, or a time when the whole window is inside one day. */
+function formatTick(ts: number | undefined, spanMs: number): string {
+  if (ts === undefined) return '';
+  const date = new Date(ts);
+  return spanMs < DAY_MS
+    ? date.toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })
+    : date.toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
+}
+
+/**
+ * First / middle / last, minus duplicates. With two points the middle index is
+ * the first one, and with a short window neighbouring labels can read the same;
+ * either way drawing both stacks two labels on one spot.
+ */
+function timeTicks(points: EquityPoint[], count: number): { i: number; label: string }[] {
+  const spanMs = (points[count - 1]?.ts ?? 0) - (points[0]?.ts ?? 0);
+  const indices = [...new Set([0, Math.floor((count - 1) / 2), count - 1])];
+  const ticks: { i: number; label: string }[] = [];
+  for (const i of indices) {
+    const label = formatTick(points[i]?.ts, spanMs);
+    if (label && label !== ticks.at(-1)?.label) ticks.push({ i, label });
+  }
+  return ticks;
+}
+
 /**
  * Account equity over time.
  *
@@ -21,12 +48,6 @@ interface Props {
  * the plot competes with it. Gain and loss are never encoded by line color: the
  * value readout carries a sign, which survives any kind of color vision.
  */
-/** Short date, or a time when the whole window is inside one day. */
-function formatTick(ts: number | undefined): string {
-  if (ts === undefined) return '';
-  return new Date(ts).toLocaleDateString(undefined, { month: 'short', day: 'numeric' });
-}
-
 export function EquityCurve({ points, startingEquity }: Props) {
   const wrapRef = useRef<HTMLDivElement>(null);
   const [hover, setHover] = useState<{ index: number; x: number } | null>(null);
@@ -63,10 +84,7 @@ export function EquityCurve({ points, startingEquity }: Props) {
       ticks: [lo, (lo + hi) / 2, hi],
       // First / middle / last. A time series with no time axis leaves the
       // reader unable to tell a week from a year.
-      timeTicks: [0, Math.floor((values.length - 1) / 2), values.length - 1].map((i) => ({
-        i,
-        label: formatTick(points[i]?.ts),
-      })),
+      timeTicks: timeTicks(points, values.length),
     };
   }, [points, startingEquity]);
 

@@ -12,6 +12,7 @@ import { PostMortemService } from '../insight/postmortem.service';
 import { AlertService } from '../alerts/alert.service';
 import { TradingEngineService } from '../trading/engine.service';
 import { KillSwitchService } from '../trading/kill-switch.service';
+import { MarketDataService } from '../market-data/market-data.service';
 import { DeadmanService } from '../alerts/deadman.service';
 import { PortfolioService } from '../trading/portfolio.service';
 import { RiskService } from '../trading/risk.service';
@@ -100,6 +101,7 @@ export class ApiController {
     private readonly risk: RiskService,
     private readonly killSwitch: KillSwitchService,
     private readonly deadman: DeadmanService,
+    private readonly marketData: MarketDataService,
   ) {}
 
   @Get('status')
@@ -117,6 +119,19 @@ export class ApiController {
   async portfolioSnapshot() {
     const snapshot = await this.portfolio.snapshot();
     return serialize(snapshot);
+  }
+
+  /**
+   * Latest price per traded product, for display. Prices cross the wire as
+   * strings like every other monetary value; a failed refresh keeps the last
+   * good price and sets `error` rather than failing the request.
+   */
+  @Get('prices')
+  async prices() {
+    const quotes = await Promise.all(
+      this.config.PRODUCTS.map((productId) => this.marketData.displayPrice(productId)),
+    );
+    return quotes.map((q) => ({ ...q, price: q.price === null ? null : String(q.price) }));
   }
 
   @Get('positions')

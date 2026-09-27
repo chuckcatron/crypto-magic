@@ -36,6 +36,14 @@ export interface Portfolio {
   mode: 'paper' | 'live';
 }
 
+/** Latest spot price. On a failed refresh `price` is the last good one and `error` is set. */
+export interface PriceQuote {
+  productId: string;
+  price: string | null;
+  fetchedAt: number | null;
+  error: string | null;
+}
+
 export interface PositionRow {
   productId: string;
   baseSize: string;
@@ -163,6 +171,7 @@ async function post<T>(path: string, body?: unknown): Promise<T> {
 export interface DashboardData {
   status: EngineStatus;
   portfolio: Portfolio;
+  prices: PriceQuote[];
   positions: PositionRow[];
   trades: TradeRow[];
   events: EventRow[];
@@ -173,10 +182,11 @@ export interface DashboardData {
 }
 
 export async function fetchDashboard(signal?: AbortSignal): Promise<DashboardData> {
-  const [status, portfolio, positions, trades, events, equity, metrics, insight, alerts] =
+  const [status, portfolio, prices, positions, trades, events, equity, metrics, insight, alerts] =
     await Promise.all([
       get<EngineStatus>('/status', signal),
       get<Portfolio>('/portfolio', signal),
+      get<PriceQuote[]>('/prices', signal),
       get<PositionRow[]>('/positions', signal),
       get<TradeRow[]>('/trades?limit=25', signal),
       get<EventRow[]>('/events?limit=80', signal),
@@ -185,7 +195,7 @@ export async function fetchDashboard(signal?: AbortSignal): Promise<DashboardDat
       get<InsightStatus>('/insight', signal),
       get<AlertStatus>('/alerts', signal),
     ]);
-  return { status, portfolio, positions, trades, events, equity, metrics, insight, alerts };
+  return { status, portfolio, prices, positions, trades, events, equity, metrics, insight, alerts };
 }
 
 export const engageKillSwitch = (reason: string) =>
@@ -199,6 +209,17 @@ export function money(value: string | number, currency = '$'): string {
   const n = typeof value === 'string' ? Number.parseFloat(value) : value;
   if (!Number.isFinite(n)) return '—';
   return `${currency}${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+}
+
+/**
+ * A market price. Unlike money(), keeps enough digits for sub-dollar assets,
+ * where two decimals would round a real move away.
+ */
+export function price(value: string | number, currency = '$'): string {
+  const n = typeof value === 'string' ? Number.parseFloat(value) : value;
+  if (!Number.isFinite(n)) return '—';
+  const digits = n >= 1 ? 2 : 6;
+  return `${currency}${n.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: digits })}`;
 }
 
 export function signedMoney(value: string | number, currency = '$'): string {
