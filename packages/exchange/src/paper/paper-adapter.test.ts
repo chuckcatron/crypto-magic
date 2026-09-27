@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { D, type Candle, type Granularity, type ProductSpec, type Ticker } from '@crypto-magic/core';
+import { D, type Candle, type ProductSpec, type Ticker } from '@crypto-magic/core';
 import type { Balance, ExchangeAdapter, OrderResult } from '../types';
 import { PaperAdapter } from './paper-adapter';
 

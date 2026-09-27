@@ -92,7 +92,7 @@ export function EquityCurve({ points, startingEquity }: Props) {
     return <p className="empty">Not enough history yet — the curve appears after a few engine ticks.</p>;
   }
 
-  const last = model.values[model.values.length - 1]!;
+  const last = model.values[model.values.length - 1];
   const hovered = hover ? model.values[hover.index] : null;
   const hoveredPoint = hover ? points[hover.index] : null;
 

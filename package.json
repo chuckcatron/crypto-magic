@@ -9,21 +9,29 @@
   "scripts": {
     "build": "turbo run build",
     "dev": "turbo run dev",
-    "lint": "turbo run lint",
+    "lint": "eslint .",
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "backtest": "pnpm --filter @crypto-magic/engine backtest",
     "engine": "pnpm --filter @crypto-magic/engine start:prod",
-    "format": "prettier --write \"**/*.{ts,tsx,json,md}\"",
+    "format": "prettier --write .",
     "dashboard": "pnpm --filter @crypto-magic/web start",
     "dashboard:dev": "pnpm --filter @crypto-magic/web dev",
-    "engine:dev": "pnpm --filter @crypto-magic/engine start:dev"
+    "engine:dev": "pnpm --filter @crypto-magic/engine start:dev",
+    "format:check": "prettier --check ."
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
+    "@next/eslint-plugin-next": "^15.5.25",
     "@types/node": "^22.10.2",
+    "eslint": "^9.39.5",
+    "eslint-config-prettier": "^10.1.8",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.5.0",
     "prettier": "^3.4.2",
     "turbo": "^2.3.3",
-    "typescript": "^5.7.2"
+    "typescript": "^5.7.2",
+    "typescript-eslint": "^8.70.1"
   },
   "pnpm": {
     "onlyBuiltDependencies": [

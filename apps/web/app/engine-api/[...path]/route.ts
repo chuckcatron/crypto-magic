@@ -20,7 +20,7 @@ const LOOPBACK = new Set(['127.0.0.1', 'localhost', '[::1]', '::1']);
 function hostnameOf(host: string | null): string {
   if (!host) return '';
   if (host.startsWith('[')) return host.slice(0, host.indexOf(']') + 1);
-  return host.split(':')[0]!.toLowerCase();
+  return host.split(':')[0].toLowerCase();
 }
 
 /**

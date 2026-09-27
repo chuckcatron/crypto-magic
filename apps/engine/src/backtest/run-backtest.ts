@@ -110,7 +110,7 @@ function numberFlag(raw: string | undefined, fallback: number, name: string): nu
 
 async function main(): Promise<void> {
   const args = parseArgs(process.argv.slice(2));
-  const config = loadConfig({ ...process.env, TRADING_MODE: 'paper' } as NodeJS.ProcessEnv);
+  const config = loadConfig({ ...process.env, TRADING_MODE: 'paper' });
 
   const strategy: Strategy =
     args.strategy === 'regime'
@@ -118,9 +118,6 @@ async function main(): Promise<void> {
       : new TaEnsembleStrategy(toStrategyConfig(config));
   const stopConfig = args.strategy === 'regime' ? REGIME_FILTER_STOP_CONFIG : toStopConfig(config);
   let riskLimits = toRiskLimits(config);
-
-  // Public market data: no credentials, and an adapter that cannot place orders.
-  const exchange = new CoinbaseAdapter({});
 
   let product;
   let candles: Candle[];

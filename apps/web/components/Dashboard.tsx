@@ -102,7 +102,7 @@ export function Dashboard() {
   const alertsBroken =
     alerts.enabled && lastAlert !== undefined && lastAlert.results.every((r) => !r.ok);
   const equityNow = Number.parseFloat(portfolio.equity);
-  const startingEquity = equity.length > 0 ? Number.parseFloat(equity[0]!.equity) : null;
+  const startingEquity = equity.length > 0 ? Number.parseFloat(equity[0].equity) : null;
   const change = startingEquity !== null ? equityNow - startingEquity : null;
   const changePct = startingEquity ? (change! / startingEquity) * 100 : null;
   const realized = Number.parseFloat(metrics.realizedPnl);

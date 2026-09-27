@@ -443,6 +443,11 @@ function isRetryable(error: unknown): boolean {
  * character log line, and a bot that retries every 30 seconds for a year writes
  * it about a million times. Keep the parts that identify the failure.
  */
+/** A field worth printing, or undefined — never "[object Object]". */
+function scalar(value: unknown): string | undefined {
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : undefined;
+}
+
 function describeError(error: unknown): string {
   if (typeof error === 'object' && error !== null) {
     const e = error as {
@@ -452,11 +457,11 @@ function describeError(error: unknown): string {
       requestParams?: { method?: unknown; endpoint?: unknown };
     };
     const parts: string[] = [];
-    if (e.code !== undefined) parts.push(`HTTP ${String(e.code)}`);
+    const code = scalar(e.code);
+    if (code) parts.push(`HTTP ${code}`);
     if (typeof e.message === 'string' && e.message) parts.push(e.message);
-    if (e.requestParams?.endpoint) {
-      parts.push(`(${String(e.requestParams.method ?? 'GET')} ${String(e.requestParams.endpoint)})`);
-    }
+    const endpoint = scalar(e.requestParams?.endpoint);
+    if (endpoint) parts.push(`(${scalar(e.requestParams?.method) ?? 'GET'} ${endpoint})`);
     if (typeof e.body === 'string' && e.body) parts.push(`- ${truncate(e.body, 160)}`);
     if (parts.length > 0) return parts.join(' ');
   }
