@@ -69,7 +69,7 @@ describe('checkLocalRequest — mutations', () => {
     const verdict = checkLocalRequest(req('POST', { host: '127.0.0.1:4000' }));
     expect(verdict).toMatchObject({
       ok: false,
-      reason: expect.stringContaining(LOCAL_REQUEST_HEADER),
+      reason: expect.stringContaining(LOCAL_REQUEST_HEADER) as string,
     });
   });
 

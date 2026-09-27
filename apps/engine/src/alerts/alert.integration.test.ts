@@ -45,7 +45,7 @@ describe('AlertService', () => {
       NTFY_TOPIC: 'test-topic',
       HEARTBEAT_ENABLED: 'false',
       ...overrides,
-    } as NodeJS.ProcessEnv);
+    });
 
     channel = new RecordingChannel();
 
@@ -199,7 +199,7 @@ describe('AlertService', () => {
         DATABASE_PATH: ':memory:',
         LOG_LEVEL: 'fatal',
         HEARTBEAT_ENABLED: 'false',
-      } as NodeJS.ProcessEnv);
+      });
       moduleRef = await Test.createTestingModule({
         imports: [ScheduleModule.forRoot()],
         providers: [

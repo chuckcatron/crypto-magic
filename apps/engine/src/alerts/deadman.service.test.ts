@@ -38,7 +38,7 @@ describe('DeadmanService', () => {
       LOG_LEVEL: 'fatal',
       STOP_MONITOR_INTERVAL_SECONDS: '30',
       ...(url ? { DEADMAN_PING_URL: url } : {}),
-    } as NodeJS.ProcessEnv);
+    });
     return new DeadmanService(config, engine as unknown as TradingEngineService, scheduler);
   }
 

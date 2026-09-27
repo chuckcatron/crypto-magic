@@ -265,7 +265,7 @@ describe('PaperAdapter persistence', () => {
     // "Restart": a fresh adapter seeded from what was saved.
     const restored = new PaperAdapter({
       marketData: market,
-      initialBalances: JSON.parse(JSON.stringify(saved[0])),
+      initialBalances: JSON.parse(JSON.stringify(saved[0])) as Record<string, string>,
     });
     expect(await restored.getBalances()).toEqual(await adapter.getBalances());
   });

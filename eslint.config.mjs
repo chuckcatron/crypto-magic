@@ -12,11 +12,11 @@ import tseslint from 'typescript-eslint';
  *
  * Production TypeScript is linted with type information, mainly for
  * no-floating-promises and no-misused-promises: an order call that is not
- * awaited is the kind of bug that loses money quietly. Tests and config files
- * sit outside every tsconfig (they are excluded from the build), so they get
- * the same rules without the type-aware ones.
+ * awaited is the kind of bug that loses money quietly. Tests are included:
+ * an un-awaited `expect(...).rejects` passes without checking anything.
  */
-const UNTYPED_TS = ['**/*.test.ts', '**/vitest.config.ts', 'apps/web/next.config.ts'];
+// Outside every tsconfig, so linted without type information.
+const UNTYPED_TS = ['apps/web/next.config.ts'];
 
 export default tseslint.config(
   {

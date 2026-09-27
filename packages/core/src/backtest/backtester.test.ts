@@ -55,7 +55,7 @@ describe('fill mechanics', () => {
 
   it('fills a signal at the NEXT bar open, never the close that produced it', () => {
     // Closes rise smoothly; opens equal the previous close by construction.
-    const closes = [...Array(40).fill(100), 110, 120, 130, 140, 150];
+    const closes = [...Array<number>(40).fill(100), 110, 120, 130, 140, 150];
     const candles = candlesFromCloses(closes, { rangePct: 0 });
     const strategy = new ScriptedStrategy(40, new Map([[40, 'ENTER_LONG' as const]]));
 
@@ -79,7 +79,7 @@ describe('fill mechanics', () => {
     // Opens equal the previous close, so both fills land at exactly 100; the
     // intrabar range exists only to give ATR something to measure, since a
     // zero-ATR market can never be sized into a position.
-    const closes = [...Array(40).fill(100), 100, 100, 100];
+    const closes = [...Array<number>(40).fill(100), 100, 100, 100];
     const candles = candlesFromCloses(closes, { rangePct: 0.005 });
     const strategy = new ScriptedStrategy(
       40,
@@ -183,7 +183,7 @@ describe('full-exposure sizing', () => {
 
 describe('strategy behaviour end to end', () => {
   it('takes no trades in a dead flat market', () => {
-    const candles = candlesFromCloses(new Array(400).fill(100), { rangePct: 0.0001 });
+    const candles = candlesFromCloses(new Array<number>(400).fill(100), { rangePct: 0.0001 });
     const result = runBacktest({
       candles,
       strategy: new TaEnsembleStrategy(),

@@ -174,14 +174,19 @@ describe('secret scrubbing', () => {
     const address = echo.address();
     const echoBase = `http://127.0.0.1:${typeof address === 'object' && address ? address.port : 0}`;
 
-    const error = await new TelegramChannel(token, 'c', 10_000, echoBase)
+    const error: unknown = await new TelegramChannel(token, 'c', 10_000, echoBase)
       .send(alert())
-      .catch((e: unknown) => e as Error);
+      .then(
+        () => undefined,
+        (e: unknown) => e,
+      );
     await new Promise<void>((resolve) => echo.close(() => resolve()));
 
-    expect(error.message).toContain('bad request');
-    expect(error.message).not.toContain('VERY-SECRET-TOKEN');
-    expect(error.message).toContain('[redacted]');
+    expect(error).toBeInstanceOf(Error);
+    const { message } = error as Error;
+    expect(message).toContain('bad request');
+    expect(message).not.toContain('VERY-SECRET-TOKEN');
+    expect(message).toContain('[redacted]');
   });
 });
 

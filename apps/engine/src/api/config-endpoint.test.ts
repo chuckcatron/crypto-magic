@@ -45,7 +45,7 @@ describe('public config allowlist', () => {
       DEADMAN_PING_URL: 'https://hc-ping.com/SECRET-DEADMAN-UUID',
       LOG_LEVEL: 'fatal',
     };
-    const config = loadConfig(secrets as unknown as NodeJS.ProcessEnv);
+    const config = loadConfig(secrets);
 
     const exposed: Record<string, unknown> = {};
     for (const key of PUBLIC_CONFIG_KEYS) exposed[key] = config[key];

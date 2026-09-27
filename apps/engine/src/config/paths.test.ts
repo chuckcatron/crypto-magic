@@ -30,7 +30,7 @@ describe('repo-root path resolution', () => {
   it('gives the same database and kill switch whatever directory the engine starts in', () => {
     // The bug: `pnpm engine` runs in apps/engine, launchd in the repo root, and
     // the two used to open different databases.
-    const config = loadConfig({ LOG_LEVEL: 'fatal' } as NodeJS.ProcessEnv);
+    const config = loadConfig({ LOG_LEVEL: 'fatal' });
     expect(config.DATABASE_PATH).toBe(join(REPO_ROOT, 'data', 'crypto-magic.db'));
     expect(config.KILL_SWITCH_FILE).toBe(join(REPO_ROOT, 'data', 'KILL_SWITCH'));
   });

@@ -15,7 +15,7 @@ const position = openPosition({
 
 describe('RegimeFilterStrategy', () => {
   it('holds until it has enough history for the average', () => {
-    const candles = candlesFromCloses(new Array(10).fill(100));
+    const candles = candlesFromCloses(new Array<number>(10).fill(100));
     expect(strategy.evaluate({ candles, position: null, now: 0 }).action).toBe('HOLD');
   });
 
