@@ -302,30 +302,32 @@ export function Dashboard() {
           {positions.length === 0 ? (
             <p className="empty">Flat. Waiting for a signal.</p>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th className="num">Size</th>
-                  <th className="num">Entry</th>
-                  <th className="num">Stop</th>
-                  <th className="num">Target</th>
-                  <th className="num">Held</th>
-                </tr>
-              </thead>
-              <tbody>
-                {positions.map((p) => (
-                  <tr key={p.productId}>
-                    <td className="strong">{p.productId}</td>
-                    <td className="num">{compactSize(p.baseSize)}</td>
-                    <td className="num">{money(p.averageEntryPrice)}</td>
-                    <td className="num">{money(p.stopPrice)}</td>
-                    <td className="num">{p.takeProfitPrice ? money(p.takeProfitPrice) : '—'}</td>
-                    <td className="num">{p.barsHeld} bars</td>
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th className="num">Size</th>
+                    <th className="num">Entry</th>
+                    <th className="num">Stop</th>
+                    <th className="num">Target</th>
+                    <th className="num">Held</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
+                </thead>
+                <tbody>
+                  {positions.map((p) => (
+                    <tr key={p.productId}>
+                      <td className="strong">{p.productId}</td>
+                      <td className="num">{compactSize(p.baseSize)}</td>
+                      <td className="num">{money(p.averageEntryPrice)}</td>
+                      <td className="num">{money(p.stopPrice)}</td>
+                      <td className="num">{p.takeProfitPrice ? money(p.takeProfitPrice) : '—'}</td>
+                      <td className="num">{p.barsHeld} bars</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
 
@@ -336,62 +338,68 @@ export function Dashboard() {
           {trades.length === 0 ? (
             <p className="empty">No closed trades yet.</p>
           ) : (
-            <table>
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>Exit</th>
-                  {insight.enabled && <th>Review</th>}
-                  <th className="num">P&amp;L</th>
-                  <th className="num">%</th>
-                  <th className="num">Closed</th>
-                </tr>
-              </thead>
-              <tbody>
-                {trades.map((t) => {
-                  const pnl = Number.parseFloat(t.pnl);
-                  const verdict = t.analysis ? VERDICT_DISPLAY[t.analysis.verdict] : null;
-                  const isOpen = openTradeId === t.id;
-                  return (
-                    <Fragment key={t.id}>
-                      <tr
-                        className={`trade-row${isOpen ? ' trade-row--open' : ''}`}
-                        onClick={() => setOpenTradeId(isOpen ? null : t.id)}
-                      >
-                        <td className="strong">{t.productId}</td>
-                        <td>{t.exitReason.replace(/_/g, ' ')}</td>
-                        {insight.enabled && (
-                          <td>
-                            {verdict ? (
-                              <span className={`verdict verdict--${verdict.tone}`}>
-                                <span aria-hidden="true">{verdict.tone === 'ok' ? '✓' : '⚠'}</span>
-                                {verdict.process}
-                              </span>
-                            ) : (
-                              <span className="verdict verdict--none">pending</span>
-                            )}
+            <div className="table-scroll">
+              <table>
+                <thead>
+                  <tr>
+                    <th>Product</th>
+                    <th>Exit</th>
+                    {insight.enabled && <th>Review</th>}
+                    <th className="num">P&amp;L</th>
+                    <th className="num">%</th>
+                    <th className="num">Closed</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {trades.map((t) => {
+                    const pnl = Number.parseFloat(t.pnl);
+                    const verdict = t.analysis ? VERDICT_DISPLAY[t.analysis.verdict] : null;
+                    const isOpen = openTradeId === t.id;
+                    return (
+                      <Fragment key={t.id}>
+                        <tr
+                          className={`trade-row${isOpen ? ' trade-row--open' : ''}`}
+                          onClick={() => setOpenTradeId(isOpen ? null : t.id)}
+                        >
+                          <td className="strong">{t.productId}</td>
+                          <td>{t.exitReason.replace(/_/g, ' ')}</td>
+                          {insight.enabled && (
+                            <td>
+                              {verdict ? (
+                                <span className={`verdict verdict--${verdict.tone}`}>
+                                  <span aria-hidden="true">
+                                    {verdict.tone === 'ok' ? '✓' : '⚠'}
+                                  </span>
+                                  {verdict.process}
+                                </span>
+                              ) : (
+                                <span className="verdict verdict--none">pending</span>
+                              )}
+                            </td>
+                          )}
+                          {/* Sign and arrow carry direction; color only reinforces. */}
+                          <td
+                            className={`num delta--${pnl > 0 ? 'up' : pnl < 0 ? 'down' : 'flat'}`}
+                          >
+                            <span aria-hidden="true">{pnl > 0 ? '▲ ' : pnl < 0 ? '▼ ' : ''}</span>
+                            {signedMoney(t.pnl)}
                           </td>
-                        )}
-                        {/* Sign and arrow carry direction; color only reinforces. */}
-                        <td className={`num delta--${pnl > 0 ? 'up' : pnl < 0 ? 'down' : 'flat'}`}>
-                          <span aria-hidden="true">{pnl > 0 ? '▲ ' : pnl < 0 ? '▼ ' : ''}</span>
-                          {signedMoney(t.pnl)}
-                        </td>
-                        <td className="num">{t.pnlPct.toFixed(2)}%</td>
-                        <td className="num">{timeAgo(t.exitTime)}</td>
-                      </tr>
-                      {isOpen && (
-                        <tr>
-                          <td colSpan={insight.enabled ? 6 : 5}>
-                            <TradeReview analysis={t.analysis} />
-                          </td>
+                          <td className="num">{t.pnlPct.toFixed(2)}%</td>
+                          <td className="num">{timeAgo(t.exitTime)}</td>
                         </tr>
-                      )}
-                    </Fragment>
-                  );
-                })}
-              </tbody>
-            </table>
+                        {isOpen && (
+                          <tr>
+                            <td colSpan={insight.enabled ? 6 : 5}>
+                              <TradeReview analysis={t.analysis} />
+                            </td>
+                          </tr>
+                        )}
+                      </Fragment>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
           )}
         </section>
       </div>
