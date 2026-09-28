@@ -44,10 +44,18 @@ mkdir -p "$AGENTS" "$REPO_ROOT/logs" "$REPO_ROOT/data"
 # The engine loads .env itself (Node's built-in loader), so this wrapper only
 # needs to put it in the right working directory. Deliberately NOT sourcing
 # .env here: shell sourcing mangles the quoted PEM private key.
+#
+# caffeinate keeps the Mac out of idle sleep for exactly as long as the engine
+# runs. Without it an idle Mac sleeps and wakes briefly every 15 minutes or so,
+# and stops are checked only in those wakes. `-w $$` watches this shell's PID,
+# which `exec` hands to node, so node still receives launchd's signals directly
+# and the assertion ends when node does. It cannot keep a laptop awake with the
+# lid closed on battery: nothing can.
 cat > "$REPO_ROOT/scripts/run-engine.sh" <<'WRAPPER'
 #!/usr/bin/env bash
 set -euo pipefail
 cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+/usr/bin/caffeinate -i -s -w $$ &
 exec node apps/engine/dist/main.js
 WRAPPER
 chmod +x "$REPO_ROOT/scripts/run-engine.sh"

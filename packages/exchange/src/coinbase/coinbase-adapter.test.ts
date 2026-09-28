@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest';
+import { createServer, type Server, type ServerResponse } from 'node:http';
+import { afterEach, describe, expect, it } from 'vitest';
 import { D } from '@crypto-magic/core';
 import { ExchangeError } from '../types';
 import { CoinbaseAdapter } from './coinbase-adapter';
@@ -146,5 +147,66 @@ describe('CoinbaseAdapter without credentials', () => {
         clientOrderId: 'nope',
       }),
     ).rejects.toThrow(/requires Coinbase API credentials/);
+  });
+});
+
+describe('CoinbaseAdapter request timeout', () => {
+  let server: Server | undefined;
+  const hung: ServerResponse[] = [];
+
+  afterEach(async () => {
+    for (const res of hung.splice(0)) res.destroy();
+    await new Promise<void>((resolve) => (server ? server.close(() => resolve()) : resolve()));
+    server = undefined;
+  });
+
+  /** A real HTTP server that never answers the first `hangFor` requests. */
+  async function coinbaseThatHangs(
+    hangFor: number,
+  ): Promise<{ baseUrl: string; hits: () => number }> {
+    let hits = 0;
+    server = createServer((_req, res) => {
+      hits++;
+      if (hits <= hangFor) {
+        hung.push(res);
+        return;
+      }
+      res.writeHead(200, { 'content-type': 'application/json' }).end(JSON.stringify(PRODUCT));
+    });
+    await new Promise<void>((resolve) => server!.listen(0, '127.0.0.1', resolve));
+    const address = server.address();
+    const port = typeof address === 'object' && address ? address.port : 0;
+    return { baseUrl: `http://127.0.0.1:${port}`, hits: () => hits };
+  }
+
+  it('abandons a request that never answers, instead of waiting out the SDK default', async () => {
+    const { baseUrl } = await coinbaseThatHangs(Infinity);
+    const adapter = new CoinbaseAdapter({ baseUrl, requestTimeoutMs: 100, maxRetries: 0 });
+
+    const started = Date.now();
+    const error = await adapter.getProduct('BTC-USD').catch((e: unknown) => e);
+
+    expect(error).toBeInstanceOf(ExchangeError);
+    expect(Date.now() - started).toBeLessThan(2_000);
+  });
+
+  it('reports a timeout as retryable, which is what makes a timed-out order ambiguous', async () => {
+    const { baseUrl } = await coinbaseThatHangs(Infinity);
+    const adapter = new CoinbaseAdapter({ baseUrl, requestTimeoutMs: 100, maxRetries: 0 });
+
+    const error = await adapter.getProduct('BTC-USD').catch((e: unknown) => e);
+
+    // The executor engages the kill switch precisely when retryable === true.
+    expect((error as ExchangeError).retryable).toBe(true);
+  });
+
+  it('retries a read that timed out, and succeeds when the next attempt answers', async () => {
+    const { baseUrl, hits } = await coinbaseThatHangs(1);
+    const adapter = new CoinbaseAdapter({ baseUrl, requestTimeoutMs: 100, maxRetries: 1 });
+
+    const spec = await adapter.getProduct('BTC-USD');
+
+    expect(spec.productId).toBe('BTC-USD');
+    expect(hits()).toBe(2);
   });
 });

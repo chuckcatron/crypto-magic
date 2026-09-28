@@ -2,16 +2,23 @@
 
 ## The Mac must stay awake
 
-A sleeping laptop does not manage stops. Pick one:
+A sleeping laptop does not manage stops. An idle Mac does not simply stay
+asleep, either: it wakes briefly every 15 minutes or so, which lets the engine
+look alive while it checks stops only in those wakes.
+
+The launchd service handles this: its wrapper runs the engine under
+`caffeinate`, which holds off idle sleep for exactly as long as the engine runs.
+`./scripts/doctor.sh` confirms it under "Staying awake". A service installed
+before this change needs `./scripts/install-launchd.sh && cm restart` once.
+
+Running the engine in a terminal instead? Do the same by hand:
 
 ```bash
-# Keep the machine awake while the engine runs (simplest; tie it to the process)
-caffeinate -dimsu -w $(pgrep -f 'crypto-magic.*dist/main.js')
+caffeinate -i -s pnpm engine
 ```
 
-Or permanently, in **System Settings → Battery → Options**: enable _Prevent
-automatic sleeping on power adapter when the display is off_. A closed lid on
-battery will still sleep — keep it plugged in.
+What nothing can prevent: a closed lid on battery sleeps. Keep it plugged in,
+lid open (or on an external display).
 
 This is why the exchange-side protective stop exists. Assume the Mac will be
 asleep at the worst possible moment at least once.
