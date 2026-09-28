@@ -30,7 +30,7 @@ env_value() {
 require_engine_stopped() {
   if [[ "$(uname -s)" == "Darwin" ]] && launchctl list 2>/dev/null | grep -q "$LABEL"; then
     die "The engine's launchd service is loaded, and it restarts the engine if stopped any other way.
-  Stop it first:  launchctl unload $PLIST"
+  Stop it first:  launchctl bootout gui/$(id -u)/$LABEL"
   fi
   local port
   port="$(env_value PORT)"
@@ -98,8 +98,9 @@ $unexpected"
   echo "Next:"
   echo "  1. Edit .env for this machine (for example OLLAMA_MODEL; see docs/SETUP-AND-MIGRATION.md)"
   echo "  2. pnpm install && pnpm build"
-  echo "  3. ./scripts/install-launchd.sh && launchctl load $PLIST"
-  echo "     and the dashboard: launchctl load $DASHBOARD_PLIST"
+  echo "  3. ./scripts/install-launchd.sh, then:"
+  echo "       launchctl bootstrap gui/\$(id -u) $PLIST"
+  echo "       launchctl bootstrap gui/\$(id -u) $DASHBOARD_PLIST"
   echo "  4. ./scripts/doctor.sh  and  node scripts/cm.mjs"
 }
 

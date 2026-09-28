@@ -48,6 +48,40 @@ fi
 if command -v pnpm >/dev/null 2>&1; then pass "pnpm $(pnpm -v)"; else fail "pnpm is not installed" "brew install pnpm"; fi
 [[ -d node_modules ]] && pass "Dependencies installed" || fail "Dependencies not installed" "pnpm install"
 [[ -f apps/engine/dist/main.js ]] && pass "Engine built" || fail "Engine not built" "pnpm build"
+
+# The engine's one compiled dependency. It is built for a single Node version,
+# so switching or upgrading Node leaves it unloadable and the engine dies at
+# startup ("NODE_MODULE_VERSION ..."). Load it the way the engine does, under
+# the shell's node and, on a Mac, under the node the launchd service runs.
+sqlite_dir="$(node -p "require('path').dirname(require.resolve('better-sqlite3/package.json', { paths: ['$ROOT/apps/engine'] }))" 2>/dev/null)"
+# check_sqlite NODE WHERE FIX: FIX is what to print if the module will not load.
+check_sqlite() {
+  local node_bin="$1" where="$2" fix="$3" version
+  version="$("$node_bin" -v 2>/dev/null)" || {
+    fail "The $where node cannot run at all: $node_bin" "From a shell where 'node -v' works: ./scripts/install-launchd.sh, then: cm restart all"
+    return
+  }
+  if SQLITE_DIR="$sqlite_dir" "$node_bin" -e "require(process.env.SQLITE_DIR)(':memory:')" >/dev/null 2>&1; then
+    pass "Database module loads under the $where node ($version)"
+  else
+    fail "Database module will not load under the $where node ($version): the engine cannot start" "$fix"
+  fi
+}
+if [[ -z "$sqlite_dir" ]]; then
+  fail "Database module (better-sqlite3) not installed" "pnpm install"
+elif command -v node >/dev/null 2>&1; then
+  check_sqlite "$(command -v node)" "shell" \
+    "Rebuild it for this node: (cd \"$sqlite_dir\" && rm -rf build && npm run install), then: cm restart"
+  engine_plist="$HOME/Library/LaunchAgents/$LABEL.plist"
+  if $IS_MAC && [[ -f "$engine_plist" ]]; then
+    service_node="$(grep -A1 '<key>PATH</key>' "$engine_plist" | tail -n 1 | sed -E 's/.*<string>([^:<]*).*/\1/')/node"
+    if [[ "$service_node" != "$(command -v node)" ]]; then
+      warn "The engine service runs a different node than this shell" "service: $service_node  shell: $(command -v node). Re-run ./scripts/install-launchd.sh from the shell you build with"
+      check_sqlite "$service_node" "service's" \
+        "Point the service at this shell's node: ./scripts/install-launchd.sh, then: cm restart all"
+    fi
+  fi
+fi
 [[ -d apps/web/.next ]] && pass "Dashboard built" || warn "Dashboard not built" "pnpm build (only needed for the web dashboard)"
 
 # --- Configuration --------------------------------------------------------------
@@ -85,7 +119,7 @@ check_service() {
     if [[ "$plist_root" == "$ROOT" ]]; then pass "$name launchd service installed for this checkout"
     else fail "$name launchd service points at a different checkout: $plist_root" "Re-run ./scripts/install-launchd.sh from here"; fi
     if launchctl list 2>/dev/null | grep -q "$label"; then pass "$name launchd service loaded"
-    else warn "$name launchd service not loaded" "launchctl load $plist"; fi
+    else warn "$name launchd service not loaded" "launchctl bootstrap gui/$(id -u) $plist"; fi
   else
     warn "$name launchd service not installed" "./scripts/install-launchd.sh (starts at login, restarts on crash)"
   fi

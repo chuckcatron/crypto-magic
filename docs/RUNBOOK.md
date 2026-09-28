@@ -30,11 +30,11 @@ That writes `com.cryptomagic.engine.plist` and `com.cryptomagic.dashboard.plist`
 in `~/Library/LaunchAgents`, pointing at this checkout, then:
 
 ```bash
-launchctl load  ~/Library/LaunchAgents/com.cryptomagic.engine.plist      # start the engine
-launchctl load  ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist   # start the dashboard: http://localhost:3000
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cryptomagic.engine.plist      # start the engine
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist   # start the dashboard: http://localhost:3000
 launchctl list | grep cryptomagic                                        # check
 cm restart            # engine; also `cm restart dashboard` or `cm restart all`
-launchctl unload ~/Library/LaunchAgents/com.cryptomagic.engine.plist     # stop (same for the dashboard)
+launchctl bootout gui/$(id -u)/com.cryptomagic.engine     # stop (same for the dashboard)
 ```
 
 Stop any copy running in a terminal first: the services cannot start while
@@ -226,12 +226,32 @@ an unpulled model turns the first review into a multi-gigabyte download.
 ```bash
 touch data/KILL_SWITCH                 # stop opening new positions
 # wait for open positions to close, or flatten from the dashboard
-launchctl unload ~/Library/LaunchAgents/com.cryptomagic.engine.plist
+launchctl bootout gui/$(id -u)/com.cryptomagic.engine
 git pull && pnpm install && pnpm build && pnpm test
-launchctl load ~/Library/LaunchAgents/com.cryptomagic.engine.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cryptomagic.engine.plist
 cm restart dashboard                   # serve the new dashboard build
 rm data/KILL_SWITCH
 ```
 
 Upgrading with positions open is fine — state is in SQLite and startup
 reconciles — but it is easier to reason about when you are flat.
+
+## Changing Node versions
+
+The engine has one compiled dependency, `better-sqlite3`, and it only loads
+under the Node version it was built for. The launchd services also record which
+`node` to run when they are installed. So after `brew install`/`brew upgrade`
+touches Node, or you switch versions, do all three, in this order, from a shell
+where `node -v` shows the version you want:
+
+```bash
+(cd "$(node -p "require('path').dirname(require.resolve('better-sqlite3/package.json',{paths:['apps/engine']}))")" && rm -rf build && npm run install)
+./scripts/install-launchd.sh           # the services now run this node
+cm restart all
+./scripts/doctor.sh                    # "Database module loads" for the shell and the service
+```
+
+Symptoms of skipping a step: `cm restart` says "not answering after 30s", and
+`logs/engine.error.log` shows `NODE_MODULE_VERSION` (step 1) or
+`dyld: Library not loaded` (Homebrew removed a library the old node needed:
+step 2).
