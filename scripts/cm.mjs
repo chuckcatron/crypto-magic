@@ -8,7 +8,7 @@
 //   cm flatten         engage the kill switch, then sell every position at market
 //   cm events [n]      last n engine events (default 15)
 //   cm logs [n]        last n log lines, condensed (default 30)
-//   cm restart         restart the launchd service (macOS)
+//   cm restart [what]  restart the launchd service: engine (default), dashboard or all
 //
 // Talks only to the engine on 127.0.0.1, exactly like the dashboard does, so it
 // needs no extra port, no extra credential, and it opens nothing to the network.
@@ -31,7 +31,22 @@ const PORT = Number(process.env.PORT ?? 4000);
 const API = `http://127.0.0.1:${PORT}/api`;
 const KILL_SWITCH_FILE = resolve(ROOT, process.env.KILL_SWITCH_FILE ?? './data/KILL_SWITCH');
 const LOG_FILE = resolve(ROOT, 'logs/engine.log');
-const LAUNCHD_LABEL = 'com.cryptomagic.engine';
+/** launchd services from scripts/install-launchd.sh, and how to tell each is up. */
+const SERVICES = {
+  engine: {
+    label: 'com.cryptomagic.engine',
+    isUp: () => api('GET', '/status', { timeoutMs: 2000 }),
+    inTerminal: 'pnpm engine',
+  },
+  dashboard: {
+    label: 'com.cryptomagic.dashboard',
+    isUp: async () => {
+      const response = await fetch('http://127.0.0.1:3000', { signal: AbortSignal.timeout(2000) });
+      if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    },
+    inTerminal: 'pnpm dashboard',
+  },
+};
 
 const useColor = process.stdout.isTTY && !process.env.NO_COLOR;
 const paint = (code) => (text) => (useColor ? `\x1b[${code}m${text}\x1b[0m` : String(text));
@@ -255,26 +270,55 @@ function logs([n]) {
   }
 }
 
-async function restart() {
+async function restart([which = 'engine']) {
   if (process.platform !== 'darwin') {
     console.log('restart uses launchd and only works on the Mac itself.');
     process.exitCode = 1;
     return;
   }
-  const target = `gui/${process.getuid()}/${LAUNCHD_LABEL}`;
+  const names = which === 'all' ? Object.keys(SERVICES) : [which];
+  for (const name of names) {
+    if (!SERVICES[name]) {
+      console.log(`Unknown service: ${name}. Use engine, dashboard or all.`);
+      process.exitCode = 1;
+      return;
+    }
+  }
+  for (const name of names) await restartService(name, SERVICES[name]);
+}
+
+async function restartService(name, service) {
+  const target = `gui/${process.getuid()}/${service.label}`;
+  // Ask first, so a missing service gets an explanation instead of launchctl's
+  // "Could not find service" and a stack of "Command failed".
+  try {
+    execFileSync('launchctl', ['print', target], { stdio: 'ignore' });
+  } catch {
+    console.log(
+      yellow(`The ${name} is not running as a launchd service, so there is nothing to restart.`),
+    );
+    console.log(
+      `  Running it in a terminal? Restart it there: Ctrl-C, then \`${service.inTerminal}\`.`,
+    );
+    console.log('  To run it as a service (starts at login, restarts on crash):');
+    console.log('    ./scripts/install-launchd.sh');
+    console.log(`    launchctl load ~/Library/LaunchAgents/${service.label}.plist`);
+    process.exitCode = 1;
+    return;
+  }
   execFileSync('launchctl', ['kickstart', '-k', target], { stdio: 'inherit' });
-  process.stdout.write('Restarting');
+  process.stdout.write(`Restarting ${name}`);
   for (let i = 0; i < 30; i++) {
     await new Promise((r) => setTimeout(r, 1000));
     try {
-      await api('GET', '/status', { timeoutMs: 2000 });
+      await service.isUp();
       console.log(` ${green('up')}.`);
       return;
     } catch {
       process.stdout.write('.');
     }
   }
-  console.log(` ${red('not answering after 30s')}. Check \`cm logs\`.`);
+  console.log(` ${red('not answering after 30s')}. Check logs/${name}.error.log.`);
   process.exitCode = 1;
 }
 
@@ -287,7 +331,7 @@ function help() {
   cm flatten         kill switch + sell everything at market (asks first)
   cm events [n]      recent engine events
   cm logs [n]        recent log lines
-  cm restart         restart the engine service`);
+  cm restart [what]  restart a service: engine (default), dashboard, or all`);
 }
 
 // --- helpers ------------------------------------------------------------------
@@ -334,7 +378,7 @@ const commands = {
   flatten: () => flatten(flags),
   events: () => events(args),
   logs: () => logs(args),
-  restart: () => restart(),
+  restart: () => restart(args),
   help: () => help(),
   '--help': () => help(),
   '-h': () => help(),

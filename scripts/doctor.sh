@@ -13,6 +13,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 
 LABEL="com.cryptomagic.engine"
+DASHBOARD_LABEL="com.cryptomagic.dashboard"
 fails=0
 warns=0
 
@@ -76,26 +77,39 @@ else
   done
 fi
 
+# check_service LABEL NAME: installed for this checkout, and loaded.
+check_service() {
+  local label="$1" name="$2" plist="$HOME/Library/LaunchAgents/$1.plist" plist_root
+  if [[ -f "$plist" ]]; then
+    plist_root="$(grep -A1 WorkingDirectory "$plist" | tail -n 1 | sed -E 's/.*<string>(.*)<\/string>.*/\1/')"
+    if [[ "$plist_root" == "$ROOT" ]]; then pass "$name launchd service installed for this checkout"
+    else fail "$name launchd service points at a different checkout: $plist_root" "Re-run ./scripts/install-launchd.sh from here"; fi
+    if launchctl list 2>/dev/null | grep -q "$label"; then pass "$name launchd service loaded"
+    else warn "$name launchd service not loaded" "launchctl load $plist"; fi
+  else
+    warn "$name launchd service not installed" "./scripts/install-launchd.sh (starts at login, restarts on crash)"
+  fi
+}
+
 # --- Engine ---------------------------------------------------------------------
 section "Engine"
 port="$(env_value PORT)"; port="${port:-4000}"
-if $IS_MAC; then
-  if [[ -f "$HOME/Library/LaunchAgents/$LABEL.plist" ]]; then
-    plist_root="$(grep -A1 WorkingDirectory "$HOME/Library/LaunchAgents/$LABEL.plist" | tail -n 1 | sed -E 's/.*<string>(.*)<\/string>.*/\1/')"
-    if [[ "$plist_root" == "$ROOT" ]]; then pass "launchd service installed for this checkout"
-    else fail "launchd service points at a different checkout: $plist_root" "Re-run ./scripts/install-launchd.sh from here"; fi
-    if launchctl list 2>/dev/null | grep -q "$LABEL"; then pass "launchd service loaded"
-    else warn "launchd service not loaded" "launchctl load ~/Library/LaunchAgents/$LABEL.plist"; fi
-  else
-    warn "launchd service not installed" "./scripts/install-launchd.sh (starts at login, restarts on crash)"
-  fi
-fi
+if $IS_MAC; then check_service "$LABEL" "Engine"; fi
 if status="$(curl -s -m 3 "http://127.0.0.1:$port/api/status")" && [[ -n "$status" ]]; then
   pass "Engine answering on 127.0.0.1:$port"
   if grep -q '"killSwitchEngaged":true' <<<"$status"; then warn "Kill switch is ENGAGED" "cm release, once you know why"; fi
   if grep -q '"lastTickCompletedAt":null' <<<"$status"; then warn "Trading loop has not completed a pass yet" "Check: cm logs"; fi
 else
   warn "Engine not answering on 127.0.0.1:$port" "Not running, or still starting: cm logs"
+fi
+
+# --- Dashboard ------------------------------------------------------------------
+section "Dashboard"
+if $IS_MAC; then check_service "$DASHBOARD_LABEL" "Dashboard"; fi
+if curl -s -m 3 -o /dev/null -f "http://127.0.0.1:3000"; then
+  pass "Dashboard answering on http://localhost:3000"
+else
+  warn "Dashboard not answering on 127.0.0.1:3000" "Not running: cm restart dashboard, or pnpm dashboard"
 fi
 
 # --- Staying awake --------------------------------------------------------------

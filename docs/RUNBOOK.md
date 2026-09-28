@@ -18,22 +18,30 @@ asleep at the worst possible moment at least once.
 
 ## Install as a launchd service
 
-`launchd` starts the engine at login and restarts it if it dies.
+`launchd` starts the engine and the dashboard at login and restarts either if it
+dies. They are separate services, so the dashboard can never take the engine
+down with it.
 
 ```bash
 ./scripts/install-launchd.sh
 ```
 
-That writes `~/Library/LaunchAgents/com.cryptomagic.engine.plist` pointing at
-this checkout, then:
+That writes `com.cryptomagic.engine.plist` and `com.cryptomagic.dashboard.plist`
+in `~/Library/LaunchAgents`, pointing at this checkout, then:
 
 ```bash
-launchctl load  ~/Library/LaunchAgents/com.cryptomagic.engine.plist   # start
-launchctl list | grep cryptomagic                                     # check
-launchctl unload ~/Library/LaunchAgents/com.cryptomagic.engine.plist  # stop
+launchctl load  ~/Library/LaunchAgents/com.cryptomagic.engine.plist      # start the engine
+launchctl load  ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist   # start the dashboard: http://localhost:3000
+launchctl list | grep cryptomagic                                        # check
+cm restart            # engine; also `cm restart dashboard` or `cm restart all`
+launchctl unload ~/Library/LaunchAgents/com.cryptomagic.engine.plist     # stop (same for the dashboard)
 ```
 
-Logs go to `logs/engine.log` and `logs/engine.error.log`.
+Stop any copy running in a terminal first: the services cannot start while
+ports 4000 and 3000 are taken.
+
+Logs go to `logs/engine.log` / `logs/engine.error.log` and
+`logs/dashboard.log` / `logs/dashboard.error.log`.
 
 `KeepAlive` restarts the process if it exits. That is safe here: startup
 reconciles against the exchange, and the kill switch is a file, so a restart
@@ -221,6 +229,7 @@ touch data/KILL_SWITCH                 # stop opening new positions
 launchctl unload ~/Library/LaunchAgents/com.cryptomagic.engine.plist
 git pull && pnpm install && pnpm build && pnpm test
 launchctl load ~/Library/LaunchAgents/com.cryptomagic.engine.plist
+cm restart dashboard                   # serve the new dashboard build
 rm data/KILL_SWITCH
 ```
 

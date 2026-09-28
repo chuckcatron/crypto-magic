@@ -11,6 +11,10 @@ dist/
 *.pem
 cdp_api_key.json
 
+# Generated per machine by scripts/install-launchd.sh
+scripts/run-engine.sh
+scripts/run-dashboard.sh
+
 # Runtime state
 data/
 *.db
