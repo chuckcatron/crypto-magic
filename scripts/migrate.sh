@@ -18,6 +18,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 LABEL="com.cryptomagic.engine"
 PLIST="$HOME/Library/LaunchAgents/$LABEL.plist"
+DASHBOARD_PLIST="$HOME/Library/LaunchAgents/com.cryptomagic.dashboard.plist"
 
 die() { echo "✗ $*" >&2; exit 1; }
 
@@ -98,6 +99,7 @@ $unexpected"
   echo "  1. Edit .env for this machine (for example OLLAMA_MODEL; see docs/SETUP-AND-MIGRATION.md)"
   echo "  2. pnpm install && pnpm build"
   echo "  3. ./scripts/install-launchd.sh && launchctl load $PLIST"
+  echo "     and the dashboard: launchctl load $DASHBOARD_PLIST"
   echo "  4. ./scripts/doctor.sh  and  node scripts/cm.mjs"
 }
 

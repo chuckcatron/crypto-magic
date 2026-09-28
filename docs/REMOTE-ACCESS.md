@@ -136,15 +136,15 @@ The engine never logs it and never shows it in the API.
 
 Connect from the SSH app, then:
 
-| Command            | What it does                                                                       |
-| ------------------ | ---------------------------------------------------------------------------------- |
-| `cm`               | Status: mode, kill switch, halts, loop health, dead-man, equity, positions         |
-| `cm kill [reason]` | Kill switch on. New entries blocked; stops and exits keep running                  |
-| `cm release`       | Kill switch off                                                                    |
-| `cm flatten`       | Kill switch on, **then** sell every position at market. Asks you to type `FLATTEN` |
-| `cm events [n]`    | Last n engine events                                                               |
-| `cm logs [n]`      | Last n log lines, condensed for a small screen                                     |
-| `cm restart`       | Restart the engine service and wait for it to answer                               |
+| Command             | What it does                                                                       |
+| ------------------- | ---------------------------------------------------------------------------------- |
+| `cm`                | Status: mode, kill switch, halts, loop health, dead-man, equity, positions         |
+| `cm kill [reason]`  | Kill switch on. New entries blocked; stops and exits keep running                  |
+| `cm release`        | Kill switch off                                                                    |
+| `cm flatten`        | Kill switch on, **then** sell every position at market. Asks you to type `FLATTEN` |
+| `cm events [n]`     | Last n engine events                                                               |
+| `cm logs [n]`       | Last n log lines, condensed for a small screen                                     |
+| `cm restart [what]` | Restart the engine (default), `dashboard` or `all` and wait for it to answer       |
 
 `cm kill` works even when the engine is not answering: it writes the kill switch
 file directly, which the engine checks before every entry and at every startup.

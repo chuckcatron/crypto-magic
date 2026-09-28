@@ -81,15 +81,17 @@ the test alert reached your phone.
 
 ### 5. Run it as a service (10 min)
 
-Stop the foreground engine (Ctrl-C), then:
+Stop the foreground engine and dashboard (Ctrl-C in each terminal), then:
 
 ```bash
 ./scripts/install-launchd.sh
 launchctl load ~/Library/LaunchAgents/com.cryptomagic.engine.plist
-node scripts/cm.mjs
+launchctl load ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist
+node scripts/cm.mjs                    # engine up
+open http://localhost:3000             # dashboard up
 ```
 
-It now starts when you log in and restarts itself if it crashes. The paper
+Both now start when you log in and restart themselves if they crash. The paper
 account is saved in the database, so restarts no longer reset it.
 
 ### 6. Keep the laptop awake
@@ -147,6 +149,7 @@ Do not switch to live on the strength of the paper run alone.
 ```bash
 node scripts/cm.mjs                    # screenshot this: equity and positions
 launchctl unload ~/Library/LaunchAgents/com.cryptomagic.engine.plist
+launchctl unload ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist
 ./scripts/migrate.sh export            # → ~/crypto-magic-state-<date>.tar.gz
 ```
 
@@ -191,6 +194,7 @@ Start it and compare with the screenshot:
 ```bash
 ./scripts/install-launchd.sh
 launchctl load ~/Library/LaunchAgents/com.cryptomagic.engine.plist
+launchctl load ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist
 ./scripts/doctor.sh
 node scripts/cm.mjs                    # same equity and positions as the screenshot
 ```
@@ -209,6 +213,7 @@ Finally, **resume** the dead-man check on healthchecks.io.
 ```bash
 # on the MacBook Pro
 rm ~/Library/LaunchAgents/com.cryptomagic.engine.plist
+rm ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist
 rm ~/crypto-magic-state-*.tar.gz
 ```
 
