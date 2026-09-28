@@ -1,15 +1,20 @@
 import { Global, Module } from '@nestjs/common';
 import {
+  DEFAULT_REGIME_FILTER_CONFIG,
   DEFAULT_STOP_CONFIG,
+  REGIME_FILTER_STOP_CONFIG,
+  RegimeFilterStrategy,
+  TaEnsembleStrategy,
   type RiskLimits,
   type StopConfig,
+  type Strategy,
   type TaEnsembleConfig,
 } from '@crypto-magic/core';
 import { loadConfig, type AppConfig } from './config.schema';
 
-import { APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY_CONFIG } from './tokens';
+import { APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY } from './tokens';
 
-export { APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY_CONFIG };
+export { APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY };
 
 export function toRiskLimits(cfg: AppConfig): RiskLimits {
   return {
@@ -36,6 +41,24 @@ export function toStopConfig(cfg: AppConfig): StopConfig {
     trailActivationAtrMultiple: cfg.TRAIL_ACTIVATION_ATR_MULTIPLE,
     maxHoldingBars: cfg.MAX_HOLDING_BARS,
   };
+}
+
+/** The strategy STRATEGY selects. The regime filter runs exactly as tested. */
+export function createStrategy(cfg: AppConfig): Strategy {
+  return cfg.STRATEGY === 'regime'
+    ? new RegimeFilterStrategy(DEFAULT_REGIME_FILTER_CONFIG)
+    : new TaEnsembleStrategy(toStrategyConfig(cfg));
+}
+
+/**
+ * The stops the engine runs, which belong to the strategy.
+ *
+ * The regime filter uses the same disaster-floor stops as its backtest, so the
+ * ta-ensemble stop settings in .env do not apply to it. `toStopConfig` stays
+ * the ta-ensemble mapping because the backtest CLI picks stops per --strategy.
+ */
+export function stopConfigFor(cfg: AppConfig): StopConfig {
+  return cfg.STRATEGY === 'regime' ? REGIME_FILTER_STOP_CONFIG : toStopConfig(cfg);
 }
 
 export function toStrategyConfig(cfg: AppConfig): TaEnsembleConfig {
@@ -68,15 +91,15 @@ export function toStrategyConfig(cfg: AppConfig): TaEnsembleConfig {
     },
     {
       provide: STOP_CONFIG,
-      useFactory: (cfg: AppConfig) => toStopConfig(cfg),
+      useFactory: (cfg: AppConfig) => stopConfigFor(cfg),
       inject: [APP_CONFIG],
     },
     {
-      provide: STRATEGY_CONFIG,
-      useFactory: (cfg: AppConfig) => toStrategyConfig(cfg),
+      provide: STRATEGY,
+      useFactory: (cfg: AppConfig) => createStrategy(cfg),
       inject: [APP_CONFIG],
     },
   ],
-  exports: [APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY_CONFIG],
+  exports: [APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY],
 })
 export class ConfigModule {}

@@ -186,6 +186,32 @@ Survivors get a 0–1 confidence score which **sizes** the position (0.5×–1×
 rather than gating it. Exits are the mirror cross, RSI > 88, an ATR trailing
 stop, or the max holding period.
 
+### The regime filter (`STRATEGY=regime`)
+
+Hold Bitcoin while the daily close is above its 200-day average; hold cash
+otherwise. It is the only strategy that passed a backtest, under a protocol
+fixed before any result existed, so the engine runs it exactly as tested:
+
+- daily bars (`GRANULARITY=ONE_DAY`, required), and a fixed 200-day period
+- a 10-ATR disaster stop and nothing else: no target, no trailing stop
+- sized as a share of equity (`REGIME_ALLOCATION_PCT`, default 100), because
+  its wide stop would make risk-based sizing buy a sliver. The notional caps
+  still bind, and 1% of cash is held back for the fee
+
+To paper-trade it as tested:
+
+```bash
+# .env
+STRATEGY=regime
+GRANULARITY=ONE_DAY
+MAX_POSITION_NOTIONAL=1000   # at least PAPER_STARTING_CASH
+MAX_TOTAL_NOTIONAL=1000
+```
+
+Switch while flat. If positions are open when the strategy changes, the engine
+engages the kill switch rather than let one strategy manage another's positions:
+`cm flatten`, then restart.
+
 Note what is _not_ here: no shorting, no leverage, no margin, no averaging down,
 no scaling into a losing position. The `ExchangeAdapter` port does not expose
 any of it, so a strategy bug cannot reach it.

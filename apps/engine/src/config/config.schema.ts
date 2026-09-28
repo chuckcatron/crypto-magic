@@ -54,6 +54,19 @@ export const configSchema = z
     MIN_ORDER_NOTIONAL: numeric(1),
 
     // --- Strategy -----------------------------------------------------------
+    /**
+     * ta-ensemble: the EMA-cross trend follower (hourly by default).
+     * regime: hold while the daily close is above its 200-day average
+     * (docs/EXPERIMENT-001-regime-filter.md). Requires GRANULARITY=ONE_DAY; the
+     * 200-day period is fixed because it was pre-registered, not tuned.
+     */
+    STRATEGY: z.enum(['ta-ensemble', 'regime']).default('ta-ensemble'),
+    /**
+     * regime only: share of equity to hold while the regime is up. Sized this
+     * way because its 10-ATR stop is a disaster floor, so risk-based sizing
+     * would buy a sliver. The notional caps still bind on top.
+     */
+    REGIME_ALLOCATION_PCT: z.coerce.number().gt(0).max(100).default(100),
     EMA_FAST_PERIOD: z.coerce.number().int().min(2).default(12),
     EMA_SLOW_PERIOD: z.coerce.number().int().min(3).default(26),
     EMA_TREND_PERIOD: z.coerce.number().int().min(10).default(200),
@@ -178,6 +191,15 @@ export const configSchema = z
         code: z.ZodIssueCode.custom,
         path: ['EMA_FAST_PERIOD'],
         message: 'EMA_FAST_PERIOD must be shorter than EMA_SLOW_PERIOD',
+      });
+    }
+    if (cfg.STRATEGY === 'regime' && cfg.GRANULARITY !== 'ONE_DAY') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['GRANULARITY'],
+        message:
+          'STRATEGY=regime needs GRANULARITY=ONE_DAY: its 200-bar average was tested ' +
+          'on daily bars, and on hourly bars it would be a different strategy',
       });
     }
     if (cfg.MAX_POSITION_NOTIONAL > cfg.MAX_TOTAL_NOTIONAL) {

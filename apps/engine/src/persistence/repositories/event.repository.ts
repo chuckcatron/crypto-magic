@@ -8,6 +8,7 @@ export type EventLevel = 'info' | 'warn' | 'error';
 export type EventKind =
   | 'engine_started'
   | 'engine_stopped'
+  | 'strategy_changed'
   | 'cycle_completed'
   | 'signal'
   | 'order_submitted'

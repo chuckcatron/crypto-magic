@@ -121,11 +121,18 @@ the engine and waiting for it.
 
 ### What it is trading
 
-The engine currently runs `ta-ensemble-v1`, **which lost to buy-and-hold in every
-backtest** (docs/BACKTEST.md). This weekend is a shakedown of the machinery:
-alerts, restarts, phone access, the paper account. It is not a test of a
-profitable strategy. The regime filter, the only strategy that passed a backtest,
-gets wired in next. Do not switch to live with the current strategy.
+By default the engine runs `ta-ensemble-v1`, **which lost to buy-and-hold in every
+backtest** (docs/BACKTEST.md). Use it to shake down the machinery: alerts,
+restarts, phone access, the paper account.
+
+To paper-trade the regime filter, the only strategy that passed a backtest, set
+`STRATEGY=regime` and `GRANULARITY=ONE_DAY`, and raise `MAX_POSITION_NOTIONAL` and
+`MAX_TOTAL_NOTIONAL` to at least `PAPER_STARTING_CASH` so it can hold the whole
+account as it did in the experiment (README, "The regime filter"). Switch while
+flat, then restart the engine. It decides once a day, after the 00:00 UTC close,
+so expect nothing to happen for hours at a time.
+
+Do not switch to live on the strength of the paper run alone.
 
 ---
 

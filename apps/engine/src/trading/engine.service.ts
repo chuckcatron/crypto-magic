@@ -9,7 +9,6 @@ import {
   D,
   Decimal,
   GRANULARITY_SECONDS,
-  TaEnsembleStrategy,
   checkStops,
   openPosition,
   ratchetStop,
@@ -17,12 +16,13 @@ import {
   type Candle,
   type ExitReason,
   type OrderIntent,
+  type Granularity,
   type Signal,
   type StopConfig,
-  type TaEnsembleConfig,
+  type Strategy,
 } from '@crypto-magic/core';
 import type { ExchangeAdapter } from '@crypto-magic/exchange';
-import { APP_CONFIG, STOP_CONFIG, STRATEGY_CONFIG } from '../config/tokens';
+import { APP_CONFIG, STOP_CONFIG, STRATEGY } from '../config/tokens';
 import type { AppConfig } from '../config/config.schema';
 import { EXCHANGE } from '../exchange/tokens';
 import { MarketDataService } from '../market-data/market-data.service';
@@ -41,7 +41,24 @@ import { ReconciliationService } from './reconciliation.service';
 import { RiskService } from './risk.service';
 
 const TICK_INTERVAL_NAME = 'trading-tick';
-const LAST_BAR_KEY = (productId: string) => `last_bar:${productId}`;
+/**
+ * The newest bar already acted on, per product AND bar size. One key for all
+ * sizes would compare a daily bar's open time against an hourly one: after
+ * switching hourly -> daily, every daily bar looks older than the last hourly
+ * bar and the engine silently skips a day.
+ */
+const LAST_BAR_KEY = (productId: string, granularity: Granularity) =>
+  `last_bar:${productId}:${granularity}`;
+/**
+ * The key before bar size was part of it. Every run until then was hourly (the
+ * default, and the only size ta-ensemble shipped with), so it is read as the
+ * hourly value and never for any other size.
+ */
+const LEGACY_LAST_BAR_KEY = (productId: string) => `last_bar:${productId}`;
+/** Strategy the engine last started with; see guardStrategySwitch(). */
+const STRATEGY_KEY = 'strategy';
+/** The only strategy that existed before STRATEGY_KEY was recorded. */
+const STRATEGY_BEFORE_SELECTION = 'ta-ensemble-v1';
 
 /**
  * The loop.
@@ -60,7 +77,6 @@ const LAST_BAR_KEY = (productId: string) => `last_bar:${productId}`;
 @Injectable()
 export class TradingEngineService implements OnApplicationBootstrap, OnModuleDestroy {
   private readonly log = childLogger('engine');
-  private readonly strategy: TaEnsembleStrategy;
   private ticking = false;
   private started = false;
   /** When the last pass finished WITHOUT throwing. Liveness, not just uptime. */
@@ -70,7 +86,7 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     @Inject(EXCHANGE) private readonly exchange: ExchangeAdapter,
     @Inject(APP_CONFIG) private readonly config: AppConfig,
     @Inject(STOP_CONFIG) private readonly stopConfig: StopConfig,
-    @Inject(STRATEGY_CONFIG) strategyConfig: TaEnsembleConfig,
+    @Inject(STRATEGY) private readonly strategy: Strategy,
     private readonly marketData: MarketDataService,
     private readonly positions: PositionRepository,
     private readonly trades: TradeRepository,
@@ -82,9 +98,7 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     private readonly killSwitch: KillSwitchService,
     private readonly reconciliation: ReconciliationService,
     private readonly scheduler: SchedulerRegistry,
-  ) {
-    this.strategy = new TaEnsembleStrategy(strategyConfig);
-  }
+  ) {}
 
   async onApplicationBootstrap(): Promise<void> {
     this.log.info(
@@ -114,6 +128,8 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       this.killSwitch.engage(`reconciliation failed at startup: ${String(error)}`);
     }
 
+    this.guardStrategySwitch();
+
     const interval = setInterval(
       () => void this.tick(),
       this.config.STOP_MONITOR_INTERVAL_SECONDS * 1000,
@@ -122,6 +138,50 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     this.started = true;
 
     void this.tick();
+  }
+
+  /**
+   * Refuse to let a new strategy inherit positions an old one opened.
+   *
+   * A position carries the stop and exit logic of the strategy that opened it.
+   * Handing it to a different one (ta-ensemble's 2-ATR stop under the regime
+   * filter's rules, or the reverse) manages it by rules nobody chose. So when
+   * the strategy changed and positions are open, engage the kill switch and
+   * say why; flatten, then restart. The new name is only recorded once no
+   * position is open, so every restart re-checks until the switch is clean.
+   */
+  private guardStrategySwitch(): void {
+    const current = this.strategy.name;
+    const recorded = this.state.get(STRATEGY_KEY);
+    const open = this.positions.findAll();
+
+    if (recorded === null && open.length === 0) {
+      // Fresh install, or an upgrade while flat: nothing to protect.
+      this.state.set(STRATEGY_KEY, current);
+      return;
+    }
+    // Positions from before the strategy was recorded were opened by the only
+    // strategy that existed then.
+    const previous = recorded ?? STRATEGY_BEFORE_SELECTION;
+    if (previous === current) {
+      if (recorded === null) this.state.set(STRATEGY_KEY, current);
+      return;
+    }
+
+    if (open.length > 0) {
+      const products = open.map((p) => p.productId).join(', ');
+      this.killSwitch.engage(
+        `strategy changed from ${previous} to ${current} with open positions (${products}). ` +
+          'Flatten them, then restart, so no position is managed by rules it was not opened under.',
+      );
+      return;
+    }
+    this.state.set(STRATEGY_KEY, current);
+    this.events.append({
+      level: 'info',
+      kind: 'strategy_changed',
+      message: `strategy changed from ${previous} to ${current}`,
+    });
   }
 
   onModuleDestroy(): void {
@@ -248,7 +308,11 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     const candles = fetched.slice(-this.strategy.lookbackBars);
 
     const newest = candles.at(-1)!;
-    const lastProcessed = Number(this.state.get(LAST_BAR_KEY(productId)) ?? 0);
+    const granularity = newest.granularity;
+    const stored =
+      this.state.get(LAST_BAR_KEY(productId, granularity)) ??
+      (granularity === 'ONE_HOUR' ? this.state.get(LEGACY_LAST_BAR_KEY(productId)) : null);
+    const lastProcessed = Number(stored ?? 0);
     if (newest.openTime <= lastProcessed) return; // no new closed bar
 
     const position = this.positions.find(productId);
@@ -263,7 +327,7 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       now: newest.openTime + GRANULARITY_SECONDS[newest.granularity],
     });
 
-    this.state.set(LAST_BAR_KEY(productId), String(newest.openTime));
+    this.state.set(LAST_BAR_KEY(productId, granularity), String(newest.openTime));
 
     this.log.info(
       { productId, bar: newest.openTime, action: signal.action, confidence: signal.confidence },
@@ -330,6 +394,9 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       product,
       limits: this.risk.limits,
       confidence: signal.confidence,
+      ...(this.config.STRATEGY === 'regime'
+        ? { allocationPct: this.config.REGIME_ALLOCATION_PCT }
+        : {}),
     });
 
     if (sizing.rejected) {

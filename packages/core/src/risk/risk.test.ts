@@ -232,6 +232,58 @@ describe('sizePosition', () => {
   });
 });
 
+describe('sizePosition with allocationPct', () => {
+  // Caps wide enough that only the allocation and the cash can bind.
+  const open = { ...limits, maxPositionNotional: 100_000, maxTotalNotional: 100_000 };
+  const args = {
+    equity: 1000,
+    availableQuote: 1000,
+    entryPrice: 100,
+    // A disaster-floor stop far below entry, as the regime filter uses.
+    stopPrice: 30,
+    openNotional: 0,
+    product,
+    limits: open,
+    confidence: 1,
+  };
+
+  it('sizes to the share of equity, not the stop distance', () => {
+    const result = sizePosition({ ...args, allocationPct: 50 });
+    expect(result.rejected).toBeNull();
+    expect(result.baseSize.toNumber()).toBe(5); // 500 / 100
+  });
+
+  it('holds back the fee reserve so a full allocation can actually be paid for', () => {
+    const result = sizePosition({ ...args, allocationPct: 100 });
+    expect(result.rejected).toBeNull();
+    // 1000 cash less the 1% reserve = 990 spendable.
+    expect(result.notional.toNumber()).toBe(990);
+    expect(result.constraints).toContain('capped by availableQuote');
+  });
+
+  it('is still bound by every hard cap', () => {
+    const result = sizePosition({ ...args, limits, allocationPct: 100 });
+    expect(result.notional.toNumber()).toBe(limits.maxPositionNotional);
+    expect(result.constraints).toContain('capped by maxPositionNotional');
+  });
+
+  it('is not scaled by confidence', () => {
+    const weak = sizePosition({ ...args, confidence: 0, allocationPct: 50 });
+    expect(weak.baseSize.toNumber()).toBe(5);
+  });
+
+  it('refuses an allocation outside (0, 100]', () => {
+    expect(sizePosition({ ...args, allocationPct: 0 }).rejected).toMatch(/allocationPct/);
+    expect(sizePosition({ ...args, allocationPct: 101 }).rejected).toMatch(/allocationPct/);
+  });
+
+  it('leaves risk-based sizing exactly as it was', () => {
+    // Same inputs as "sizes from the distance to the stop", no allocationPct.
+    const result = sizePosition({ ...args, limits, stopPrice: 90 });
+    expect(result.baseSize.toNumber()).toBe(0.25);
+  });
+});
+
 describe('RiskEngine halts', () => {
   const engine = new RiskEngine(limits);
 

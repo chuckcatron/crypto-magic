@@ -4,8 +4,8 @@ import { join } from 'node:path';
 import { Test, type TestingModule } from '@nestjs/testing';
 import { ScheduleModule } from '@nestjs/schedule';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { toRiskLimits, toStopConfig, toStrategyConfig } from '../config/config.module';
-import { APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY_CONFIG } from '../config/tokens';
+import { createStrategy, stopConfigFor, toRiskLimits } from '../config/config.module';
+import { APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY } from '../config/tokens';
 import { loadConfig, type AppConfig } from '../config/config.schema';
 import { EXCHANGE } from '../exchange/tokens';
 import { createPaperAdapter, PAPER_BALANCES_KEY } from '../exchange/exchange.module';
@@ -74,8 +74,8 @@ describe('paper account across a restart (integration)', () => {
       providers: [
         { provide: APP_CONFIG, useValue: config },
         { provide: RISK_LIMITS, useValue: toRiskLimits(config) },
-        { provide: STOP_CONFIG, useValue: toStopConfig(config) },
-        { provide: STRATEGY_CONFIG, useValue: toStrategyConfig(config) },
+        { provide: STOP_CONFIG, useValue: stopConfigFor(config) },
+        { provide: STRATEGY, useValue: createStrategy(config) },
         { provide: DATABASE, useFactory: () => openDatabase(config.DATABASE_PATH) },
         {
           provide: EXCHANGE,
