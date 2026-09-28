@@ -93,6 +93,8 @@ async function api(method, path, { body, timeoutMs = 15_000 } = {}) {
 const usd = (value) =>
   Number(value).toLocaleString('en-US', { style: 'currency', currency: 'USD' });
 
+/** Engine timestamps are mixed: loop and ping times are ms, bar times (a
+ *  position's openedAt) are Unix seconds. Callers convert to ms first. */
 function ago(ms) {
   if (ms === null || ms === undefined) return 'never';
   const seconds = Math.max(0, Math.round((Date.now() - ms) / 1000));
@@ -159,7 +161,7 @@ async function status() {
   for (const x of p.positions) {
     console.log(
       fit(
-        `  ${x.productId} ${Number(x.baseSize)} @ ${usd(x.averageEntryPrice)} · stop ${usd(x.stopPrice)} · ${ago(x.openedAt)}`,
+        `  ${x.productId} ${Number(x.baseSize)} @ ${usd(x.averageEntryPrice)} · stop ${usd(x.stopPrice)} · ${ago(x.openedAt * 1000)}`,
       ),
     );
   }
@@ -302,7 +304,9 @@ async function restartService(name, service) {
     );
     console.log('  To run it as a service (starts at login, restarts on crash):');
     console.log('    ./scripts/install-launchd.sh');
-    console.log(`    launchctl load ~/Library/LaunchAgents/${service.label}.plist`);
+    console.log(
+      `    launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/${service.label}.plist`,
+    );
     process.exitCode = 1;
     return;
   }

@@ -85,8 +85,8 @@ Stop the foreground engine and dashboard (Ctrl-C in each terminal), then:
 
 ```bash
 ./scripts/install-launchd.sh
-launchctl load ~/Library/LaunchAgents/com.cryptomagic.engine.plist
-launchctl load ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cryptomagic.engine.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist
 node scripts/cm.mjs                    # engine up
 open http://localhost:3000             # dashboard up
 ```
@@ -148,8 +148,8 @@ Do not switch to live on the strength of the paper run alone.
 
 ```bash
 node scripts/cm.mjs                    # screenshot this: equity and positions
-launchctl unload ~/Library/LaunchAgents/com.cryptomagic.engine.plist
-launchctl unload ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist
+launchctl bootout gui/$(id -u)/com.cryptomagic.engine
+launchctl bootout gui/$(id -u)/com.cryptomagic.dashboard
 ./scripts/migrate.sh export            # → ~/crypto-magic-state-<date>.tar.gz
 ```
 
@@ -193,8 +193,8 @@ Start it and compare with the screenshot:
 
 ```bash
 ./scripts/install-launchd.sh
-launchctl load ~/Library/LaunchAgents/com.cryptomagic.engine.plist
-launchctl load ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cryptomagic.engine.plist
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cryptomagic.dashboard.plist
 ./scripts/doctor.sh
 node scripts/cm.mjs                    # same equity and positions as the screenshot
 ```
@@ -226,6 +226,6 @@ Delete the archive from the Studio's Downloads folder too, once `cm` looks right
 
 ### If something goes wrong on the Studio
 
-Stop it (`launchctl unload …`). The laptop's `data/` is untouched by the export,
+Stop it (`launchctl bootout gui/$(id -u)/com.cryptomagic.engine`). The laptop's `data/` is untouched by the export,
 so you can load the laptop's service again and be exactly where you were. Just
 never run both at once.

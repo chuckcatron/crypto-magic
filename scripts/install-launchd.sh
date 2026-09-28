@@ -120,9 +120,13 @@ write_plist "$DASHBOARD_LABEL" run-dashboard.sh dashboard
 
 echo
 echo "Start them:"
-echo "  launchctl load $AGENTS/$ENGINE_LABEL.plist"
-echo "  launchctl load $AGENTS/$DASHBOARD_LABEL.plist     # http://localhost:3000"
-echo "Stop them:   launchctl unload <the same paths>"
+echo "  launchctl bootstrap gui/$(id -u) $AGENTS/$ENGINE_LABEL.plist"
+echo "  launchctl bootstrap gui/$(id -u) $AGENTS/$DASHBOARD_LABEL.plist     # http://localhost:3000"
+echo "Stop them:"
+echo "  launchctl bootout gui/$(id -u)/$ENGINE_LABEL"
+echo "  launchctl bootout gui/$(id -u)/$DASHBOARD_LABEL"
+echo "Reinstalling over running services? Boot them out first, then bootstrap:"
+echo "the old load/unload commands fail with a misleading 'Input/output error'."
 echo "Check them:  launchctl list | grep cryptomagic"
 echo "Restart:     cm restart | cm restart dashboard | cm restart all"
 echo "Logs:        tail -f $REPO_ROOT/logs/engine.log | apps/engine/node_modules/.bin/pino-pretty"

@@ -118,8 +118,8 @@ refused, from another computer on the network run
 
 5. `cm restart`. Within a minute or two, `cm` should show
    `Dead-man   pinged 40s ago` and healthchecks.io should show the check as up.
-6. **Test it.** Stop the engine (`launchctl unload ~/Library/LaunchAgents/com.cryptomagic.engine.plist`),
-   wait for the alert, then start it again with `launchctl load …`.
+6. **Test it.** Stop the engine (`launchctl bootout gui/$(id -u)/com.cryptomagic.engine`),
+   wait for the alert, then start it again with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cryptomagic.engine.plist`.
    An alert you have never seen fire is not an alert.
 
 What "healthy" means: the engine pings only while its trading loop has completed
