@@ -20,6 +20,16 @@ import {
 } from '../types';
 import { toCandle, toOrderResult, toProductSpec } from './mapping';
 
+/**
+ * How long one HTTP request may take before it is abandoned.
+ *
+ * The SDK's own default is five minutes. A request in flight when the Mac
+ * sleeps, or when Wi-Fi drops, then stalls the trading loop, and with it the
+ * stop checks, for the whole five minutes. Coinbase answers in well under a
+ * second when it answers at all.
+ */
+const DEFAULT_REQUEST_TIMEOUT_MS = 15_000;
+
 /** Coinbase caps a single candles request at 350 buckets. */
 const MAX_CANDLES_PER_REQUEST = 350;
 
@@ -43,6 +53,10 @@ export interface CoinbaseAdapterOptions {
   /** CDP private key PEM, including the BEGIN/END lines. */
   readonly apiSecret?: string;
   readonly maxRetries?: number;
+  /** Per-request timeout. Defaults to {@link DEFAULT_REQUEST_TIMEOUT_MS}. */
+  readonly requestTimeoutMs?: number;
+  /** Override the API host. Only tests use this, to point at a local server. */
+  readonly baseUrl?: string;
 }
 
 /**
@@ -76,7 +90,11 @@ export class CoinbaseAdapter implements ExchangeAdapter {
     }
     this.authenticated = hasKey && hasSecret;
     this.client = new CBAdvancedTradeClient(
-      this.authenticated ? { apiKey: options.apiKey, apiSecret: options.apiSecret } : {},
+      {
+        ...(this.authenticated ? { apiKey: options.apiKey, apiSecret: options.apiSecret } : {}),
+        ...(options.baseUrl ? { baseUrl: options.baseUrl } : {}),
+      },
+      { timeout: options.requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS },
     );
     this.maxRetries = options.maxRetries ?? 3;
   }
@@ -434,6 +452,10 @@ function isRetryable(error: unknown): boolean {
   return (
     code === 'ECONNRESET' ||
     code === 'ETIMEDOUT' ||
+    // What the SDK's HTTP client (axios) actually reports when its own timeout
+    // fires. Missing it meant a timed-out order submission was not treated as
+    // ambiguous, so the executor did not halt for a human to check.
+    code === 'ECONNABORTED' ||
     code === 'ENOTFOUND' ||
     code === 'EAI_AGAIN' ||
     code === 'ECONNREFUSED'

@@ -97,7 +97,8 @@ account is saved in the database, so restarts no longer reset it.
 ### 6. Keep the laptop awake
 
 - Plugged in, **lid open**. A closed lid sleeps the Mac no matter what else you set.
-- Amphetamine: start a session set to **Indefinitely**.
+- Nothing else to run: the engine service holds off idle sleep itself (it runs
+  under `caffeinate`), so Amphetamine is no longer needed. `doctor.sh` checks it.
 - **System Settings → Battery → Options:** turn on _Prevent automatic sleeping on
   power adapter when the display is off_.
 
