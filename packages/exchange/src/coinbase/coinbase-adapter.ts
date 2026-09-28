@@ -398,8 +398,8 @@ export class CoinbaseAdapter implements ExchangeAdapter {
 interface RawProduct {
   product_id: string;
   price: string;
-  base_name: string;
-  quote_name: string;
+  base_currency_id: string;
+  quote_currency_id: string;
   base_increment: string;
   quote_increment: string;
   quote_min_size: string;

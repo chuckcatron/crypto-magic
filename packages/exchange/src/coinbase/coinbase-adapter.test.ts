@@ -6,8 +6,10 @@ import { CoinbaseAdapter } from './coinbase-adapter';
 const PRODUCT = {
   product_id: 'BTC-USD',
   price: '60000',
-  base_name: 'BTC',
-  quote_name: 'USD',
+  base_name: 'Bitcoin',
+  quote_name: 'US Dollar',
+  base_currency_id: 'BTC',
+  quote_currency_id: 'USD',
   base_increment: '0.00000001',
   quote_increment: '0.01',
   quote_min_size: '1',

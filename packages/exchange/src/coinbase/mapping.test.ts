@@ -31,8 +31,11 @@ describe('toCandle', () => {
 describe('toProductSpec', () => {
   const base = {
     product_id: 'BTC-USD',
-    base_name: 'BTC',
-    quote_name: 'USD',
+    // As Coinbase actually returns it: display names differ from codes.
+    base_name: 'Bitcoin',
+    quote_name: 'US Dollar',
+    base_currency_id: 'BTC',
+    quote_currency_id: 'USD',
     base_increment: '0.00000001',
     quote_increment: '0.01',
     quote_min_size: '1',
@@ -41,6 +44,12 @@ describe('toProductSpec', () => {
 
   it('maps the tradable case', () => {
     expect(toProductSpec(base).tradingDisabled).toBe(false);
+  });
+
+  it('uses currency codes, which balances are keyed by, not display names', () => {
+    const spec = toProductSpec(base);
+    expect(spec.baseCurrency).toBe('BTC');
+    expect(spec.quoteCurrency).toBe('USD');
   });
 
   it.each([
