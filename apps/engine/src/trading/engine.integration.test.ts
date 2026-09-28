@@ -1,12 +1,14 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { ScheduleModule } from '@nestjs/schedule';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { D } from '@crypto-magic/core';
 import { PaperAdapter } from '@crypto-magic/exchange';
 import { ApiController } from '../api/api.controller';
 import { createStrategy, stopConfigFor, toRiskLimits } from '../config/config.module';
 import { APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY } from '../config/tokens';
 import { loadConfig, type AppConfig } from '../config/config.schema';
 import { EXCHANGE } from '../exchange/tokens';
+import { PAPER_STARTING_CASH_KEY } from '../exchange/exchange.module';
 import { MarketDataService } from '../market-data/market-data.service';
 import { DATABASE } from '../persistence/tokens';
 import { openDatabase } from '../persistence/database';
@@ -261,6 +263,46 @@ describe('TradingEngineService (integration)', () => {
 
     const metrics = api.metrics() as Record<string, unknown>;
     expect(metrics.totalTrades).toBe(0);
+  });
+
+  it('serves when records began, and what the account started with, as the baseline', async () => {
+    expect(api.equityBaseline()).toEqual({ baseline: null });
+
+    // A live-mode record from before this paper account existed must not
+    // become the paper baseline.
+    const state = moduleRef.get(StateRepository);
+    state.recordEquity({
+      ts: 1,
+      equity: D(50),
+      cash: D(50),
+      positionValue: D(0),
+      mode: 'live',
+    });
+
+    // A quiet market, so nothing is bought and equity is exactly the starting cash.
+    const series = seriesCrossingUpOnLastBar().slice(0, 118);
+    market.candles = candlesEndingNow(series);
+    market.price = series.at(-1)!;
+    await engine.tick();
+    const { baseline } = api.equityBaseline() as { baseline: { ts: number; equity: string } };
+    expect(baseline.ts).toBeGreaterThan(1);
+    // No starting cash recorded: falls back to the first snapshot.
+    expect(baseline.equity).toBe('10000');
+
+    // Later snapshots, at whatever equity, leave the baseline where it was.
+    state.recordEquity({
+      ts: baseline.ts + 30_000,
+      equity: D(9000),
+      cash: D(9000),
+      positionValue: D(0),
+      mode: 'paper',
+    });
+    expect(api.equityBaseline()).toEqual({ baseline });
+
+    // The recorded starting cash wins over the first snapshot, which the first
+    // tick may already have spent a fee from.
+    state.set(PAPER_STARTING_CASH_KEY, '12000');
+    expect(api.equityBaseline()).toEqual({ baseline: { ts: baseline.ts, equity: '12000' } });
   });
 
   it('trades normally with no alert channels configured', async () => {

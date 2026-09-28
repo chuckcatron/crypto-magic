@@ -55,6 +55,8 @@ export interface PositionRow {
   barsHeld: number;
   confidence: number;
   entryReasons: string[];
+  /** Fee paid on the buy. Already out of equity; reaches a trade's fees only on sale. */
+  entryFee: string;
 }
 
 export interface TradeRow {
@@ -136,6 +138,11 @@ export interface EquityPoint {
   positionValue: string;
 }
 
+export interface EquityBaseline {
+  ts: number;
+  equity: string;
+}
+
 export interface Metrics {
   totalTrades: number;
   winningTrades: number;
@@ -173,26 +180,55 @@ export interface DashboardData {
   trades: TradeRow[];
   events: EventRow[];
   equity: EquityPoint[];
+  /**
+   * Where the account started: when records began in this mode, and the starting
+   * cash (paper) or first recorded equity (live). `equity` holds only recent points.
+   */
+  baseline: EquityBaseline | null;
   metrics: Metrics;
   insight: InsightStatus;
   alerts: AlertStatus;
 }
 
 export async function fetchDashboard(signal?: AbortSignal): Promise<DashboardData> {
-  const [status, portfolio, prices, positions, trades, events, equity, metrics, insight, alerts] =
-    await Promise.all([
-      get<EngineStatus>('/status', signal),
-      get<Portfolio>('/portfolio', signal),
-      get<PriceQuote[]>('/prices', signal),
-      get<PositionRow[]>('/positions', signal),
-      get<TradeRow[]>('/trades?limit=25', signal),
-      get<EventRow[]>('/events?limit=80', signal),
-      get<EquityPoint[]>('/equity?limit=500', signal),
-      get<Metrics>('/metrics', signal),
-      get<InsightStatus>('/insight', signal),
-      get<AlertStatus>('/alerts', signal),
-    ]);
-  return { status, portfolio, prices, positions, trades, events, equity, metrics, insight, alerts };
+  const [
+    status,
+    portfolio,
+    prices,
+    positions,
+    trades,
+    events,
+    equity,
+    baseline,
+    metrics,
+    insight,
+    alerts,
+  ] = await Promise.all([
+    get<EngineStatus>('/status', signal),
+    get<Portfolio>('/portfolio', signal),
+    get<PriceQuote[]>('/prices', signal),
+    get<PositionRow[]>('/positions', signal),
+    get<TradeRow[]>('/trades?limit=25', signal),
+    get<EventRow[]>('/events?limit=80', signal),
+    get<EquityPoint[]>('/equity?limit=500', signal),
+    get<{ baseline: EquityBaseline | null }>('/equity/baseline', signal),
+    get<Metrics>('/metrics', signal),
+    get<InsightStatus>('/insight', signal),
+    get<AlertStatus>('/alerts', signal),
+  ]);
+  return {
+    status,
+    portfolio,
+    prices,
+    positions,
+    trades,
+    events,
+    equity,
+    baseline: baseline.baseline,
+    metrics,
+    insight,
+    alerts,
+  };
 }
 
 export const engageKillSwitch = (reason: string) =>
