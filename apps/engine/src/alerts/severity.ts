@@ -42,6 +42,7 @@ export function severityForEvent(event: StoredEvent): Severity | null {
     case 'position_closed':
     case 'engine_started':
     case 'engine_stopped':
+    case 'strategy_changed':
       return 'info';
 
     default:
@@ -61,6 +62,7 @@ export function titleForEvent(event: StoredEvent): string {
     position_closed: 'Position closed',
     engine_started: 'Engine started',
     engine_stopped: 'Engine stopped',
+    strategy_changed: 'Strategy changed',
   };
   return titles[event.kind] ?? event.kind.replace(/_/g, ' ');
 }

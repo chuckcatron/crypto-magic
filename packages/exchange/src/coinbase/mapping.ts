@@ -21,8 +21,8 @@ export function toCandle(
 
 export function toProductSpec(raw: {
   product_id: string;
-  base_name: string;
-  quote_name: string;
+  base_currency_id: string;
+  quote_currency_id: string;
   base_increment: string;
   quote_increment: string;
   quote_min_size: string;
@@ -34,8 +34,12 @@ export function toProductSpec(raw: {
 }): ProductSpec {
   return {
     productId: raw.product_id,
-    baseCurrency: raw.base_name,
-    quoteCurrency: raw.quote_name,
+    // The currency CODES ("BTC", "USD") that balances are keyed by. The
+    // base_name / quote_name fields are display names ("Bitcoin", "US Dollar"):
+    // mapping those made every balance lookup miss, so no paper order could
+    // ever be paid for.
+    baseCurrency: raw.base_currency_id,
+    quoteCurrency: raw.quote_currency_id,
     baseIncrement: raw.base_increment,
     quoteIncrement: raw.quote_increment,
     minMarketFunds: raw.quote_min_size,

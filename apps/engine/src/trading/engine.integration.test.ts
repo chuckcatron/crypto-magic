@@ -3,8 +3,8 @@ import { ScheduleModule } from '@nestjs/schedule';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 import { PaperAdapter } from '@crypto-magic/exchange';
 import { ApiController } from '../api/api.controller';
-import { toRiskLimits, toStopConfig, toStrategyConfig } from '../config/config.module';
-import { APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY_CONFIG } from '../config/tokens';
+import { createStrategy, stopConfigFor, toRiskLimits } from '../config/config.module';
+import { APP_CONFIG, RISK_LIMITS, STOP_CONFIG, STRATEGY } from '../config/tokens';
 import { loadConfig, type AppConfig } from '../config/config.schema';
 import { EXCHANGE } from '../exchange/tokens';
 import { MarketDataService } from '../market-data/market-data.service';
@@ -72,8 +72,8 @@ describe('TradingEngineService (integration)', () => {
       providers: [
         { provide: APP_CONFIG, useValue: config },
         { provide: RISK_LIMITS, useValue: toRiskLimits(config) },
-        { provide: STOP_CONFIG, useValue: toStopConfig(config) },
-        { provide: STRATEGY_CONFIG, useValue: toStrategyConfig(config) },
+        { provide: STOP_CONFIG, useValue: stopConfigFor(config) },
+        { provide: STRATEGY, useValue: createStrategy(config) },
         { provide: DATABASE, useFactory: () => openDatabase(':memory:') },
         {
           provide: EXCHANGE,
