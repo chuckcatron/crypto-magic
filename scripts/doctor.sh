@@ -161,7 +161,9 @@ if $IS_MAC; then
   elif $engine_awake; then pass "Idle sleep held off while the engine runs (system sleep: ${sleep_min:-?} min)"
   else warn "System sleep is set to ${sleep_min:-?} min" "An idle Mac sleeps and checks stops only every ~15 min. Run the engine as a service, or: sudo pmset -c sleep 0"; fi
   if pmset -g batt 2>/dev/null | grep -q "AC Power"; then pass "On power adapter"
-  elif pmset -g batt 2>/dev/null | grep -q "Battery Power"; then fail "Running on battery" "Plug in; a laptop on battery will sleep and stop managing stops"; fi
+  # A warning, not a failure: with sleep disabled (or Amphetamine) the Mac stays
+  # awake on battery. The risk is the battery running out overnight.
+  elif pmset -g batt 2>/dev/null | grep -q "Battery Power"; then warn "On battery: plug in before bed" "It stays awake on battery, but when the battery runs out the Mac shuts down and the engine stops"; fi
   if command -v fdesetup >/dev/null 2>&1 && fdesetup status 2>/dev/null | grep -q "On"; then
     pass "FileVault on (after a power cut, someone must unlock the Mac before the bot restarts)"
   else
