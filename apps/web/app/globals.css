@@ -351,6 +351,12 @@ td.strong {
   fill: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
+/* Downtime: no snapshots were recorded. Quiet on purpose; the break in the line says it too. */
+.chart-gap {
+  fill: var(--gridline);
+  fill-opacity: 0.6;
+}
+
 .tooltip {
   position: absolute;
   pointer-events: none;

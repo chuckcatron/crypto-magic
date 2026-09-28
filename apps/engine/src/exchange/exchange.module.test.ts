@@ -1,7 +1,12 @@
 import { describe, expect, it } from 'vitest';
 import { CoinbaseAdapter, PaperAdapter } from '@crypto-magic/exchange';
 import { loadConfig } from '../config/config.schema';
-import { createExchange, loadPaperBalances, PAPER_BALANCES_KEY } from './exchange.module';
+import {
+  createExchange,
+  loadPaperBalances,
+  PAPER_BALANCES_KEY,
+  PAPER_STARTING_CASH_KEY,
+} from './exchange.module';
 
 const withLiveKeys = {
   COINBASE_API_KEY_NAME: 'organizations/x/apiKeys/y',
@@ -81,6 +86,53 @@ describe('createExchange', () => {
         String(saved),
       ).toEqual([['USD', '1000']]);
     }
+  });
+
+  describe('recorded starting cash, the dashboard baseline', () => {
+    const paper = (cash: string) =>
+      loadConfig({ TRADING_MODE: 'paper', PAPER_STARTING_CASH: cash, LOG_LEVEL: 'fatal' });
+    const storeWith = (entries: [string, string][]) => {
+      const store = new Map(entries);
+      return {
+        store,
+        state: {
+          get: (k: string) => store.get(k) ?? null,
+          set: (k: string, v: string) => void store.set(k, v),
+        },
+      };
+    };
+
+    it('is recorded when a fresh account is created', () => {
+      const { store, state } = storeWith([]);
+      createExchange(paper('1000'), state);
+      expect(store.get(PAPER_STARTING_CASH_KEY)).toBe('1000');
+    });
+
+    it('is backfilled from the config for an account that predates it', () => {
+      const { store, state } = storeWith([[PAPER_BALANCES_KEY, '{"USD":"4.06","BTC":"0.0117"}']]);
+      createExchange(paper('1000'), state);
+      expect(store.get(PAPER_STARTING_CASH_KEY)).toBe('1000');
+    });
+
+    it('is kept on restore even if the config has changed since', () => {
+      // A changed PAPER_STARTING_CASH does not change a restored account's
+      // balances, so it must not change what that account started with either.
+      const { store, state } = storeWith([
+        [PAPER_BALANCES_KEY, '{"USD":"4.06","BTC":"0.0117"}'],
+        [PAPER_STARTING_CASH_KEY, '1000'],
+      ]);
+      createExchange(paper('5000'), state);
+      expect(store.get(PAPER_STARTING_CASH_KEY)).toBe('1000');
+    });
+
+    it('is reset along with the account when the saved balances are unreadable', () => {
+      const { store, state } = storeWith([
+        [PAPER_BALANCES_KEY, 'not json'],
+        [PAPER_STARTING_CASH_KEY, '1000'],
+      ]);
+      createExchange(paper('5000'), state);
+      expect(store.get(PAPER_STARTING_CASH_KEY)).toBe('5000');
+    });
   });
 
   it('accepts only currency codes mapped to non-negative decimal strings', () => {

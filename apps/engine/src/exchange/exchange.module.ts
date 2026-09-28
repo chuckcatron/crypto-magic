@@ -14,6 +14,13 @@ export { EXCHANGE };
 export const PAPER_BALANCES_KEY = 'paper:balances';
 
 /**
+ * What the current simulated account started with: the dashboard's "since"
+ * baseline. Saved because the first equity snapshot is no substitute: the first
+ * tick can buy before it records one, so that snapshot already has a fee out.
+ */
+export const PAPER_STARTING_CASH_KEY = 'paper:starting_cash';
+
+/**
  * Build the one adapter the engine will use.
  *
  * In paper mode the engine is handed a PaperAdapter whose market data comes from
@@ -68,6 +75,18 @@ export function createPaperAdapter(
   const saved = state ? loadPaperBalances(state.get(PAPER_BALANCES_KEY)) : null;
   if (state && state.get(PAPER_BALANCES_KEY) !== null && !saved) {
     log.error('saved paper balances are unreadable; starting a fresh paper account');
+  }
+
+  if (state && !saved) {
+    state.set(PAPER_STARTING_CASH_KEY, String(config.PAPER_STARTING_CASH));
+  } else if (state && state.get(PAPER_STARTING_CASH_KEY) === null) {
+    // An account from before this was recorded. The configured amount is the
+    // best evidence of what it began with.
+    state.set(PAPER_STARTING_CASH_KEY, String(config.PAPER_STARTING_CASH));
+    log.warn(
+      { startingCash: config.PAPER_STARTING_CASH },
+      'paper account has no recorded starting cash; assuming PAPER_STARTING_CASH',
+    );
   }
 
   log.info(

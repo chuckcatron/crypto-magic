@@ -97,16 +97,34 @@ export function Dashboard() {
     );
   }
 
-  const { status, portfolio, prices, positions, trades, events, equity, metrics, insight, alerts } =
-    data;
+  const {
+    status,
+    portfolio,
+    prices,
+    positions,
+    trades,
+    events,
+    equity,
+    baseline,
+    metrics,
+    insight,
+    alerts,
+  } = data;
   const lastAlert = alerts.recent.at(-1);
   const alertsBroken =
     alerts.enabled && lastAlert !== undefined && lastAlert.results.every((r) => !r.ok);
   const equityNow = Number.parseFloat(portfolio.equity);
-  const startingEquity = equity.length > 0 ? Number.parseFloat(equity[0].equity) : null;
+  // Measured from where the account started, not the first point on the chart:
+  // the chart holds only the last few hundred, so its left edge is hours ago at most.
+  const startingEquity = baseline ? Number.parseFloat(baseline.equity) : null;
   const change = startingEquity !== null ? equityNow - startingEquity : null;
   const changePct = startingEquity ? (change! / startingEquity) * 100 : null;
   const realized = Number.parseFloat(metrics.realizedPnl);
+  // Closed trades carry both legs' fees. An open position's buy fee is already
+  // out of equity but sits on no trade yet, so without it the tile read $0.00.
+  const feesPaid =
+    Number.parseFloat(metrics.totalFees) +
+    positions.reduce((sum, p) => sum + Number.parseFloat(p.entryFee), 0);
 
   return (
     <main className="shell">
@@ -239,7 +257,9 @@ export function Dashboard() {
           delta={
             change !== null
               ? {
-                  text: `${signedMoney(change)} (${changePct!.toFixed(2)}%) since records began`,
+                  text: `${signedMoney(change)} (${changePct!.toFixed(2)}%) since ${new Date(
+                    baseline!.ts,
+                  ).toLocaleDateString(undefined, { month: 'short', day: 'numeric' })}`,
                   direction: change > 0 ? 'up' : change < 0 ? 'down' : 'flat',
                 }
               : undefined
@@ -266,7 +286,7 @@ export function Dashboard() {
           label="Realized P&L"
           value={signedMoney(metrics.realizedPnl)}
           delta={{
-            text: `${money(metrics.totalFees)} paid in fees`,
+            text: `${money(feesPaid)} paid in fees`,
             direction: realized > 0 ? 'up' : realized < 0 ? 'down' : 'flat',
           }}
         />

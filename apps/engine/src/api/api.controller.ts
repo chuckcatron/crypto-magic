@@ -16,6 +16,7 @@ import { MarketDataService } from '../market-data/market-data.service';
 import { DeadmanService } from '../alerts/deadman.service';
 import { PortfolioService } from '../trading/portfolio.service';
 import { RiskService } from '../trading/risk.service';
+import { PAPER_STARTING_CASH_KEY } from '../exchange/exchange.module';
 import { serialize } from './serializers';
 
 /**
@@ -190,6 +191,23 @@ export class ApiController {
   @Get('equity')
   equityCurve(@Query('limit') limit?: string) {
     return serialize(this.state.equityCurve(clampLimit(limit, 1000, 5000)));
+  }
+
+  /**
+   * Where the account started, for the dashboard's "since …" figure: `ts` is
+   * when records began in this mode, and `equity` is the paper account's
+   * starting cash, or in live mode the first recorded equity.
+   *
+   * Wrapped because Nest sends an empty body, not `null`, for a null return,
+   * and the client would fail to parse it.
+   */
+  @Get('equity/baseline')
+  equityBaseline() {
+    const mode = this.config.TRADING_MODE;
+    const first = this.state.firstEquity(mode);
+    if (!first) return { baseline: null };
+    const startingCash = mode === 'paper' ? this.state.get(PAPER_STARTING_CASH_KEY) : null;
+    return { baseline: { ts: first.ts, equity: startingCash ?? first.equity.toFixed() } };
   }
 
   /** Realized performance so far. Deliberately the same shape as a backtest's metrics. */

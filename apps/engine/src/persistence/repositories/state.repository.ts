@@ -51,22 +51,39 @@ export class StateRepository implements StateStore {
     return this.db
       .prepare('SELECT * FROM equity_snapshots ORDER BY ts DESC LIMIT ?')
       .all(limit)
-      .map((row) => {
-        const r = row as {
-          ts: number;
-          equity: string;
-          cash: string;
-          position_value: string;
-          mode: string;
-        };
-        return {
-          ts: r.ts,
-          equity: D(r.equity),
-          cash: D(r.cash),
-          positionValue: D(r.position_value),
-          mode: r.mode as TradingMode,
-        };
-      })
+      .map((row) => toSnapshot(row as EquityRow))
       .reverse();
   }
+
+  /**
+   * The oldest snapshot recorded in this mode, or null before the first tick.
+   *
+   * The dashboard's "since" figure is measured from here. The curve is only the
+   * most recent few hundred points, so its first point is not where the account
+   * started. Filtered by mode so paper history is never the baseline for live.
+   */
+  firstEquity(mode: TradingMode): EquitySnapshot | null {
+    const row = this.db
+      .prepare('SELECT * FROM equity_snapshots WHERE mode = ? ORDER BY ts ASC LIMIT 1')
+      .get(mode);
+    return row ? toSnapshot(row as EquityRow) : null;
+  }
+}
+
+interface EquityRow {
+  ts: number;
+  equity: string;
+  cash: string;
+  position_value: string;
+  mode: string;
+}
+
+function toSnapshot(r: EquityRow): EquitySnapshot {
+  return {
+    ts: r.ts,
+    equity: D(r.equity),
+    cash: D(r.cash),
+    positionValue: D(r.position_value),
+    mode: r.mode as TradingMode,
+  };
 }
