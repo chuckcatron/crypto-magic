@@ -57,6 +57,15 @@ describe('ratchetStop', () => {
     expect(pulledBack.highWaterPrice.toNumber()).toBe(115);
   });
 
+  it('trails by a fixed share of the price with a percent width', () => {
+    // 2 ATR of 5 at an entry of 100 is 10%, so the trail sits 10% under the high.
+    const percent = { ...config, trailWidth: 'percent' as const, trailActivationAtrMultiple: 0 };
+    expect(ratchetStop(position, 100, percent).stopPrice.toNumber()).toBe(90);
+    expect(ratchetStop(position, 200, percent).stopPrice.toNumber()).toBe(180);
+    // The same move with the default width trails by 10 dollars, not 10%.
+    expect(ratchetStop(position, 200, config).stopPrice.toNumber()).toBe(190);
+  });
+
   it('only tracks the high water mark when trailing is disabled', () => {
     const next = ratchetStop(position, 130, { ...config, trailingEnabled: false });
     expect(next.stopPrice.toNumber()).toBe(90);

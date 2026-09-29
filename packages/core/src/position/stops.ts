@@ -14,6 +14,15 @@ export interface StopConfig {
    * from bar one just converts normal noise into a stop-out.
    */
   readonly trailActivationAtrMultiple: number;
+  /**
+   * How the trail's distance is measured. 'atr' (the default) keeps it at
+   * atrStopMultiple × the ATR at entry, in price units, so it does not grow
+   * with the price: 10 ATR on ETH bought at $10.83 was about $4, which at $400
+   * is a 1% trail. 'percent' fixes it as that same distance's share of the
+   * entry price, so the trail scales with the price and starts exactly at the
+   * initial stop.
+   */
+  readonly trailWidth?: 'atr' | 'percent';
   /** Force an exit after this many bars in the trade. null disables. */
   readonly maxHoldingBars: number | null;
 }
@@ -94,7 +103,11 @@ export function ratchetStop(
       : { ...position, highWaterPrice: highWater };
   }
 
-  const candidate = highWater.minus(position.entryAtr.mul(config.atrStopMultiple));
+  const distance = position.entryAtr.mul(config.atrStopMultiple);
+  const candidate =
+    config.trailWidth === 'percent'
+      ? highWater.mul(D(1).minus(distance.div(position.averageEntryPrice)))
+      : highWater.minus(distance);
   const stopPrice = Decimal.max(position.stopPrice, candidate);
 
   if (stopPrice.eq(position.stopPrice) && highWater.eq(position.highWaterPrice)) return position;
