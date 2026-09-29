@@ -1,6 +1,7 @@
 import {
   Inject,
   Injectable,
+  Optional,
   type OnApplicationBootstrap,
   type OnModuleDestroy,
 } from '@nestjs/common';
@@ -20,6 +21,8 @@ import { PositionRepository } from '../persistence/repositories/position.reposit
 import { StateRepository } from '../persistence/repositories/state.repository';
 import { TradeRepository } from '../persistence/repositories/trade.repository';
 import { childLogger } from '../common/logger';
+import { KillSwitchService } from '../trading/kill-switch.service';
+import { RiskService } from '../trading/risk.service';
 import { ALERT_POLICY, NOTIFIER } from './tokens';
 import { severityForEvent, titleForEvent } from './severity';
 
@@ -73,6 +76,9 @@ export class AlertService implements OnApplicationBootstrap, OnModuleDestroy {
     private readonly trades: TradeRepository,
     private readonly state: StateRepository,
     private readonly scheduler: SchedulerRegistry,
+    // Optional only so alerting can be tested on its own; the app always has both.
+    @Optional() private readonly risk?: RiskService,
+    @Optional() private readonly killSwitch?: KillSwitchService,
   ) {}
 
   onApplicationBootstrap(): void {
@@ -198,10 +204,31 @@ export class AlertService implements OnApplicationBootstrap, OnModuleDestroy {
     await this.sendDirect({
       severity: 'info',
       title: `Daily check-in — ${this.config.TRADING_MODE}`,
-      body: this.summary(),
+      body: await this.heartbeatSummary(),
       timestamp: Date.now(),
       fingerprint: `heartbeat:${today}`,
     });
+  }
+
+  /**
+   * The check-in's body. Says whether the bot may open positions: a check-in
+   * that arrives every day while entries are blocked would read as "all well".
+   */
+  async heartbeatSummary(): Promise<string> {
+    const blocked: string[] = [];
+    if (this.killSwitch?.isEngaged()) blocked.push('kill switch engaged');
+    if (this.risk) {
+      try {
+        blocked.push(...(await this.risk.haltReasons()).filter((h) => h !== 'kill_switch'));
+      } catch (error) {
+        blocked.push(`could not check halts (${String(error)})`);
+      }
+    }
+    const entries =
+      blocked.length > 0
+        ? `NEW ENTRIES BLOCKED: ${[...new Set(blocked)].join(', ')}. Exits still run.`
+        : 'New entries allowed.';
+    return `${entries}\n${this.summary()}`;
   }
 
   private summary(): string {

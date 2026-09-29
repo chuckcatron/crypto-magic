@@ -44,6 +44,14 @@ export class ReconciliationService {
   async reconcile(): Promise<ReconciliationReport> {
     const balances = await this.exchange.getBalances();
     const byCurrency = new Map(balances.map((b) => [b.currency.toUpperCase(), b]));
+    // Everything we own of a currency, including what open orders have on hold.
+    // Our own exchange-side protective stop holds the whole position, so the
+    // available balance alone reads zero on every live restart, and the
+    // position would be "closed outside the bot" and dropped from management.
+    const owned = (currency: string) => {
+      const balance = byCurrency.get(currency.toUpperCase());
+      return balance ? balance.available.plus(balance.hold) : D(0);
+    };
 
     const stored = this.positions.findAll();
     const corrected: string[] = [];
@@ -52,7 +60,7 @@ export class ReconciliationService {
 
     for (const position of stored) {
       const product = await this.exchange.getProduct(position.productId);
-      const held = byCurrency.get(product.baseCurrency.toUpperCase())?.available ?? D(0);
+      const held = owned(product.baseCurrency);
 
       if (held.lte(0)) {
         this.log.warn(
@@ -88,8 +96,8 @@ export class ReconciliationService {
     for (const productId of this.config.PRODUCTS) {
       if (stored.some((p) => p.productId === productId)) continue;
       const product = await this.exchange.getProduct(productId);
-      const held = byCurrency.get(product.baseCurrency.toUpperCase())?.available ?? D(0);
-      if (held.mul(D(1)).gt(0)) {
+      const held = owned(product.baseCurrency);
+      if (held.gt(0)) {
         const notional = held;
         this.log.warn(
           { productId, held: notional.toFixed() },
@@ -114,10 +122,22 @@ export class ReconciliationService {
       halted,
     };
 
+    // A position that vanished, or coins nobody manages, is not an emergency but
+    // is worth knowing about: most likely the exchange-side stop filled while
+    // the engine was down, and that exit is not in the trade history.
+    const notes = [
+      ...removed.map(
+        (id) =>
+          `${id} is no longer held on the exchange and was removed; if the exchange-side stop filled while the engine was down, that sale is not in the trade history`,
+      ),
+      ...unmanagedBalances.map(
+        (id) => `holding ${id} with no position record; the bot will not manage or sell it`,
+      ),
+    ];
     this.events.append({
-      level: halted ? 'error' : 'info',
+      level: halted ? 'error' : notes.length > 0 ? 'warn' : 'info',
       kind: 'reconciliation',
-      message: `reconciled ${stored.length} position(s)`,
+      message: [`reconciled ${stored.length} position(s)`, ...notes].join('. '),
       data: report,
     });
     this.log.info(report, 'reconciliation complete');

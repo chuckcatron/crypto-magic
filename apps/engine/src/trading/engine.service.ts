@@ -282,6 +282,13 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
           { productId: position.productId, err: String(error) },
           'failed to monitor position',
         );
+        // Recorded, so it alerts: the loop still counts as healthy (the dead-man
+        // keeps pinging) while this position's stop goes unenforced.
+        this.events.append({
+          level: 'error',
+          kind: 'error',
+          message: `failed to check the stop for ${position.productId}: ${String(error)}`,
+        });
       }
     }
   }
@@ -526,10 +533,20 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       );
     } catch (error) {
       // Not fatal: the engine still enforces its own stop while it is running.
+      // But it must be seen: while the engine is down, nothing else protects the
+      // position, and until now this failure reached only the log file.
       this.log.error(
         { productId: position.productId, err: String(error) },
         'could not place the exchange-side protective stop; engine stop is now the only floor',
       );
+      this.events.append({
+        level: 'error',
+        kind: 'error',
+        message:
+          `could not place the exchange-side stop for ${position.productId}: ${String(error)}. ` +
+          'The engine still enforces its own stop while it runs; while it is down, nothing protects this position.',
+        data: { productId: position.productId },
+      });
     }
   }
 
