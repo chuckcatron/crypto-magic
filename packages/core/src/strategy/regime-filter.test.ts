@@ -58,4 +58,43 @@ describe('RegimeFilterStrategy', () => {
   it('rejects a nonsense period', () => {
     expect(() => new RegimeFilterStrategy({ smaPeriod: 1, atrPeriod: 14 })).toThrow(RangeError);
   });
+
+  describe('with a faster exit line', () => {
+    const dual = new RegimeFilterStrategy({ smaPeriod: 20, atrPeriod: 14, exitSmaPeriod: 5 });
+    // A steady climb, then a sharp one-day drop that stays above the slow line.
+    const pullback = [...Array.from({ length: 30 }, (_, i) => 100 + 2 * i), 145];
+
+    it('exits when the close falls below the fast line, even above the slow one', () => {
+      const signal = dual.evaluate({ candles: candlesFromCloses(pullback), position, now: 0 });
+      expect(signal.action).toBe('EXIT_LONG');
+      expect(signal.reasons[0]).toMatch(/fell below SMA5/);
+      // Still above the slow line: plain regime-sma20 would keep holding.
+      expect(
+        strategy.evaluate({ candles: candlesFromCloses(pullback), position, now: 0 }).action,
+      ).toBe('HOLD');
+    });
+
+    it('does not buy back while the close is under the fast line', () => {
+      const signal = dual.evaluate({
+        candles: candlesFromCloses(pullback),
+        position: null,
+        now: 0,
+      });
+      expect(signal.action).toBe('HOLD');
+    });
+
+    it('enters only when the close is above both lines', () => {
+      const rising = Array.from({ length: 40 }, (_, i) => 100 + i);
+      const signal = dual.evaluate({ candles: candlesFromCloses(rising), position: null, now: 0 });
+      expect(signal.action).toBe('ENTER_LONG');
+      expect(signal.reasons[0]).toMatch(/above SMA20 .* and SMA5/);
+    });
+
+    it('names itself after both lines, and needs the exit line to be the faster one', () => {
+      expect(dual.name).toBe('regime-sma20-exit5');
+      expect(
+        () => new RegimeFilterStrategy({ smaPeriod: 20, atrPeriod: 14, exitSmaPeriod: 20 }),
+      ).toThrow(RangeError);
+    });
+  });
 });

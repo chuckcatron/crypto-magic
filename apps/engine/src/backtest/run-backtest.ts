@@ -44,6 +44,8 @@ interface Args {
   tradeFrom: number | null;
   strategy: 'ta-ensemble' | 'regime';
   smaPeriod: number;
+  /** EXPERIMENT-007: also require the close above this faster average to hold. */
+  exitSmaPeriod: number | null;
   trail: 'none' | 'percent';
   stopTrigger: 'intrabar' | 'close';
   stopFill: 'stop' | 'low';
@@ -91,6 +93,10 @@ function parseArgs(argv: string[]): Args {
     tradeFrom: dateFlag(get('trade-from'), 'trade-from'),
     strategy: strategyFlag(get('strategy')),
     smaPeriod: numberFlag(get('sma-period'), 200, 'sma-period'),
+    exitSmaPeriod:
+      get('exit-sma-period') === undefined
+        ? null
+        : numberFlag(get('exit-sma-period'), 0, 'exit-sma-period'),
     // Stop variants for EXPERIMENT-004. The defaults are the regime filter as tested.
     trail: choiceFlag(get('trail'), ['none', 'percent'] as const, 'trail'),
     stopTrigger: choiceFlag(get('stop-trigger'), ['intrabar', 'close'] as const, 'stop-trigger'),
@@ -136,7 +142,11 @@ async function main(): Promise<void> {
 
   const strategy: Strategy =
     args.strategy === 'regime'
-      ? new RegimeFilterStrategy({ smaPeriod: args.smaPeriod, atrPeriod: 14 })
+      ? new RegimeFilterStrategy({
+          smaPeriod: args.smaPeriod,
+          atrPeriod: 14,
+          ...(args.exitSmaPeriod !== null ? { exitSmaPeriod: args.exitSmaPeriod } : {}),
+        })
       : new TaEnsembleStrategy(toStrategyConfig(config));
   const baseStops = args.strategy === 'regime' ? REGIME_FILTER_STOP_CONFIG : toStopConfig(config);
   // A percent trail starts at the initial stop and ratchets from the first
