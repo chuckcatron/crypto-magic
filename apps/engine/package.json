@@ -9,6 +9,7 @@
     "start:dev": "nest start --watch",
     "start:prod": "node dist/main.js",
     "backtest": "tsx src/backtest/run-backtest.ts",
+    "preflight": "tsx src/tools/live-preflight.ts",
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run"
   },

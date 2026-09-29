@@ -130,7 +130,9 @@ Start with caps you would genuinely shrug at losing. The defaults are $100 total
 exposure and $25 per position.
 
 Read [`docs/SAFETY.md`](docs/SAFETY.md) first. It is short and it is the part
-that matters. Then `chmod 600 .env`.
+that matters. Then follow [`docs/GOING-LIVE.md`](docs/GOING-LIVE.md) and run
+`pnpm preflight`, a read-only check of the key, the account and the settings,
+until it says READY.
 
 ## Stopping it
 

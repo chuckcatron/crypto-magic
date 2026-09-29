@@ -13,6 +13,7 @@
     "typecheck": "turbo run typecheck",
     "test": "turbo run test",
     "backtest": "pnpm --filter @crypto-magic/engine backtest",
+    "preflight": "pnpm --silent --filter @crypto-magic/engine preflight",
     "engine": "pnpm --filter @crypto-magic/engine start:prod",
     "format": "prettier --write .",
     "dashboard": "pnpm --filter @crypto-magic/web start",

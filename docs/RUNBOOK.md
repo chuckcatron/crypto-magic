@@ -268,6 +268,11 @@ let the engine re-enter at the next daily close, or start a fresh paper account.
 To see a coin's price without trading it, add it to `WATCH_PRODUCTS` instead.
 Its dashboard tile says "watching, not traded".
 
+## Going live
+
+Follow [`GOING-LIVE.md`](GOING-LIVE.md). It starts from a fresh database (below)
+and uses `pnpm preflight` to check the key and account before live is armed.
+
 ## Starting a fresh paper account
 
 Archives the database (positions, trades, equity history, events) and starts
