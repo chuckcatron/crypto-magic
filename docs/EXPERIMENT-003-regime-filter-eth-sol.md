@@ -97,11 +97,11 @@ labels the benchmark "% BTC" whatever the product; below it is that coin.
 193 points a year.
 
 Almost all of it is one bar. The position entered on 2017-02-03 at $10.83 and
-held while ETH rose above $300. On 2017-06-22, the day of the Coinbase (then
-GDAX) ETH flash crash when ETH briefly traded at $0.10, the daily low went
-through the disaster stop, which is set 10 ATR below the ENTRY price and never
-moves: $6.68. The backtest sold at $6.68 a coin that closed that day near $330,
-giving back about 98% of peak equity. It re-entered at $327.52 the next day.
+held while ETH rose above $300. On 2017-06-21, the day of the Coinbase (then
+GDAX) ETH flash crash, the daily bar's low was $0.10. That went through the
+disaster stop, which is set 10 ATR below the ENTRY price and never moves: $6.68.
+The backtest sold at $6.68 a coin that closed that day at $325.41, giving back
+about 98% of peak equity, and re-entered at the next open, $327.52.
 Noted, not adjusted: this is real exchange history, and the rule was run as
 registered.
 
