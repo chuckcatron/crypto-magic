@@ -80,7 +80,7 @@ const candidates = products.filter(
     p.status === 'online' &&
     !p.trading_disabled &&
     !p.is_disabled &&
-    !p.alias_to?.length &&
+    !p.alias &&
     !NOT_A_MARKET.has(p.base_currency_id) &&
     !excluded.has(p.base_currency_id),
 );
