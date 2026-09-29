@@ -66,6 +66,16 @@ export interface CoinbaseAdapterOptions {
  * cannot short, cannot use margin, and cannot place anything that rests on the
  * book indefinitely.
  */
+export interface KeyPermissions {
+  readonly canView: boolean;
+  readonly canTrade: boolean;
+  /** Can move funds off the exchange. A trading bot's key must not. */
+  readonly canTransfer: boolean;
+  /** Coinbase scopes each key to one portfolio; balances are that portfolio's. */
+  readonly portfolioUuid: string;
+  readonly portfolioType: string;
+}
+
 export class CoinbaseAdapter implements ExchangeAdapter {
   readonly name = 'coinbase-advanced-trade';
 
@@ -189,6 +199,25 @@ export class CoinbaseAdapter implements ExchangeAdapter {
       );
     }
     return { productId, price, timestamp: Date.now() };
+  }
+
+  /**
+   * What this API key may do, and which portfolio it belongs to. Read-only.
+   *
+   * Not part of ExchangeAdapter: the engine never needs it. It exists so the
+   * live preflight can prove the key cannot move money off the exchange,
+   * rather than trusting that the right box was ticked when it was created.
+   */
+  async getKeyPermissions(): Promise<KeyPermissions> {
+    this.requireCredentials('reading API key permissions');
+    const raw = await this.call(() => this.client.getApiKeyPermissions());
+    return {
+      canView: raw.can_view,
+      canTrade: raw.can_trade,
+      canTransfer: raw.can_transfer,
+      portfolioUuid: raw.portfolio_uuid,
+      portfolioType: raw.portfolio_type,
+    };
   }
 
   async getBalances(): Promise<Balance[]> {

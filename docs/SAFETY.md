@@ -168,6 +168,10 @@ Be clear-eyed about the gaps.
   runs, so a crashed bot sends nothing — which looks identical to a quiet day.
   The daily check-in is the mitigation, and it only works if you notice it
   missing. Treat that as a genuine gap, not a solved problem.
+- **Sharing a portfolio with the bot.** Startup reconciliation adopts the
+  exchange's whole balance of each traded coin. BTC you hold in the same
+  portfolio becomes the bot's position once it opens one, and is sold on the
+  next exit. Give the bot its own portfolio and key (`pnpm preflight` checks).
 - **Key compromise.** Anyone with your `.env` can trade your account. Use a key
   with no withdraw permission so the worst case is bad trades, not an empty
   account, and lock the file down: `chmod 600 .env`.
@@ -182,6 +186,9 @@ Be clear-eyed about the gaps.
 
 ## Before going live
 
+Follow [`GOING-LIVE.md`](GOING-LIVE.md), step by step, and run `pnpm preflight`
+until it says READY. The short version:
+
 - [ ] Backtested over at least a year, and compared against buy-and-hold
 - [ ] Ran in paper mode for two weeks and read the trades it took
 - [ ] Caps set to an amount you would shrug at losing
@@ -191,6 +198,8 @@ Be clear-eyed about the gaps.
 - [ ] Neither port 3000 nor 4000 is forwarded on your router
 - [ ] You have engaged and released the kill switch once, so you know it works
 - [ ] You know where `data/crypto-magic.db` is and that it is your only record
+- [ ] The key's portfolio holds no coin the bot trades except what the bot buys
+- [ ] `MAX_CONSECUTIVE_LOSSES` is above 9 for the regime strategy
 
 ## When something looks wrong
 

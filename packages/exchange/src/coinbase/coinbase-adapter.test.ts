@@ -210,3 +210,30 @@ describe('CoinbaseAdapter request timeout', () => {
     expect(hits()).toBe(2);
   });
 });
+
+describe('CoinbaseAdapter key permissions', () => {
+  it('maps the key_permissions response', async () => {
+    const adapter = adapterWith({
+      getApiKeyPermissions: async () => ({
+        can_view: true,
+        can_trade: true,
+        can_transfer: false,
+        portfolio_uuid: 'p-123',
+        portfolio_type: 'CONSUMER',
+      }),
+    });
+    await expect(adapter.getKeyPermissions()).resolves.toEqual({
+      canView: true,
+      canTrade: true,
+      canTransfer: false,
+      portfolioUuid: 'p-123',
+      portfolioType: 'CONSUMER',
+    });
+  });
+
+  it('needs credentials', async () => {
+    await expect(new CoinbaseAdapter({}).getKeyPermissions()).rejects.toThrow(
+      /requires Coinbase API credentials/,
+    );
+  });
+});
