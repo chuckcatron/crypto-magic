@@ -110,3 +110,66 @@ filter fails on most altcoins. It could still fail on ETH or SOL out of sample.
 ## Results
 
 _(appended after the runs)_
+
+The protocol was committed as `d4fbb0a` and on GitHub at 16:13:19Z on
+2026-09-29. The nine runs (3 coins × 3 windows) were each done once, starting
+16:13:26Z. `combine-sleeves.mjs` recomputes every single-coin figure from the
+equity curve; each matched the backtester's own to the reported precision.
+
+### Full window, 2022-02-01 → 2026-09-29 (decides the verdict)
+
+|                               | Annualized | Max drawdown | Sharpe |
+| ----------------------------- | ---------- | ------------ | ------ |
+| BTC alone                     | **25.88%** | **−35.37%**  | 0.85   |
+| ETH alone                     | 17.85%     | −40.60%      | 0.61   |
+| SOL alone                     | 25.95%     | −62.86%      | 0.69   |
+| **Three coins, a third each** | 23.44%     | −43.36%      | 0.75   |
+
+The portfolio's drawdown was **deeper** than BTC alone's, so it is compared
+with BTC alone at full size. It earned 2.45 points a year less, with 8 points
+more drawdown.
+
+### Robustness check: the two halves
+
+| Half                    | Three coins     | BTC alone       | Result                                                                               |
+| ----------------------- | --------------- | --------------- | ------------------------------------------------------------------------------------ |
+| 2022-02-01 → 2024-06-01 | 67.28%, −26.95% | 60.60%, −20.33% | three coins +6.69 pts, drawdown deeper, so compared outright: **three coins better** |
+| 2024-06-01 → 2026-09-29 | −7.47%, −35.58% | −1.76%, −35.37% | **BTC alone better** by 5.72 pts                                                     |
+
+The halves disagree, so under the protocol the verdict is labelled fragile.
+
+## Verdict
+
+**BTC ALONE (fragile).**
+
+Over the full window, the three-coin portfolio earned less than BTC alone and
+had a deeper drawdown. The halves split: the three coins won the 2022–2024
+recovery, when SOL returned 93% a year, and lost 2024–2026, when SOL lost 18% a
+year.
+
+What that says, without changing the verdict:
+
+- **Adding ETH and SOL did not spread the risk; it added to it.** The
+  portfolio's worst drawdown (−43%) was deeper than BTC alone's (−35%). The
+  three coins fall together, so a third in each is closer to a leveraged bet on
+  crypto than a diversified one.
+- **The portfolio's outcome hinged on SOL.** SOL made the first half and broke
+  the second. One coin's run decides the result, which is not a property to
+  build on.
+- **Together with EXPERIMENT-003 and 005, the evidence points one way:** the
+  regime filter has a tested case on BTC and a weak or failed one everywhere
+  else. The case for ETH and SOL rests on one half of one window.
+
+## Reproduce
+
+```bash
+cd apps/engine
+common="--granularity ONE_DAY --strategy regime --sma-period 200 --full-exposure"
+for c in btc eth sol; do
+  npx tsx src/backtest/run-backtest.ts $common --csv ../../data/$c-cb-daily.csv \
+    --product $(echo $c | tr a-z A-Z)-USD --trade-from 2022-02-01 --to 2026-09-29 --json /tmp/full-$c.json
+done
+node ../../scripts/combine-sleeves.mjs --reference /tmp/full-btc.json \
+  --mix /tmp/full-btc.json,/tmp/full-eth.json,/tmp/full-sol.json
+# halves: --trade-from 2022-02-01 --to 2024-06-01, and --trade-from 2024-06-01 --to 2026-09-29
+```
