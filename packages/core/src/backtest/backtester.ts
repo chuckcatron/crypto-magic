@@ -11,7 +11,7 @@ import { DEFAULT_RISK_LIMITS, type RiskLimits } from '../risk/limits';
 import { sizePosition } from '../risk/position-sizer';
 import type { Candle, ProductSpec } from '../types/market';
 import { GRANULARITY_SECONDS } from '../types/market';
-import type { ExitReason, Position, Signal } from '../types/trading';
+import { HOLD, type ExitReason, type Position, type Signal } from '../types/trading';
 import type { Strategy } from '../strategy/types';
 import { buyAndHold } from './benchmark';
 import { computeMetrics } from './metrics';
@@ -38,6 +38,21 @@ export interface BacktestOptions {
    * gets a fully warmed indicator without using a single bar from after it.
    */
   readonly tradeFrom?: number;
+  /**
+   * When a protective stop is checked. 'intrabar' (the default, and what the
+   * live engine does) exits the moment the bar's low touches the stop.
+   * 'close' only exits when a bar CLOSES at or below it, filling at the next
+   * open like any other signal, so a wick that recovers within the bar does
+   * not trigger it. Backtest-only: the live engine always checks intrabar.
+   */
+  readonly stopTrigger?: 'intrabar' | 'close';
+  /**
+   * Where an intrabar stop fills. 'stop' (the default) assumes exactly the stop
+   * price. 'low' assumes the bar's low, the worst case: in a flash crash a stop
+   * order becomes a market order into an empty book, and the real fill can be
+   * far below the stop. The truth lies between the two.
+   */
+  readonly stopFill?: 'stop' | 'low';
 }
 
 interface PendingOrder {
@@ -68,6 +83,8 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
     feeModel = DEFAULT_FEE_MODEL,
     initialEquity = 1000,
     tradeFrom,
+    stopTrigger = 'intrabar',
+    stopFill = 'stop',
   } = options;
 
   if (candles.length === 0) throw new Error('backtest requires at least one candle');
@@ -163,7 +180,27 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
     }
 
     // ---- 2. Protective stops run intrabar, before any new decision ----
-    if (position) {
+    let stopExit: Signal | null = null;
+    if (position && stopTrigger === 'close') {
+      // Judged on the close alone; the exit fills next bar, like a signal.
+      const reason = checkStops({
+        position,
+        low: bar.close,
+        high: bar.close,
+        barsHeld: i - positionOpenedIndex,
+        config: stopConfig,
+      });
+      if (reason) {
+        stopExit = {
+          ...HOLD,
+          action: 'EXIT_LONG',
+          reasons: [`stop: ${reason}`],
+          exitReason: reason,
+        };
+      } else {
+        position = ratchetStop(position, bar.close, stopConfig);
+      }
+    } else if (position) {
       const reason = checkStops({
         position,
         low: bar.low,
@@ -172,7 +209,10 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
         config: stopConfig,
       });
       if (reason) {
-        const raw = exitFillPrice(position, reason, bar.close);
+        const atStop = exitFillPrice(position, reason, bar.close);
+        const worstCase = reason === 'stop_loss' || reason === 'trailing_stop';
+        // Never better than the stop, never below the bar's own low.
+        const raw = stopFill === 'low' && worstCase ? Decimal.min(atStop, D(bar.low)) : atStop;
         const fillPrice = applySlippage(raw.toNumber(), 'SELL', feeModel);
         ({ cash } = closeOut({
           position,
@@ -204,7 +244,9 @@ export function runBacktest(options: BacktestOptions): BacktestResult {
       position,
       now: barClose,
     });
-    if (signal.action === 'ENTER_LONG' && !position) {
+    if (stopExit) {
+      pending = { kind: 'EXIT', signal: stopExit };
+    } else if (signal.action === 'ENTER_LONG' && !position) {
       pending = { kind: 'ENTER', signal };
     } else if (signal.action === 'EXIT_LONG' && position) {
       pending = { kind: 'EXIT', signal };

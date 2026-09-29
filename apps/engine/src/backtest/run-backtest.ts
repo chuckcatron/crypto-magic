@@ -44,6 +44,9 @@ interface Args {
   tradeFrom: number | null;
   strategy: 'ta-ensemble' | 'regime';
   smaPeriod: number;
+  trail: 'none' | 'percent';
+  stopTrigger: 'intrabar' | 'close';
+  stopFill: 'stop' | 'low';
 }
 
 function parseArgs(argv: string[]): Args {
@@ -88,7 +91,22 @@ function parseArgs(argv: string[]): Args {
     tradeFrom: dateFlag(get('trade-from'), 'trade-from'),
     strategy: strategyFlag(get('strategy')),
     smaPeriod: numberFlag(get('sma-period'), 200, 'sma-period'),
+    // Stop variants for EXPERIMENT-004. The defaults are the regime filter as tested.
+    trail: choiceFlag(get('trail'), ['none', 'percent'] as const, 'trail'),
+    stopTrigger: choiceFlag(get('stop-trigger'), ['intrabar', 'close'] as const, 'stop-trigger'),
+    stopFill: choiceFlag(get('stop-fill'), ['stop', 'low'] as const, 'stop-fill'),
   };
+}
+
+/** The first choice is the default. */
+function choiceFlag<T extends string>(
+  raw: string | undefined,
+  choices: readonly T[],
+  name: string,
+): T {
+  if (raw === undefined) return choices[0]!;
+  if ((choices as readonly string[]).includes(raw)) return raw as T;
+  throw new Error(`--${name} must be one of ${choices.join(', ')}`);
 }
 
 function strategyFlag(raw: string | undefined): 'ta-ensemble' | 'regime' {
@@ -120,7 +138,23 @@ async function main(): Promise<void> {
     args.strategy === 'regime'
       ? new RegimeFilterStrategy({ smaPeriod: args.smaPeriod, atrPeriod: 14 })
       : new TaEnsembleStrategy(toStrategyConfig(config));
-  const stopConfig = args.strategy === 'regime' ? REGIME_FILTER_STOP_CONFIG : toStopConfig(config);
+  const baseStops = args.strategy === 'regime' ? REGIME_FILTER_STOP_CONFIG : toStopConfig(config);
+  // A percent trail starts at the initial stop and ratchets from the first
+  // close, so it needs no activation threshold.
+  const stopConfig =
+    args.trail === 'percent'
+      ? {
+          ...baseStops,
+          trailingEnabled: true,
+          trailWidth: 'percent' as const,
+          trailActivationAtrMultiple: 0,
+        }
+      : baseStops;
+  if (args.trail !== 'none' || args.stopTrigger !== 'intrabar' || args.stopFill !== 'stop') {
+    process.stderr.write(
+      `Stop variant: trail=${args.trail}, trigger=${args.stopTrigger}, fill=${args.stopFill}\n`,
+    );
+  }
   let riskLimits = toRiskLimits(config);
 
   let product;
@@ -188,6 +222,8 @@ async function main(): Promise<void> {
       feeModel,
       initialEquity: args.equity,
       ...(args.tradeFrom !== null ? { tradeFrom: args.tradeFrom } : {}),
+      stopTrigger: args.stopTrigger,
+      stopFill: args.stopFill,
     });
 
   const result = run(candles);

@@ -266,3 +266,65 @@ describe('strategy behaviour end to end', () => {
     expect(lastPoint.equity).toBeGreaterThan(0);
   });
 });
+
+describe('stop variants', () => {
+  const noFees = { takerBps: 0, slippageBps: 0 };
+  // Flat at 100 with a 1-point range, so ATR is exactly 1 and a 10-ATR stop
+  // bought at 100 sits at 90.
+  const stopConfig = {
+    ...DEFAULT_STOP_CONFIG,
+    atrStopMultiple: 10,
+    atrTakeProfitMultiple: null,
+    trailingEnabled: false,
+    maxHoldingBars: null,
+  };
+  const buyAt40 = () => new ScriptedStrategy(40, new Map([[40, 'ENTER_LONG' as const]]));
+
+  /** Flat market, entry at bar 41, then `bar43` replaces bar 43. */
+  function market(bar43: { low: number; close: number }) {
+    const candles = candlesFromCloses(Array<number>(46).fill(100), { rangePct: 0.005 });
+    candles[43] = { ...candles[43]!, low: bar43.low, close: bar43.close };
+    candles[44] = { ...candles[44]!, open: bar43.close, low: Math.min(99.5, bar43.close) };
+    return candles;
+  }
+
+  const run = (
+    candles: ReturnType<typeof market>,
+    opts: { stopTrigger?: 'intrabar' | 'close'; stopFill?: 'stop' | 'low' } = {},
+  ) =>
+    runBacktest({
+      candles,
+      strategy: buyAt40(),
+      product: TEST_PRODUCT,
+      stopConfig,
+      riskLimits: bigLimits,
+      feeModel: noFees,
+      initialEquity: 10_000,
+      ...opts,
+    });
+
+  it('by default, exits intrabar at the stop price when a wick touches it', () => {
+    const trade = run(market({ low: 50, close: 100 })).trades[0]!;
+    expect(trade.exitReason).toBe('stop_loss');
+    expect(trade.exitPrice.toNumber()).toBe(90);
+  });
+
+  it('can assume the worst case, a fill at the bar low', () => {
+    const trade = run(market({ low: 50, close: 100 }), { stopFill: 'low' }).trades[0]!;
+    expect(trade.exitReason).toBe('stop_loss');
+    expect(trade.exitPrice.toNumber()).toBe(50);
+  });
+
+  it('ignores a wick that recovers by the close when triggered on the close', () => {
+    const trade = run(market({ low: 50, close: 100 }), { stopTrigger: 'close' }).trades[0]!;
+    // Still held at the end of the data, and closed out there.
+    expect(trade.exitReason).toBe('manual');
+  });
+
+  it('exits at the next open when a bar closes below the stop', () => {
+    const trade = run(market({ low: 79, close: 80 }), { stopTrigger: 'close' }).trades[0]!;
+    expect(trade.exitReason).toBe('stop_loss');
+    expect(trade.exitPrice.toNumber()).toBe(80); // bar 44's open
+    expect(trade.exitTime).toBe(market({ low: 79, close: 80 })[44]!.openTime);
+  });
+});
