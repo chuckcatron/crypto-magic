@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { Fragment, useCallback, useEffect, useState } from 'react';
 import {
   compactSize,
@@ -167,6 +168,9 @@ export function Dashboard() {
           <span className="badge badge--halted">⛔ kill switch engaged</span>
         )}
         <div className="header-spacer" />
+        <Link className="btn" href="/planner">
+          Income planner
+        </Link>
         <button
           className="btn"
           disabled={busy}
