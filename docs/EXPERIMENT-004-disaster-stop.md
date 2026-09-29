@@ -145,3 +145,116 @@ at the daily close for C/D, since today it checks every 30 seconds.
 ## Results
 
 _(appended after the runs)_
+
+The protocol was committed as `39e7c22` and confirmed on GitHub at 14:59:04Z
+on 2026-09-29. The push had been failing for about 20 minutes with the
+session's git credential service returning 503. No variant was run until it
+succeeded. Each of the 36 combinations was then run once, starting at 14:59:29Z.
+Annualized return and maximum drawdown are shown as the backtester reports
+them; "Same-DD" is the EXPERIMENT-001 criterion (beat the fixed allocation with
+the same drawdown).
+
+### Window 1: BTC 2015-01-01 → 2022-01-01
+
+| Variant       | Annualized | Max DD  | Trades | Stop exits | Same-DD      |
+| ------------- | ---------- | ------- | ------ | ---------- | ------------ |
+| A optimistic  | 78.83%     | −68.38% | 20     | 0          | PASS by 8.43 |
+| A pessimistic | 78.83%     | −68.38% | 20     | 0          | PASS by 8.43 |
+| B optimistic  | 76.98%     | −71.18% | 22     | 4          | PASS by 1.41 |
+| B pessimistic | 70.33%     | −73.50% | 22     | 4          | FAIL by 9.79 |
+| C             | 78.83%     | −68.38% | 20     | 0          | PASS by 8.43 |
+| D             | 76.32%     | −68.38% | 22     | 3          | PASS by 5.92 |
+
+### Window 2: BTC 2022-01-01 → 2025-01-07
+
+Identical for every variant: 52.01%, −29.58%, 8 trades, no stop exits, PASS
+by 38.28. No stop was ever reached.
+
+### Window 3: BTC 2025-01-07 → 2026-09-29
+
+Identical for every variant: −8.09%, −35.37%, 10 trades, no stop exits, FAIL by
+2.55 (as in EXPERIMENT-003).
+
+### Window 4: ETH 2017-01-01 → 2022-01-01
+
+| Variant       | Annualized | Max DD  | Trades | Stop exits | Same-DD        |
+| ------------- | ---------- | ------- | ------ | ---------- | -------------- |
+| A optimistic  | 45.70%     | −99.18% | 18     | 2          | FAIL by 193.27 |
+| A pessimistic | −39.93%    | −99.99% | 18     | 2          | FAIL by 278.90 |
+| B optimistic  | 138.50%    | −90.14% | 20     | 5          | FAIL by 73.15  |
+| B pessimistic | −45.43%    | −99.99% | 20     | 5          | FAIL by 284.40 |
+| C             | 215.78%    | −82.69% | 16     | 0          | PASS by 45.08  |
+| D             | 213.58%    | −82.69% | 17     | 3          | PASS by 42.88  |
+
+### Window 5: ETH 2022-01-01 → 2026-09-29
+
+Identical for every variant: 14.72%, −40.60%, 15 trades, no stop exits, PASS by
+11.83.
+
+### Window 6: SOL 2022-02-01 → 2026-09-29
+
+Identical for every variant: 25.95%, −62.86%, 21 trades, no stop exits, PASS by
+10.94.
+
+### Applying the decision rule
+
+| Variant | Rule 1 (no harm anywhere)                                                                                   | Rule 2 (better on 2+ windows, one not #4) | Rule 3 (EXP-001 holds)        | Result   |
+| ------- | ----------------------------------------------------------------------------------------------------------- | ----------------------------------------- | ----------------------------- | -------- |
+| B       | **fails**: window 1 −1.85 pts and 2.80 pts deeper (optimistic); −8.50 pts and 5.12 pts deeper (pessimistic) | window 4 only (optimistic)                | fails under pessimistic fills | **FAIL** |
+| C       | passes: identical on 1, 2, 3, 5, 6                                                                          | **fails**: better on window 4 only        | passes                        | **FAIL** |
+| D       | **fails**: window 1 −2.51 pts                                                                               | window 4 only                             | passes                        | **FAIL** |
+
+## Verdict
+
+**No variant passes. The stop stays as it is.**
+
+What the runs show, without changing the verdict:
+
+- **The baseline's stop fired in only one of six windows.** In windows 1, 2,
+  3, 5 and 6 every exit came from the 200-day signal. Only ETH in 2017 ever
+  reached the 10-ATR floor. So on five windows a stop variant could only tie
+  or do harm; it had no stop-outs to improve on.
+- **Trailing (B, D) does harm on BTC.** It sold BTC in the May 2021 crash at
+  $32,681 and in September 2019, and the signal re-bought higher. On window 4
+  it did not even prevent the flash-crash loss: after a trailing exit in May
+  2017 the strategy re-entered at $159.79 with a fresh entry-based stop, which
+  the flash crash hit.
+- **Close-only (C) did no harm anywhere and removed the ETH disaster.** It
+  ignored the $0.10 wick, since ETH closed at $325.41, and never stopped out.
+  But that is one event, the event that motivated the experiment, and rule 2
+  was written so that it could not carry a verdict alone. It does not.
+- **The published baseline is optimistic about crashes.** With fills at the
+  bar low (A pessimistic), the ETH development window goes from +45.70% to
+  −39.93% a year: the flash-crash stop fills at $0.10, not $6.68. The live bot
+  has the same exposure. Any intraday stop, including the exchange-side
+  protective stop the engine places in live mode, can fill near the bottom of
+  a flash crash.
+
+## Process notes
+
+- **Rule 2 could not be met by C.** Because the baseline's stop fired only in
+  window 4, C could not be "better" on any other window. That was knowable
+  before the runs and was not noticed. The verdict stands as registered.
+  The honest reading of C is _no evidence of harm, and one favourable
+  event_, not a pass.
+- A fair next test of C would use data no experiment here has looked at, where
+  the baseline's stop actually fires, for example other long-listed Coinbase
+  products. It would need its own pre-registered protocol.
+- Adopting C would also mean deciding what protects the position while the
+  engine is not running: today's exchange-side stop triggers intraday, which
+  is exactly what C avoids.
+
+## Reproduce
+
+```bash
+cd apps/engine
+common="--granularity ONE_DAY --strategy regime --sma-period 200 --full-exposure"
+# window 4 shown; the other windows as in the table under Windows
+w4="--csv ../../data/eth-cb-daily.csv --product ETH-USD --trade-from 2017-01-01 --to 2022-01-01"
+npx tsx src/backtest/run-backtest.ts $common $w4                                        # A optimistic
+npx tsx src/backtest/run-backtest.ts $common $w4 --stop-fill low                        # A pessimistic
+npx tsx src/backtest/run-backtest.ts $common $w4 --trail percent                        # B optimistic
+npx tsx src/backtest/run-backtest.ts $common $w4 --trail percent --stop-fill low        # B pessimistic
+npx tsx src/backtest/run-backtest.ts $common $w4 --stop-trigger close                   # C
+npx tsx src/backtest/run-backtest.ts $common $w4 --trail percent --stop-trigger close   # D
+```
