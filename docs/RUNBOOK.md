@@ -198,6 +198,15 @@ sqlite3 data/crypto-magic.db ".backup 'backups/$(date +%F).db'"
 **"Entries halted: stale_market_data"** — the engine has not seen a closed bar
 in `MAX_MARKET_DATA_AGE_BARS` intervals. Usually Wi-Fi. It resumes on its own.
 
+**"Entries halted: consecutive_losses"**: `MAX_CONSECUTIVE_LOSSES` losing
+trades in a row. You got a "Trading halted" alert when it began. It does not
+clear by itself, since only a win ends a streak and a halted bot cannot trade.
+Review the trades (`cm events`), then `cm reset-streak` or **Reset losing
+streak** on the dashboard. Earlier losses stop counting; history is kept.
+
+**"Entries halted: daily_loss_limit"**: realized losses today reached
+`MAX_DAILY_LOSS`. Clears at 00:00 UTC.
+
 **"Entries halted: kill_switch"** — something engaged it. Check the engine log
 for the reason before releasing it; it may have been a slippage breach or a
 failed reconciliation, both of which mean look at the exchange first.

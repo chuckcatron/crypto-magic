@@ -129,6 +129,8 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     }
 
     this.guardStrategySwitch();
+    // A bot restarted while halted says so, rather than blocking entries silently.
+    await this.announceHalts();
 
     const interval = setInterval(
       () => void this.tick(),
@@ -647,6 +649,20 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
         exitPrice: order.averageFillPrice.toFixed(),
       },
     });
+
+    // A losing streak or the daily loss limit can only begin here. Without this,
+    // those halts blocked every later entry silently: the only trace was a
+    // risk_rejected event, which by design never alerts.
+    await this.announceHalts();
+  }
+
+  private async announceHalts(): Promise<void> {
+    try {
+      await this.risk.announceHalts();
+    } catch (error) {
+      // Announcing is best effort; it must never fail an exit or a startup.
+      this.log.warn({ err: String(error) }, 'could not check for new halts');
+    }
   }
 
   /** Flatten everything at market. Used by the dashboard's panic button. */

@@ -5,6 +5,7 @@
 //   cm                 status at a glance (same as `cm status`)
 //   cm kill [reason]   engage the kill switch: no new entries, exits still run
 //   cm release         release the kill switch
+//   cm reset-streak    end a losing-streak halt
 //   cm flatten         engage the kill switch, then sell every position at market
 //   cm events [n]      last n engine events (default 15)
 //   cm logs [n]        last n log lines, condensed (default 30)
@@ -125,6 +126,9 @@ async function status() {
 
   row('Kill switch', s.killSwitchEngaged ? red(bold('ENGAGED — no new entries')) : green('off'));
   row('Halted', s.haltReasons?.length ? yellow(s.haltReasons.join('; ')) : green('no'));
+  if (s.haltReasons?.includes('consecutive_losses')) {
+    console.log(dim(`  ${s.lossStreak} losses in a row; review, then \`cm reset-streak\``));
+  }
 
   const loopAge = s.lastTickCompletedAt ? Date.now() - s.lastTickCompletedAt : null;
   const loopText = `last pass ${ago(s.lastTickCompletedAt)}`;
@@ -212,6 +216,29 @@ async function release(flags) {
       green('Kill switch file removed.') + ' Entries are allowed when the engine starts.',
     );
   }
+}
+
+async function resetStreak(flags) {
+  const s = await api('GET', '/status');
+  const limit = s.limits?.maxConsecutiveLosses;
+  const halted = (s.haltReasons ?? []).includes('consecutive_losses');
+  console.log(
+    `Losing streak: ${s.lossStreak} in a row (limit ${limit}). ` +
+      (halted ? red('New entries are halted.') : 'Not halted.'),
+  );
+  if (!s.lossStreak) {
+    console.log('Nothing to reset.');
+    return;
+  }
+  console.log(
+    dim('Review the losing trades first (cm events). Earlier losses stop counting; history stays.'),
+  );
+  if (!flags.includes('--yes') && !(await confirm('Reset the losing streak? Type RESET', 'RESET')))
+    return;
+  const result = await api('POST', '/risk/reset-loss-streak');
+  console.log(
+    green(`Losing streak reset (${result.cleared} cleared).`) + ' Entries allowed again.',
+  );
 }
 
 async function flatten(flags) {
@@ -333,6 +360,7 @@ function help() {
   cm kill [reason]   engage the kill switch (blocks entries, never exits)
   cm release         release the kill switch
   cm flatten         kill switch + sell everything at market (asks first)
+  cm reset-streak    end a losing-streak halt after reviewing the trades (asks first)
   cm events [n]      recent engine events
   cm logs [n]        recent log lines
   cm restart [what]  restart a service: engine (default), dashboard, or all`);
@@ -380,6 +408,7 @@ const commands = {
   kill: () => kill(args),
   release: () => release(flags),
   flatten: () => flatten(flags),
+  'reset-streak': () => resetStreak(flags),
   events: () => events(args),
   logs: () => logs(args),
   restart: () => restart(args),

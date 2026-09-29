@@ -10,6 +10,7 @@ import {
   money,
   price,
   releaseKillSwitch,
+  resetLossStreak,
   sendTestAlert,
   signedMoney,
   timeAgo,
@@ -224,6 +225,26 @@ export function Dashboard() {
         <div className="banner">
           <strong>Entries halted:</strong> {status.haltReasons.join(', ')}. Exits still run
           normally.
+          {status.haltReasons.includes('consecutive_losses') && (
+            <>
+              {' '}
+              {status.lossStreak} losing trades in a row reached the limit of{' '}
+              {status.limits.maxConsecutiveLosses}. This halt does not clear by itself: only a win
+              ends a streak, and a halted bot cannot open a trade.{' '}
+              <button
+                className="btn"
+                disabled={busy}
+                onClick={() =>
+                  void act(
+                    resetLossStreak,
+                    `Reset the losing streak of ${status.lossStreak}? Review the losing trades first. Earlier losses stop counting; the trade history is kept.`,
+                  )
+                }
+              >
+                Reset losing streak
+              </button>
+            </>
+          )}
         </div>
       )}
       {error && <div className="banner">Engine unreachable on the last poll: {error}</div>}

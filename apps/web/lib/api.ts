@@ -19,12 +19,15 @@ export interface EngineStatus {
   marketDataAgeSeconds: number | null;
   warmupBars: number;
   haltReasons: string[];
+  /** Losing trades in a row since the last reset. */
+  lossStreak: number;
   limits: {
     maxTotalNotional: number;
     maxPositionNotional: number;
     maxOpenPositions: number;
     riskPerTradePct: number;
     maxDailyLoss: number;
+    maxConsecutiveLosses: number;
   };
   serverTime: number;
 }
@@ -237,6 +240,7 @@ export const engageKillSwitch = (reason: string) =>
   post<{ engaged: boolean }>('/kill-switch/engage', { reason });
 export const releaseKillSwitch = () => post<{ engaged: boolean }>('/kill-switch/release');
 export const flattenAll = () => post<{ closed: number }>('/flatten');
+export const resetLossStreak = () => post<{ cleared: number }>('/risk/reset-loss-streak');
 export const sendTestAlert = () => post<AlertDelivery>('/alerts/test');
 
 /** Format for display only. Never feed the result back into a calculation. */

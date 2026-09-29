@@ -114,6 +114,7 @@ export class ApiController {
       ...this.engine.status,
       limits: this.risk.limits,
       haltReasons: await this.risk.haltReasons(),
+      lossStreak: this.risk.lossStreak(),
       deadman: this.deadman.status,
       serverTime: Date.now(),
     });
@@ -280,6 +281,17 @@ export class ApiController {
   release() {
     this.killSwitch.release();
     return { engaged: false };
+  }
+
+  /**
+   * End a consecutive-loss halt after reviewing the trades.
+   *
+   * The halt cannot clear by itself: only a win ends a streak, and a halted bot
+   * cannot open a trade. Earlier losses stop counting; history is untouched.
+   */
+  @Post('risk/reset-loss-streak')
+  resetLossStreak() {
+    return this.risk.resetLossStreak();
   }
 
   /** Panic button: sell everything at market, now. */

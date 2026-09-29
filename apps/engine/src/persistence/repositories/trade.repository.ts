@@ -66,11 +66,17 @@ export class TradeRepository implements TradeStore {
    * Losing trades at the end of the trade history. A winner anywhere in the run
    * resets the count, which is the point: the breaker is for a losing streak,
    * not a losing total.
+   *
+   * Only trades that closed after `sinceMs` count. That is how an operator
+   * resets the streak: a halted bot cannot open the winning trade that would
+   * otherwise be the only way to end it.
    */
-  consecutiveLosses(): number {
+  consecutiveLosses(sinceMs = 0): number {
     const rows = this.db
-      .prepare('SELECT pnl FROM trades ORDER BY exit_time DESC, id DESC LIMIT 50')
-      .all() as { pnl: string }[];
+      .prepare(
+        'SELECT pnl FROM trades WHERE exit_time > ? ORDER BY exit_time DESC, id DESC LIMIT 50',
+      )
+      .all(sinceMs) as { pnl: string }[];
     let count = 0;
     for (const row of rows) {
       if (D(row.pnl).gt(0)) break;
