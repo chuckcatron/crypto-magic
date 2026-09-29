@@ -1,7 +1,7 @@
 import { Body, Controller, Get, Inject, Post, Query } from '@nestjs/common';
 import { D } from '@crypto-magic/core';
 import { APP_CONFIG } from '../config/tokens';
-import type { AppConfig } from '../config/config.schema';
+import { watchOnlyProducts, type AppConfig } from '../config/config.schema';
 import { EventRepository } from '../persistence/repositories/event.repository';
 import { OrderRepository } from '../persistence/repositories/order.repository';
 import { PositionRepository } from '../persistence/repositories/position.repository';
@@ -29,6 +29,7 @@ export const PUBLIC_CONFIG_KEYS = [
   'LOG_LEVEL',
   'TRADING_MODE',
   'PRODUCTS',
+  'WATCH_PRODUCTS',
   'GRANULARITY',
   'QUOTE_CURRENCY',
   'MAX_TOTAL_NOTIONAL',
@@ -125,16 +126,24 @@ export class ApiController {
   }
 
   /**
-   * Latest price per traded product, for display. Prices cross the wire as
-   * strings like every other monetary value; a failed refresh keeps the last
-   * good price and sets `error` rather than failing the request.
+   * Latest price per traded product, then per watch-only product, for display.
+   * Prices cross the wire as strings like every other monetary value; a failed
+   * refresh keeps the last good price and sets `error` rather than failing the
+   * request.
    */
   @Get('prices')
   async prices() {
+    const watched = watchOnlyProducts(this.config);
     const quotes = await Promise.all(
-      this.config.PRODUCTS.map((productId) => this.marketData.displayPrice(productId)),
+      [...this.config.PRODUCTS, ...watched].map((productId) =>
+        this.marketData.displayPrice(productId),
+      ),
     );
-    return quotes.map((q) => ({ ...q, price: q.price === null ? null : String(q.price) }));
+    return quotes.map((q) => ({
+      ...q,
+      price: q.price === null ? null : String(q.price),
+      watchOnly: watched.includes(q.productId),
+    }));
   }
 
   @Get('positions')

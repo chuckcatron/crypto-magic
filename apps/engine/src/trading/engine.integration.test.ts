@@ -305,6 +305,12 @@ describe('TradingEngineService (integration)', () => {
     expect(api.equityBaseline()).toEqual({ baseline: { ts: baseline.ts, equity: '12000' } });
   });
 
+  it('serves traded prices, never watch-only ones, when nothing is watched', async () => {
+    market.price = 123.45;
+    const prices = (await api.prices()) as { productId: string; watchOnly: boolean }[];
+    expect(prices.map((p) => [p.productId, p.watchOnly])).toEqual([['BTC-USD', false]]);
+  });
+
   it('trades normally with no alert channels configured', async () => {
     const series = seriesCrossingUpOnLastBar();
     market.candles = candlesEndingNow(series);
