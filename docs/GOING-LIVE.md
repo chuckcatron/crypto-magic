@@ -163,7 +163,8 @@ position(s)`, then `ENTER_LONG`, `order_filled` and `position_opened`
 - [ ] **The exchange-side stop was placed:** Coinbase shows an open stop-limit
       SELL for the position's size, and the log says so:
       `grep -i "protective stop" logs/engine.log | tail -3`.
-      If it says `could not place`, engage the kill switch and find out why
+      A failure also sends a warning alert. If it says `could not place`,
+      engage the kill switch and find out why
       before continuing: while the engine is down, that order is the only
       floor.
 
@@ -174,7 +175,9 @@ EXPERIMENT-004 showed how far a flash crash can overshoot.
 
 ## 8. The first week
 
-- [ ] The Daily check-in arrives every day, now saying `live`.
+- [ ] The Daily check-in arrives every day, now saying `live`, and its first
+      line reads "New entries allowed." If it says "NEW ENTRIES BLOCKED", it
+      names the reason.
 - [ ] After the first daily close, `cm events` shows the evaluation and no
       errors.
 - [ ] Once, compare Coinbase's BTC and USD balances with the dashboard. If they

@@ -128,8 +128,22 @@ A kill-switch trip, a reconciliation mismatch, and a halt on the daily loss
 limit or a losing streak each push to your phone, at a priority that bypasses
 quiet hours. (Until the losing-streak reset was added, those two halts blocked
 entries without alerting: the `halt` event existed but nothing emitted it.)
-Stale-data and order-rate halts do not alert; they clear on their own within
-minutes. Without this the bot's safety
+Stale-data and order-rate halts do not alert on their own; they usually clear
+within minutes, and the daily check-in's first line says whether new entries
+are allowed or blocked, and why.
+
+Also alerting, at warning level:
+
+- a failure to place the exchange-side stop, which leaves the position with no
+  floor while the engine is down;
+- a failure to check a position's stop (for example, no price), which the
+  dead man's switch cannot see because the loop itself keeps running;
+- a position found gone at startup (most likely the exchange-side stop filled
+  while the engine was down; that sale is not in the trade history), or coins
+  held with no position record.
+
+Before a September 2026 audit, the first two reached only the log file, and the
+third was logged at info. Without this the bot's safety
 machinery is only half useful: it stops itself correctly and then waits
 silently for you to notice.
 

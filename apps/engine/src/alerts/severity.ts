@@ -29,8 +29,9 @@ export function severityForEvent(event: StoredEvent): Severity | null {
       return event.level === 'info' ? 'info' : 'critical';
 
     case 'reconciliation':
-      // Only a MISMATCH is critical; a clean reconcile is routine startup noise.
-      return event.level === 'error' ? 'critical' : null;
+      // A size MISMATCH is critical. A position that vanished or coins nobody
+      // manages are worth a warning. A clean reconcile is routine startup noise.
+      return event.level === 'error' ? 'critical' : event.level === 'warn' ? 'warning' : null;
 
     case 'order_rejected':
       return 'warning';
@@ -57,7 +58,7 @@ export function titleForEvent(event: StoredEvent): string {
   const titles: Partial<Record<EventKind, string>> = {
     kill_switch: event.level === 'error' ? 'Kill switch ENGAGED' : 'Kill switch released',
     halt: event.level === 'info' ? 'Halt cleared' : 'Trading halted',
-    reconciliation: 'Reconciliation mismatch',
+    reconciliation: event.level === 'error' ? 'Reconciliation mismatch' : 'Reconciliation note',
     order_rejected: 'Order rejected',
     error: 'Engine error',
     position_opened: 'Position opened',

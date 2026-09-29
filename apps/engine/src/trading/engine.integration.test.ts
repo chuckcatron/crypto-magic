@@ -440,4 +440,62 @@ describe('TradingEngineService (integration)', () => {
       expect(haltAlerts().some((e) => /4 losing trades in a row/.test(e.message))).toBe(true);
     });
   });
+
+  describe('silent failures', () => {
+    it('alerts when the exchange-side stop cannot be placed', async () => {
+      const config = moduleRef.get<AppConfig>(APP_CONFIG);
+      (config as { PROTECTIVE_STOP_ENABLED: boolean }).PROTECTIVE_STOP_ENABLED = true;
+      Object.assign(moduleRef.get(EXCHANGE), {
+        submitProtectiveStop: async () => {
+          throw new Error('Coinbase rejected the protective stop: INSUFFICIENT_FUND');
+        },
+      });
+
+      const series = seriesCrossingUpOnLastBar();
+      market.candles = candlesEndingNow(series);
+      market.price = series.at(-1)!;
+      await engine.tick();
+
+      // The position still opens; only the backstop is missing, and now it says so.
+      expect(positions.findAll()).toHaveLength(1);
+      const event = events.recent().find((e) => /exchange-side stop/.test(e.message));
+      expect(event).toMatchObject({ kind: 'error', level: 'error' });
+      expect(event!.message).toMatch(/nothing protects this position/);
+    });
+
+    it('records a failure to check a stop, which the dead-man cannot see', async () => {
+      const series = seriesCrossingUpOnLastBar();
+      market.candles = candlesEndingNow(series);
+      market.price = series.at(-1)!;
+      await engine.tick();
+      expect(positions.findAll()).toHaveLength(1);
+
+      market.getTicker = async () => {
+        throw new Error('ticker unavailable');
+      };
+      await engine.tick();
+
+      const event = events.recent().find((e) => /failed to check the stop/.test(e.message));
+      expect(event).toMatchObject({ kind: 'error', level: 'error' });
+      // The pass itself still completed, which is why this needed its own event.
+      expect(engine.lastSuccessfulTickAt).not.toBeNull();
+    });
+
+    it('says in the daily check-in when new entries are blocked', async () => {
+      const alerts = moduleRef.get(AlertService);
+      // No market data yet is itself a halt, and the check-in says so.
+      expect(await alerts.heartbeatSummary()).toMatch(/^NEW ENTRIES BLOCKED: stale_market_data/);
+
+      const series = seriesCrossingUpOnLastBar();
+      market.candles = candlesEndingNow(series);
+      market.price = series.at(-1)!;
+      await engine.tick();
+      expect(await alerts.heartbeatSummary()).toMatch(/^New entries allowed\./);
+
+      moduleRef.get(KillSwitchService).engage('testing');
+      const summary = await alerts.heartbeatSummary();
+      expect(summary).toMatch(/^NEW ENTRIES BLOCKED: kill switch engaged\./);
+      expect(summary).toMatch(/Equity:/);
+    });
+  });
 });
