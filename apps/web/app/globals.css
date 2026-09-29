@@ -18,6 +18,10 @@
   /* Single series: the equity curve. No categorical set is needed. */
   --series-1: #2a78d6;
   --series-1-wash: rgba(42, 120, 214, 0.12);
+  /* Categorical slots 2 and 3, for the planner's scenarios. Validated as a
+     set with slot 1 in both modes. */
+  --series-2: #eb6834;
+  --series-3: #1baf7a;
 
   /* Status. Never used as the only signal — always with a sign or a glyph. */
   --good: #0ca30c;
@@ -44,6 +48,8 @@
     --border: rgba(255, 255, 255, 0.1);
     --series-1: #3987e5;
     --series-1-wash: rgba(57, 135, 229, 0.16);
+    --series-2: #d95926;
+    --series-3: #199e70;
     --good-text: #0ca30c;
   }
 }
@@ -60,6 +66,8 @@
   --border: rgba(255, 255, 255, 0.1);
   --series-1: #3987e5;
   --series-1-wash: rgba(57, 135, 229, 0.16);
+  --series-2: #d95926;
+  --series-3: #199e70;
   --good-text: #0ca30c;
 }
 
@@ -479,4 +487,148 @@ td.strong {
   color: var(--text-muted);
   font-size: 12px;
   padding: 4px 0 12px;
+}
+
+/* --- income planner ------------------------------------------------------ */
+.planner-lede {
+  max-width: 70ch;
+  margin: 0 0 16px;
+  font-size: 14px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.planner-form {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(170px, 100%), 1fr));
+  gap: 14px 16px;
+  align-items: end;
+  margin-bottom: 16px;
+}
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+}
+.field-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.field-input {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--page);
+}
+.field-input:focus-within {
+  border-color: var(--series-1);
+}
+.field--bad .field-input {
+  border-color: var(--critical);
+}
+.field-input input {
+  flex: 1 1 auto;
+  min-width: 0;
+  padding: 8px 0;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 15px;
+  font-variant-numeric: tabular-nums;
+  outline: none;
+}
+.field-affix {
+  color: var(--text-muted);
+  font-size: 13px;
+}
+.field-hint {
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.field--bad .field-hint {
+  color: var(--critical);
+}
+.planner-reset {
+  justify-self: start;
+  margin-bottom: 18px;
+}
+.planner-table td,
+.planner-table th {
+  white-space: nowrap;
+}
+.planner-table,
+.planner-notes {
+  margin-top: 16px;
+}
+.planner-notes ul {
+  margin: 0;
+  padding-left: 18px;
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--text-secondary);
+}
+.planner-notes li {
+  margin-bottom: 6px;
+}
+.planner-notes strong {
+  color: var(--text-primary);
+}
+.planner-disclaimer {
+  margin: 12px 0 0;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+a.btn {
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-bottom: 8px;
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.legend-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.legend-note {
+  color: var(--text-muted);
+}
+.chart-label {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--text-secondary);
+}
+.tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 4px;
+}
+.tooltip-name {
+  color: var(--text-secondary);
+  flex: 1 1 auto;
+}
+.tooltip-num {
+  font-weight: 600;
+  color: var(--text-primary);
+  font-variant-numeric: tabular-nums;
+  margin-left: 12px;
+}
+.swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
 }

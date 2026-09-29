@@ -154,6 +154,7 @@ Structured JSON logs grow. Rotate weekly:
 ## Watching it
 
 - Dashboard: `pnpm dashboard` → http://localhost:3000
+- Income planner: http://localhost:3000/planner (the **Income planner** button on the dashboard). Pure math in the browser; it works with the engine stopped.
 - Live log: `tail -f logs/engine.log | npx pino-pretty`
 - Quick check: `node scripts/cm.mjs` (or `curl -s localhost:4000/api/status | jq`)
 - From your phone: [`REMOTE-ACCESS.md`](REMOTE-ACCESS.md)
