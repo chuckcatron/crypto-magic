@@ -46,7 +46,8 @@ export interface TradeStore {
   insert(trade: StoredTrade): void;
   findById(id: number): StoredTrade | null;
   realizedPnlSince(sinceMs: number): Decimal;
-  consecutiveLosses(): number;
+  /** Losing trades in a row at the end of the history, counting only those closed after `sinceMs`. */
+  consecutiveLosses(sinceMs?: number): number;
   recent(limit?: number): StoredTrade[];
   all(): StoredTrade[];
 }

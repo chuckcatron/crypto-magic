@@ -17,6 +17,7 @@ import { StateRepository } from '../persistence/repositories/state.repository';
 import { TradeRepository } from '../persistence/repositories/trade.repository';
 import { ALERT_POLICY, NOTIFIER } from './tokens';
 import { AlertService } from './alert.service';
+import { severityForEvent, titleForEvent } from './severity';
 
 class RecordingChannel implements NotificationChannel {
   readonly name = 'recording';
@@ -92,6 +93,21 @@ describe('AlertService', () => {
     events.append({ level: 'warn', kind: 'halt', message: 'entries halted: daily_loss_limit' });
     await settle();
     expect(channel.sent[0]!.severity).toBe('critical');
+  });
+
+  it('treats a reset halt as information, not an emergency', async () => {
+    const reset = {
+      level: 'info',
+      kind: 'halt',
+      message: 'losing streak reset by the operator',
+    } as const;
+    expect(severityForEvent({ ...reset, id: 1, ts: 0, data: null })).toBe('info');
+    expect(titleForEvent({ ...reset, id: 1, ts: 0, data: null })).toBe('Halt cleared');
+
+    // Below the default threshold: the operator who just reset it is not paged.
+    events.append(reset);
+    await settle();
+    expect(channel.sent).toHaveLength(0);
   });
 
   it('alerts on a reconciliation mismatch but not a clean reconcile', async () => {

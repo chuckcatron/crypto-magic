@@ -124,8 +124,12 @@ the old code submitting three times and the fixed code once.
 
 ### You are told when it stops itself
 
-Every halt, kill-switch trip and reconciliation mismatch pushes to your phone,
-at a priority that bypasses quiet hours. Without this the bot's safety
+A kill-switch trip, a reconciliation mismatch, and a halt on the daily loss
+limit or a losing streak each push to your phone, at a priority that bypasses
+quiet hours. (Until the losing-streak reset was added, those two halts blocked
+entries without alerting: the `halt` event existed but nothing emitted it.)
+Stale-data and order-rate halts do not alert; they clear on their own within
+minutes. Without this the bot's safety
 machinery is only half useful: it stops itself correctly and then waits
 silently for you to notice.
 

@@ -200,8 +200,8 @@ export function evaluatePreflight(input: PreflightInput): Check[] {
       'Losing-streak breaker',
       limit > LONGEST_TESTED_LOSING_STREAK
         ? `MAX_CONSECUTIVE_LOSSES=${limit}, above the ${LONGEST_TESTED_LOSING_STREAK} losses in a row BTC had in backtests.`
-        : `MAX_CONSECUTIVE_LOSSES=${limit}. The regime filter lost ${LONGEST_TESTED_LOSING_STREAK} trades in a row on BTC in 2015-2021, and this halt is permanent: ` +
-            'the streak only ends with a win, which a halted bot cannot make. The bot would stop for good partway through a losing run the backtests traded through. ' +
+        : `MAX_CONSECUTIVE_LOSSES=${limit}. The regime filter lost ${LONGEST_TESTED_LOSING_STREAK} trades in a row on BTC in 2015-2021, and this halt does not clear by itself ` +
+            '(only a win ends a streak, and a halted bot cannot trade), so the bot would sit halted partway through a losing run the backtests traded through, until you ran `cm reset-streak`. ' +
             `Set it to at least ${LONGEST_TESTED_LOSING_STREAK + 3}.`,
     );
   }

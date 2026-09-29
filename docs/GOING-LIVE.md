@@ -39,16 +39,19 @@ why.
 
 ## 2. Raise the losing-streak limit (do this in paper too)
 
-The default `MAX_CONSECUTIVE_LOSSES=4` does not fit this strategy. The halt is
-**permanent**: the streak only resets on a winning trade, and a halted bot
-cannot open one. The regime filter lost 9 trades in a row on BTC in 2015–2021
-and 5 in 2025–2026, and the backtests traded straight through both. With 4,
-the bot would have stopped for good partway through each, and missed what
-followed.
+The default `MAX_CONSECUTIVE_LOSSES=4` does not fit this strategy. The halt
+does not clear by itself: a streak only ends with a winning trade, and a halted
+bot cannot open one. The regime filter lost 9 trades in a row on BTC in
+2015–2021 and 5 in 2025–2026, and the backtests traded straight through both.
+With 4, the bot would have stopped partway through each until you noticed, and
+missed what followed.
 
-- [ ] In `.env`: `MAX_CONSECUTIVE_LOSSES=12`.
-- [ ] If it ever trips, you get an alert and entries stop. Review the trades,
-      then raise the limit and restart. Nothing else will un-stick it.
+- [ ] In `.env`: `MAX_CONSECUTIVE_LOSSES=12`, so the halt means "something is
+      badly wrong", not "an ordinary bad patch".
+- [ ] Know what happens if it trips: a critical **Trading halted** alert, and
+      no new entries (exits still run). Review the losing trades, then run
+      `cm reset-streak` or press **Reset losing streak** on the dashboard.
+      Losses before the reset stop counting; the trade history is kept.
 
 `MAX_DAILY_LOSS` (default $10 of realized loss) is fine to leave: it stops new
 entries only until the next UTC day, and this strategy almost never re-enters

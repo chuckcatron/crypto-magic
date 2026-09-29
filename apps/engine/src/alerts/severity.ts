@@ -24,7 +24,9 @@ export function severityForEvent(event: StoredEvent): Severity | null {
       return event.level === 'error' ? 'critical' : 'info';
 
     case 'halt':
-      return 'critical';
+      // A halt beginning needs a human. Only a reset, logged at info by the
+      // human already acting, is not urgent.
+      return event.level === 'info' ? 'info' : 'critical';
 
     case 'reconciliation':
       // Only a MISMATCH is critical; a clean reconcile is routine startup noise.
@@ -54,7 +56,7 @@ export function severityForEvent(event: StoredEvent): Severity | null {
 export function titleForEvent(event: StoredEvent): string {
   const titles: Partial<Record<EventKind, string>> = {
     kill_switch: event.level === 'error' ? 'Kill switch ENGAGED' : 'Kill switch released',
-    halt: 'Trading halted',
+    halt: event.level === 'info' ? 'Halt cleared' : 'Trading halted',
     reconciliation: 'Reconciliation mismatch',
     order_rejected: 'Order rejected',
     error: 'Engine error',

@@ -1,6 +1,6 @@
 import { Test, type TestingModule } from '@nestjs/testing';
 import { ScheduleModule } from '@nestjs/schedule';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { D } from '@crypto-magic/core';
 import { PaperAdapter } from '@crypto-magic/exchange';
 import { ApiController } from '../api/api.controller';
@@ -16,7 +16,7 @@ import { EventRepository } from '../persistence/repositories/event.repository';
 import { OrderRepository } from '../persistence/repositories/order.repository';
 import { PositionRepository } from '../persistence/repositories/position.repository';
 import { StateRepository } from '../persistence/repositories/state.repository';
-import { TradeRepository } from '../persistence/repositories/trade.repository';
+import { TradeRepository, type StoredTrade } from '../persistence/repositories/trade.repository';
 import { NullNewsProvider } from '@crypto-magic/insight';
 import { AlertPolicy, FanoutNotifier } from '@crypto-magic/notify';
 import { AlertService } from '../alerts/alert.service';
@@ -355,5 +355,89 @@ describe('TradingEngineService (integration)', () => {
     expect(safe).not.toHaveProperty('COINBASE_API_PRIVATE_KEY');
     expect(safe).not.toHaveProperty('LIVE_TRADING_ACK');
     expect(safe.TRADING_MODE).toBe('paper');
+  });
+
+  describe('losing-streak halt', () => {
+    const DAY_MS = 86_400_000;
+    /** A small closed loss, yesterday by default so it stays out of today's loss limit. */
+    const loss = (exitTime = Date.now() - DAY_MS): StoredTrade => ({
+      productId: 'BTC-USD',
+      entryTime: exitTime - 3_600_000,
+      exitTime,
+      entryPrice: D(100),
+      exitPrice: D(99),
+      baseSize: D(1),
+      fees: D(0),
+      pnl: D(-1),
+      pnlPct: -1,
+      exitReason: 'signal',
+      entryReasons: [],
+      confidence: 1,
+      mode: 'paper',
+      stopPrice: null,
+      takeProfitPrice: null,
+    });
+    const haltAlerts = () =>
+      events.recent().filter((e) => e.kind === 'halt' && e.level === 'error');
+    const status = async () =>
+      (await api.status()) as { haltReasons: string[]; lossStreak: number };
+
+    it('alerts once, when the trade that completes the streak closes', async () => {
+      for (let i = 0; i < 3; i++) trades.insert(loss());
+
+      // A fourth loss, taken by the engine itself: open, then crash through the stop.
+      const series = seriesCrossingUpOnLastBar();
+      market.candles = candlesEndingNow(series);
+      market.price = series.at(-1)!;
+      await engine.tick();
+      market.price = positions.findAll()[0]!.stopPrice.toNumber() * 0.97;
+      await engine.tick();
+
+      expect((await status()).haltReasons).toContain('consecutive_losses');
+      const streakAlerts = haltAlerts().filter((e) => /losing trades in a row/.test(e.message));
+      expect(streakAlerts).toHaveLength(1);
+      expect(streakAlerts[0]!.message).toMatch(/4 losing trades in a row \(limit 4\)/);
+      expect(streakAlerts[0]!.message).toMatch(/cm reset-streak/);
+
+      // Checking again while still halted does not repeat the alert.
+      await moduleRef.get(RiskService).announceHalts();
+      expect(haltAlerts().filter((e) => /losing trades in a row/.test(e.message))).toHaveLength(1);
+    });
+
+    it('clears when the operator resets it, and counts only losses after that', async () => {
+      for (let i = 0; i < 4; i++) trades.insert(loss());
+      expect((await status()).haltReasons).toContain('consecutive_losses');
+
+      expect(api.resetLossStreak()).toEqual({ cleared: 4 });
+      expect(await status()).toMatchObject({ lossStreak: 0 });
+      expect((await status()).haltReasons).not.toContain('consecutive_losses');
+      // History is kept.
+      expect(trades.all()).toHaveLength(4);
+      expect(events.recent().some((e) => e.kind === 'halt' && e.level === 'info')).toBe(true);
+
+      trades.insert(loss(Date.now() + 1000));
+      expect((await status()).lossStreak).toBe(1);
+    });
+
+    it('lets entries resume after a reset', async () => {
+      for (let i = 0; i < 4; i++) trades.insert(loss());
+      api.resetLossStreak();
+
+      const series = seriesCrossingUpOnLastBar();
+      market.candles = candlesEndingNow(series);
+      market.price = series.at(-1)!;
+      await engine.tick();
+
+      expect(positions.findAll()).toHaveLength(1);
+    });
+
+    it('announces a halt already in force when the engine starts', async () => {
+      for (let i = 0; i < 4; i++) trades.insert(loss());
+
+      await engine.onApplicationBootstrap();
+      await vi.waitFor(() => expect(engine.lastSuccessfulTickAt).not.toBeNull());
+
+      expect(haltAlerts().some((e) => /4 losing trades in a row/.test(e.message))).toBe(true);
+    });
   });
 });
