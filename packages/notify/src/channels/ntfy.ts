@@ -1,7 +1,7 @@
 import { postWithTimeout, type Alert, type NotificationChannel, type Severity } from '../types';
 
 /** ntfy priorities: 1 min … 5 max. 4+ bypasses a phone's quiet hours. */
-const PRIORITY: Record<Severity, string> = { critical: '5', warning: '4', info: '3' };
+const PRIORITY: Record<Severity, number> = { critical: 5, warning: 4, info: 3 };
 const TAGS: Record<Severity, string> = {
   critical: 'rotating_light',
   warning: 'warning',
@@ -15,6 +15,12 @@ const TAGS: Record<Severity, string> = {
  * A topic on the public server is effectively a shared secret: anyone who knows
  * it can read your alerts. Use a long random one, and never put an API key or a
  * balance in an alert body.
+ *
+ * Published as JSON to the server root rather than with Title/Priority/Tags
+ * headers. HTTP headers only carry Latin-1, so fetch refused any title with an
+ * em dash or emoji outright ("Cannot convert argument to a ByteString"), and
+ * the daily check-in, titled "Daily check-in — paper", never arrived. A JSON
+ * body is UTF-8 end to end.
  */
 export class NtfyChannel implements NotificationChannel {
   readonly name = 'ntfy';
@@ -33,15 +39,17 @@ export class NtfyChannel implements NotificationChannel {
 
     await postWithTimeout(
       this.name,
-      `${this.server.replace(/\/$/, '')}/${this.topic}`,
+      this.server.replace(/\/$/, ''),
       {
         method: 'POST',
-        headers: {
-          Title: alert.title.slice(0, 200),
-          Priority: PRIORITY[alert.severity],
-          Tags: TAGS[alert.severity],
-        },
-        body: `${alert.body}${suffix}`.slice(0, 4000),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          topic: this.topic,
+          title: alert.title.slice(0, 200),
+          message: `${alert.body}${suffix}`.slice(0, 4000),
+          priority: PRIORITY[alert.severity],
+          tags: [TAGS[alert.severity]],
+        }),
       },
       this.timeoutMs,
       [this.topic],

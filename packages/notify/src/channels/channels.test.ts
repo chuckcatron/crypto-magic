@@ -125,25 +125,38 @@ describe('TelegramChannel', () => {
 });
 
 describe('NtfyChannel', () => {
-  it('sets Title, Priority and Tags headers and puts the message in the body', async () => {
+  const published = () => JSON.parse(captured[0]!.body) as Record<string, unknown>;
+
+  it('publishes JSON to the server root with topic, title, priority and tags', async () => {
     await new NtfyChannel('my-topic', base).send(alert());
 
     const request = captured[0]!;
-    expect(request.url).toBe('/my-topic');
-    expect(request.headers.title).toBe('Kill switch engaged');
-    expect(request.headers.priority).toBe('5'); // max — bypasses quiet hours
-    expect(request.headers.tags).toBe('rotating_light');
-    expect(request.body).toContain('reconciliation failed');
+    expect(request.url).toBe('/');
+    expect(request.headers['content-type']).toBe('application/json');
+    const body = published();
+    expect(body.topic).toBe('my-topic');
+    expect(body.title).toBe('Kill switch engaged');
+    expect(body.priority).toBe(5); // max — bypasses quiet hours
+    expect(body.tags).toEqual(['rotating_light']);
+    expect(body.message).toContain('reconciliation failed');
+  });
+
+  it('delivers a title that is not Latin-1, such as the daily check-in', async () => {
+    // As an HTTP header this threw "Cannot convert argument to a ByteString":
+    // the em dash is U+2014, and headers only carry Latin-1.
+    const title = 'Daily check-in — paper 📈';
+    await new NtfyChannel('t', base).send(alert({ title }));
+    expect(published().title).toBe(title);
   });
 
   it('uses a lower priority for info', async () => {
     await new NtfyChannel('t', base).send(alert({ severity: 'info' }));
-    expect(captured[0]!.headers.priority).toBe('3');
+    expect(published().priority).toBe(3);
   });
 
   it('tolerates a trailing slash on the server URL', async () => {
     await new NtfyChannel('t', `${base}/`).send(alert());
-    expect(captured[0]!.url).toBe('/t');
+    expect(captured[0]!.url).toBe('/');
   });
 
   it('times out rather than hanging the caller forever', async () => {
