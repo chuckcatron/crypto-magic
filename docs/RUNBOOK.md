@@ -243,6 +243,52 @@ rm data/KILL_SWITCH
 Upgrading with positions open is fine — state is in SQLite and startup
 reconciles — but it is easier to reason about when you are flat.
 
+## Trading more than one coin
+
+List every coin to trade in `PRODUCTS`, and give each a share of the account
+with `REGIME_ALLOCATION_PCT`. Each buy is that percentage of equity at the time,
+so for three coins use 33, not 100: at 100 the first coin to signal takes all
+the cash, and the rest buy whatever is left over.
+
+```bash
+PRODUCTS=BTC-USD,ETH-USD,SOL-USD
+REGIME_ALLOCATION_PCT=33
+MAX_OPEN_POSITIONS=4            # at least the number of coins
+MAX_TOTAL_NOTIONAL=1000         # covers the whole account
+MAX_POSITION_NOTIONAL=1000
+```
+
+Read `docs/EXPERIMENT-003-regime-filter-eth-sol.md` first: the rule was
+backtested on each coin, and did not pass on all of them.
+
+Changing the split does not resize positions already open. Either flatten and
+let the engine re-enter at the next daily close, or start a fresh paper account.
+
+To see a coin's price without trading it, add it to `WATCH_PRODUCTS` instead.
+Its dashboard tile says "watching, not traded".
+
+## Starting a fresh paper account
+
+Archives the database (positions, trades, equity history, events) and starts
+again from `PAPER_STARTING_CASH`. Nothing is deleted, and it costs nothing:
+paper positions are not sold, they are just left in the archive.
+
+```bash
+launchctl bootout gui/$(id -u)/com.cryptomagic.engine    # stop it; launchd will not restart it
+mkdir -p data/archive-$(date +%F)
+mv data/crypto-magic.db* data/archive-$(date +%F)/       # the .db and its -wal/-shm, together
+ls data/KILL_SWITCH 2>/dev/null && cm release --offline  # a leftover kill switch blocks every entry
+# edit .env now if the products or split are changing
+launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.cryptomagic.engine.plist
+cm restart dashboard
+cm events                                                # engine started, then any entries
+```
+
+On its first check the engine evaluates the latest closed daily bar for every
+coin, so each one above its 200-day average is bought straight away, not at the
+next close. The archived database opens read-only with
+`sqlite3 -readonly data/archive-<date>/crypto-magic.db`.
+
 ## Changing Node versions
 
 The engine has one compiled dependency, `better-sqlite3`, and it only loads

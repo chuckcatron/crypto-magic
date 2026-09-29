@@ -42,6 +42,8 @@ export interface PriceQuote {
   price: string | null;
   fetchedAt: number | null;
   error: string | null;
+  /** In WATCH_PRODUCTS only: shown, never traded. */
+  watchOnly: boolean;
 }
 
 export interface PositionRow {

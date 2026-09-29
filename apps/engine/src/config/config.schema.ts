@@ -36,6 +36,9 @@ export const configSchema = z
 
     // --- Market -------------------------------------------------------------
     PRODUCTS: z.string().default('BTC-USD').transform(csv),
+    // Shown on the dashboard with a price tile, never traded. Anything also in
+    // PRODUCTS is traded and shown once.
+    WATCH_PRODUCTS: z.string().default('').transform(csv),
     GRANULARITY: z.enum(GRANULARITIES).default('ONE_HOUR'),
     QUOTE_CURRENCY: z
       .string()
@@ -265,9 +268,24 @@ export const configSchema = z
         message: 'at least one product is required',
       });
     }
+    // Every watched coin is a ticker request each time the dashboard refreshes.
+    if (watchOnlyProducts(cfg).length > MAX_WATCH_PRODUCTS) {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['WATCH_PRODUCTS'],
+        message: `at most ${MAX_WATCH_PRODUCTS} watch-only products`,
+      });
+    }
   });
 
 export type AppConfig = z.infer<typeof configSchema>;
+
+export const MAX_WATCH_PRODUCTS = 10;
+
+/** WATCH_PRODUCTS without duplicates and without anything already traded. */
+export function watchOnlyProducts(cfg: Pick<AppConfig, 'PRODUCTS' | 'WATCH_PRODUCTS'>): string[] {
+  return [...new Set(cfg.WATCH_PRODUCTS)].filter((p) => !cfg.PRODUCTS.includes(p));
+}
 
 /**
  * Parse and validate the environment. Throws with every problem listed at once,

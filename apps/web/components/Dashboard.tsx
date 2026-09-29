@@ -272,13 +272,15 @@ export function Dashboard() {
             label={`${quote.productId} price`}
             value={quote.price === null ? '—' : price(quote.price)}
             sub={
-              quote.error
+              // Said first, so a watched coin is never mistaken for one the bot holds.
+              (quote.watchOnly ? 'watching, not traded · ' : '') +
+              (quote.error
                 ? quote.fetchedAt
                   ? `⚠ stale — last good ${timeAgo(quote.fetchedAt)}`
                   : '⚠ price unavailable'
                 : quote.fetchedAt
                   ? `live · updated ${timeAgo(quote.fetchedAt)}`
-                  : undefined
+                  : '')
             }
           />
         ))}
