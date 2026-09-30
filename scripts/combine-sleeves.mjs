@@ -9,7 +9,7 @@
  * gives every coin an equal slice of the starting money and never rebalances
  * ("sleeves"): each slice compounds on its own. The comparison scales the
  * reference down with idle cash (x in the reference, the rest in cash at 0%,
- * never rebalanced) until its maximum drawdown equals the mix's, the same
+ * rebalanced to x every bar) until its maximum drawdown equals the mix's, the same
  * question EXPERIMENT-001 asked: at the same risk, which earns more?
  *
  * Annualized return and drawdown follow packages/core/src/backtest/metrics.ts:
@@ -74,9 +74,26 @@ function mix(sleeves) {
 }
 
 /** x of the account in the reference, the rest idle in cash. */
+/**
+ * x of the account in the reference, the rest idle in cash, rebalanced to x
+ * every bar, so each day's return is x times the reference's.
+ *
+ * EXPERIMENT-006 and 007 set x once and never rebalanced. Over a window where
+ * the reference grows many times over, that slice comes to dominate the account
+ * and inherits nearly all of its drawdown: in EXPERIMENT-007's window 1 a 1.7%
+ * slice of a strategy that grew 58x showed a 51% drawdown. EXPERIMENT-006 only
+ * compared at x = 1, where the two methods are identical.
+ */
 function scaled(reference, x) {
-  const cash = (1 - x) * reference.initial;
-  return reference.curve.map((p) => ({ time: p.time, equity: x * p.equity + cash }));
+  const curve = [];
+  let equity = reference.initial;
+  let previous = reference.initial;
+  for (const p of reference.curve) {
+    equity *= 1 + x * (p.equity / previous - 1);
+    previous = p.equity;
+    curve.push({ time: p.time, equity });
+  }
+  return curve;
 }
 
 const referencePath = arg('reference');
