@@ -37,25 +37,25 @@ file covers working rules and where things stand.
   reporting READY. The owner creates and installs the keys, never Claude.
 - **Experiments** (details in `docs/`):
 
-  | No. | Question | Result |
-  | --- | --- | --- |
-  | 001 | 200-day regime filter on BTC | Passed, provisionally. This is the live strategy |
-  | 002 | Funding-rate carry | Real income, but not steady. Not adopted |
-  | 003 | Regime filter on ETH and SOL | ETH failed. SOL passed only its one window |
-  | 004 | Better disaster stops | No variant passed. Stop unchanged |
+  | No. | Question                       | Result                                               |
+  | --- | ------------------------------ | ---------------------------------------------------- |
+  | 001 | 200-day regime filter on BTC   | Passed, provisionally. This is the live strategy     |
+  | 002 | Funding-rate carry             | Real income, but not steady. Not adopted             |
+  | 003 | Regime filter on ETH and SOL   | ETH failed. SOL passed only its one window           |
+  | 004 | Better disaster stops          | No variant passed. Stop unchanged                    |
   | 005 | Close-only stop on other coins | Inconclusive. The filter failed on 26 of 27 altcoins |
-  | 006 | Three coins or BTC alone | BTC alone, but the result is fragile |
-  | 007 | Faster exit line | Neither variant passed. Exit unchanged |
+  | 006 | Three coins or BTC alone       | BTC alone, but the result is fragile                 |
+  | 007 | Faster exit line               | Neither variant passed. Exit unchanged               |
 
 - **Fee sensitivity**, run 2026-10-02 and not committed as an experiment.
   Regime strategy, full exposure. Each cell is annualized return / max
   drawdown:
 
-  | Window | Coinbase 60 bps taker | 25 bps (Alpaca tier 1) |
-  | --- | --- | --- |
-  | 2015–2021 | 78.83% / −68.38% | 82.44% / −67.71% |
-  | 2022–2024 | 52.01% / −29.58% | 54.68% / −27.32% |
-  | 2025–2026 | −8.09% / −35.37% | −4.48% / −33.07% |
+  | Window    | Coinbase 60 bps taker | 25 bps (Alpaca tier 1) |
+  | --------- | --------------------- | ---------------------- |
+  | 2015–2021 | 78.83% / −68.38%      | 82.44% / −67.71%       |
+  | 2022–2024 | 52.01% / −29.58%      | 54.68% / −27.32%       |
+  | 2025–2026 | −8.09% / −35.37%      | −4.48% / −33.07%       |
 
   Lower fees are worth about 3 points a year. They do not fix the 2025–2026
   loss.
