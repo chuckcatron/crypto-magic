@@ -32,7 +32,7 @@ file covers working rules and where things stand.
   - BTC-USD only, `REGIME_ALLOCATION_PCT=99`
   - A 10-ATR disaster stop
 - **The paper soak** is step 1 of `docs/GOING-LIVE.md`, which asks for at least
-  two weeks. It runs to about **2026-10-13**. Going live after that means
+  two weeks. It started 2026-09-27 and runs to **2026-10-11**. Going live after that means
   working through `docs/GOING-LIVE.md` in order, up to `pnpm preflight`
   reporting READY. The owner creates and installs the keys, never Claude.
 - **Experiments** (details in `docs/`):
