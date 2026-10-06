@@ -45,7 +45,8 @@ async function get(url, as) {
     try {
       const response = await fetch(url, { signal: AbortSignal.timeout(30_000) });
       status = response.status;
-      if (response.ok) return as === 'bytes' ? Buffer.from(await response.arrayBuffer()) : response.text();
+      if (response.ok)
+        return as === 'bytes' ? Buffer.from(await response.arrayBuffer()) : response.text();
       if (status !== 429 && status < 500) throw new Error(`${url} returned ${status}`);
     } catch (error) {
       if (status !== undefined && status !== 429 && status < 500) throw error;
@@ -68,19 +69,26 @@ async function list(prefix, delimiter) {
       (marker ? `&marker=${encodeURIComponent(marker)}` : '');
     const xml = await get(url, 'text');
     const pageKeys = [...xml.matchAll(/<Key>([^<]+)<\/Key>/g)].map((m) => decodeXml(m[1]));
-    const pagePrefixes = [...xml.matchAll(/<CommonPrefixes><Prefix>([^<]+)<\/Prefix><\/CommonPrefixes>/g)].map(
-      (m) => decodeXml(m[1]),
-    );
+    const pagePrefixes = [
+      ...xml.matchAll(/<CommonPrefixes><Prefix>([^<]+)<\/Prefix><\/CommonPrefixes>/g),
+    ].map((m) => decodeXml(m[1]));
     keys.push(...pageKeys);
     prefixes.push(...pagePrefixes);
     if (!/<IsTruncated>true<\/IsTruncated>/.test(xml)) break;
-    marker = decodeXml(xml.match(/<NextMarker>([^<]+)<\/NextMarker>/)?.[1] ?? (pageKeys.at(-1) ?? pagePrefixes.at(-1)));
+    marker = decodeXml(
+      xml.match(/<NextMarker>([^<]+)<\/NextMarker>/)?.[1] ?? pageKeys.at(-1) ?? pagePrefixes.at(-1),
+    );
   }
   return { keys, prefixes };
 }
 
 function decodeXml(text) {
-  return text.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#39;/g, "'");
+  return text
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&#39;/g, "'");
 }
 
 /** The single file in a zip, via its central directory. */
@@ -126,7 +134,8 @@ async function fetchSymbol(symbol) {
     ]);
     const expected = checksum.trim().split(/\s+/)[0];
     const actual = createHash('sha256').update(zip).digest('hex');
-    if (expected !== actual) throw new Error(`${key}: checksum ${actual} does not match ${expected}`);
+    if (expected !== actual)
+      throw new Error(`${key}: checksum ${actual} does not match ${expected}`);
     for (const line of unzipSingle(zip).split('\n')) {
       const cells = line.trim().split(',');
       if (cells.length < 6 || !/^\d+$/.test(cells[0])) continue; // blank line or a header
@@ -136,7 +145,8 @@ async function fetchSymbol(symbol) {
     }
   }
   const times = [...rows.keys()].sort((a, b) => a - b);
-  const csv = ['timestamp,open,high,low,close,volume', ...times.map((t) => rows.get(t))].join('\n') + '\n';
+  const csv =
+    ['timestamp,open,high,low,close,volume', ...times.map((t) => rows.get(t))].join('\n') + '\n';
   writeFileSync(join(outDir, `${symbol}.csv`), csv);
   const iso = (t) => new Date(t * 1000).toISOString().slice(0, 10);
   return {
@@ -165,10 +175,14 @@ await Promise.all(
     for (let symbol = queue.shift(); symbol !== undefined; symbol = queue.shift()) {
       manifest[symbol] = await fetchSymbol(symbol);
       done++;
-      if (done % 25 === 0 || done === symbols.length) process.stderr.write(`${done}/${symbols.length}\n`);
+      if (done % 25 === 0 || done === symbols.length)
+        process.stderr.write(`${done}/${symbols.length}\n`);
     }
   }),
 );
 const sorted = Object.fromEntries(Object.entries(manifest).sort(([a], [b]) => a.localeCompare(b)));
-writeFileSync(join(outDir, 'manifest.json'), JSON.stringify({ through, fetchedAt: new Date().toISOString(), pairs: sorted }, null, 1));
+writeFileSync(
+  join(outDir, 'manifest.json'),
+  JSON.stringify({ through, fetchedAt: new Date().toISOString(), pairs: sorted }, null, 1),
+);
 process.stderr.write(`done: ${Object.keys(sorted).length} pairs written to ${outDir}\n`);
