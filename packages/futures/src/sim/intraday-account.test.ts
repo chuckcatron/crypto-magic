@@ -184,6 +184,34 @@ describe('IntradayAccount', () => {
     expect(account.daily.at(-1)!.equity).toBeCloseTo(10_000 + account.trades[0]!.netPnl);
   });
 
+  it('asks before every entry, and never blocks an exit', () => {
+    let allowed = true;
+    const signals = new Map([
+      [at(0), signal({ stopDistance: 2, targetDistance: 3 })],
+      [at(3), signal({ stopDistance: 2, targetDistance: 3 })],
+    ]);
+    const asked: number[] = [];
+    const { account, feed } = setup(signals, {
+      entriesAllowed: (time) => {
+        asked.push(time);
+        return allowed;
+      },
+    });
+    feed([bar(at(0), 100, 100), bar(at(1), 100, 100, 10, 0)]);
+    expect(account.openPosition).not.toBeNull();
+    // Decision at the close of bar 0, then the fill at bar 1's open.
+    expect(asked).toEqual([at(1), at(1)]);
+
+    allowed = false;
+    // The kill switch is on: the open position still exits at its target...
+    feed([{ t: at(2), o: 100, h: 104, l: 100, c: 103, v: 1 }]);
+    expect(account.trades[0]!.exitReason).toBe('target');
+    // ...and the next signal is not taken.
+    feed([bar(at(3), 103, 103), bar(at(4), 103, 103)]);
+    expect(account.openPosition).toBeNull();
+    expect(account.pendingEntry).toBeNull();
+  });
+
   it('resumes from saved state exactly as if it had never stopped', () => {
     const signals = new Map([
       [at(1), signal({ stopDistance: 2, targetDistance: 3 })],

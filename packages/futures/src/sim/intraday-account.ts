@@ -24,6 +24,14 @@ export interface IntradayAccountOptions {
   readonly initialEquity: number;
   /** No decision before this UNIX second. Earlier bars only warm up the indicators. */
   readonly tradeFrom: number;
+  /**
+   * Asked before each new entry, with the decision's time (the bar's close).
+   * The paper engine says no while its kill switch is on, and for decisions
+   * on bars it is only catching up on: a bot that was down could not have
+   * made them. Exits are never blocked. Omitted, every entry is allowed, as in
+   * the backtest.
+   */
+  readonly entriesAllowed?: (decisionTime: number) => boolean;
 }
 
 /** Hooks for the paper engine: persist, alert. The backtest leaves them unset. */
@@ -155,7 +163,9 @@ export class IntradayAccount {
     // 1. Fill the decision made at the previous close.
     const pending = this.pending;
     this.pending = null;
-    if (pending && active && !this.position) this.enter(pending, bar);
+    if (pending && active && !this.position && (this.options.entriesAllowed?.(bar.t) ?? true)) {
+      this.enter(pending, bar);
+    }
 
     // 2. Manage the open position.
     if (this.position) this.manage(this.position, bar);
@@ -166,7 +176,13 @@ export class IntradayAccount {
     this.lastClose = bar.c;
 
     // 4. Decide at the close.
-    if (bar.t + FIVE_MINUTES >= this.options.tradeFrom && !this.position && !this.blocked) {
+    const closeTime = bar.t + FIVE_MINUTES;
+    if (
+      closeTime >= this.options.tradeFrom &&
+      !this.position &&
+      !this.blocked &&
+      (this.options.entriesAllowed?.(closeTime) ?? true)
+    ) {
       const signal = this.options.strategy.evaluate(series);
       if (signal && isUsable(signal, bar.c)) this.pending = signal;
     }

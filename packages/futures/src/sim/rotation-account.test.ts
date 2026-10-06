@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { T0 } from '../testing/bars';
 import { DAY, type Bar } from '../types';
-import { RotationAccount } from './rotation-account';
+import { RotationAccount, type RotationAccountState } from './rotation-account';
 
 const COSTS = { fillBps: 8, fundingBpsPerHour: 0.15 };
 /** Daily growth rates: A strongest, G weakest. */
@@ -130,5 +130,36 @@ describe('RotationAccount', () => {
     expect(account.positions).toHaveLength(0);
     expect(account.trades.every((t) => t.exitReason === 'end')).toBe(true);
     expect(account.daily.at(-1)!.equity).toBeCloseTo(account.equity);
+  });
+
+  it('resumes from saved state exactly as if it had never stopped', () => {
+    const days = history(start, 45);
+    const straight = new RotationAccount({ costs: COSTS, initialEquity: 10_000, tradeFrom: T0 });
+    feed(straight, days);
+
+    const first = new RotationAccount({ costs: COSTS, initialEquity: 10_000, tradeFrom: T0 });
+    feed(first, days, T0 + 3 * DAY);
+    const state = JSON.parse(JSON.stringify(first.toState())) as RotationAccountState;
+    const resumed = new RotationAccount(
+      { costs: COSTS, initialEquity: 10_000, tradeFrom: T0 },
+      state,
+    );
+    for (const [day, bars] of days) if (day > T0 + 3 * DAY) resumed.onDay(day, bars);
+
+    expect(resumed.equity).toBeCloseTo(straight.equity, 9);
+    expect(resumed.daily).toEqual(straight.daily);
+    expect([...first.trades, ...resumed.trades]).toEqual(straight.trades);
+  });
+
+  it('with entries refused, a rebalance only closes and shrinks', () => {
+    const days = history(start, 31);
+    const account = new RotationAccount({
+      costs: COSTS,
+      initialEquity: 10_000,
+      tradeFrom: T0,
+      entriesAllowed: () => false,
+    });
+    feed(account, days);
+    expect(account.positions).toHaveLength(0);
   });
 });

@@ -22,6 +22,25 @@ export interface RotationOptions {
   readonly stopFraction?: number;
   /** Long notional + short notional, as a multiple of equity, set at each rebalance. */
   readonly grossExposure?: number;
+  /**
+   * Asked at each rebalance with the decision's time (the Sunday close). When
+   * it says no, the rebalance only closes and shrinks positions; nothing is
+   * opened or grown. The paper engine's kill switch and catch-up rule. Omitted,
+   * everything is allowed, as in the backtest.
+   */
+  readonly entriesAllowed?: (decisionTime: number) => boolean;
+}
+
+/** Everything needed to resume after a restart. JSON-safe. */
+export interface RotationAccountState {
+  readonly cash: number;
+  readonly holdings: readonly Holding[];
+  /** Recent closes per coin, enough for the ranking. */
+  readonly closes: readonly (readonly [string, readonly (readonly [number, number])[]])[];
+  readonly lastClose: readonly (readonly [string, number])[];
+  readonly plan: RotationPlan | null;
+  readonly lastDay: number | null;
+  readonly daily: readonly DailyMark[];
 }
 
 export interface RotationPlan {
@@ -31,7 +50,7 @@ export interface RotationPlan {
   readonly ranking: readonly { readonly productId: string; readonly ret: number }[];
 }
 
-interface Holding {
+export interface Holding {
   readonly productId: string;
   readonly direction: Direction;
   size: number;
@@ -79,12 +98,47 @@ export class RotationAccount {
   private readonly stopFraction: number;
   private readonly grossExposure: number;
 
-  constructor(private readonly options: RotationOptions) {
+  constructor(
+    private readonly options: RotationOptions,
+    state?: RotationAccountState,
+  ) {
     this.cash = options.initialEquity;
     this.lookbackDays = options.lookbackDays ?? 21;
     this.minCoins = options.minCoins ?? 6;
     this.stopFraction = options.stopFraction ?? 0.2;
     this.grossExposure = options.grossExposure ?? 1;
+    if (state) {
+      this.cash = state.cash;
+      for (const holding of state.holdings) this.holdings.set(holding.productId, { ...holding });
+      for (const [productId, closes] of state.closes) this.closes.set(productId, new Map(closes));
+      for (const [productId, close] of state.lastClose) this.lastClose.set(productId, close);
+      this.plan = state.plan;
+      this.lastPlan = state.plan;
+      this.lastDay = state.lastDay;
+      this.daily.push(...state.daily);
+    }
+  }
+
+  /** The last UTC day processed, so a restarted engine knows where to resume. */
+  get lastProcessedDay(): number | null {
+    return this.lastDay;
+  }
+
+  toState(): RotationAccountState {
+    // The ranking reads lookbackDays + 1 closes; keep a little more.
+    const since = (this.lastDay ?? 0) - (this.lookbackDays + 10) * DAY;
+    return {
+      cash: this.cash,
+      holdings: [...this.holdings.values()].map((h) => ({ ...h })),
+      closes: [...this.closes.entries()].map(
+        ([productId, series]) =>
+          [productId, [...series.entries()].filter(([day]) => day >= since)] as const,
+      ),
+      lastClose: [...this.lastClose.entries()],
+      plan: this.plan,
+      lastDay: this.lastDay,
+      daily: [...this.daily],
+    };
   }
 
   get equity(): number {
@@ -184,6 +238,8 @@ export class RotationAccount {
 
     const legs = plan.longs.length;
     if (legs === 0) return;
+    // The plan was made at the Sunday close, which is this day's 00:00.
+    const mayGrow = this.options.entriesAllowed?.(day) ?? true;
     const notional = (this.grossExposure * equity * 0.5) / legs;
     for (const [productId, direction] of wanted) {
       const price = openOf(productId);
@@ -191,8 +247,11 @@ export class RotationAccount {
       if (price === undefined) continue;
       const size = notional / price;
       const holding = this.holdings.get(productId);
-      if (holding) this.resize(holding, size, price);
-      else this.open(productId, direction, size, price, day, equity);
+      if (holding) {
+        if (mayGrow || size < holding.size) this.resize(holding, size, price);
+      } else if (mayGrow) {
+        this.open(productId, direction, size, price, day, equity);
+      }
     }
   }
 
