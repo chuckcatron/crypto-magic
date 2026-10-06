@@ -11,7 +11,8 @@
     "test:watch": "vitest",
     "experiment-008": "tsx src/experiment/run-008.ts",
     "validate-008": "tsx src/experiment/validate-data.ts",
-    "experiment-009": "tsx src/experiment/run-009.ts"
+    "experiment-009": "tsx src/experiment/run-009.ts",
+    "inventory-009": "tsx src/experiment/inventory-009.ts"
   },
   "dependencies": {
     "@crypto-magic/core": "workspace:*"

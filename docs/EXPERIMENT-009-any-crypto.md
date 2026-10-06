@@ -269,3 +269,85 @@ SOXSB, SPCXB, SPYB, SQQQB, STXB, TQQQB, TSLAB, TSMB, USARB, WDCB, WENB, ZMB.
 ## Results
 
 _(appended after the runs)_
+
+The protocol was committed as `347c855` at 17:12:22Z on 2026-10-06 and pushed
+at once. The data was fetched after that, and the simulation code was
+committed as `a0384c6` before any run.
+
+### Data
+
+- **B:** all 757 USDT pairs, every monthly file checked against Binance's
+  published SHA-256, through 2026-09. The manifest is
+  `data/binance-daily/manifest.json` (SHA-256 `7274e6af7c962f63…`), with each
+  pair's rows, dates and CSV hash. Examples: BTCUSDT 3,332 days from
+  2017-08-17 (`61d1919a8db698ee…`), LUNAUSDT 2,215 days (`193cc6b697d2c8c1…`).
+- **C:** all 404 Coinbase USD products, with no fetch failures.
+
+Inventory (descriptive, `pnpm --filter @crypto-magic/futures inventory-009`):
+
+| Universe | Kept | Stopped trading before 2026-09-30 | Gaps over 7 days |
+| -------- | ---- | --------------------------------- | ---------------- |
+| B        | 589  | **191**                           | 8                |
+| C        | 393  | 3                                 | 1                |
+
+A third of B's coins died or were delisted. That is the survivorship this
+test was built to include. C has almost none of them.
+
+B's gaps are delistings and relistings under the same ticker, and token
+swaps: LUNA (Terra 2.0 took the ticker after the May 2022 collapse), FTT
+(halted November 2022, resumed September 2023), VEN→VET (2018), STRAX (a 10×
+redenomination, 2024), VIDT, CVC, KEY and NBT. The pre-registered rule
+handles all of them the same way: a held coin is sold at its last close
+before the gap.
+
+### Development, 2019-01-01 → 2023-07-01 (recorded before the holdout was run)
+
+Run once at 17:25:18Z.
+
+**Universe B**, base costs (65 bps a fill), with the stress and low-fee
+returns alongside:
+
+| Strategy               | Annualized  | Total        | Max drawdown | Trades | Invested | Same-drawdown BTC | Beats it? | At 130 bps | At 15 bps |
+| ---------------------- | ----------- | ------------ | ------------ | ------ | -------- | ----------------- | --------- | ---------- | --------- |
+| S1 momentum rotation   | −36.22%     | −86.78%      | −98.25%      | 508    | 100%     | 100% BTC: +59.32% | no        | −53.06%    | −19.16%   |
+| S1R gated rotation     | −15.12%     | −52.16%      | −86.20%      | 299    | 52%      | 100% BTC: +59.32% | no        | −29.00%    | −2.54%    |
+| S2 breakout            | +26.45%     | +187.42%     | −94.98%      | 664    | 69%      | 100% BTC: +59.32% | no        | +6.93%     | +43.59%   |
+| **S2R gated breakout** | **+61.16%** | **+755.79%** | **−64.36%**  | 449    | 42%      | 74% BTC: +47.81%  | **yes**   | +43.60%    | +76.14%   |
+| S3 volume surge        | +25.23%     | +175.09%     | −86.68%      | 486    | 54%      | 100% BTC: +59.32% | no        | +9.82%     | +38.74%   |
+| S4 dip buying          | −25.26%     | −73.02%      | −76.61%      | 970    | 25%      | 100% BTC: +59.30% | no        | −43.67%    | −7.23%    |
+| _Hold BTC_             | +59.32%     | +712.66%     | −76.63%      | 1      | 100%     |                   |           |            |           |
+| _Top 50, equal weight_ | +16.28%     | +97.12%      | −91.54%      | 493    | 100%     |                   |           |            |           |
+| _BTC 200-day filter_   | +39.05%     | +340.56%     | −67.60%      | 15     | 55%      | 80% BTC: +50.83%  | no        |            |           |
+
+**Universe C** (Coinbase), base costs:
+
+| Strategy               | Annualized | Total    | Max drawdown | Trades | Invested | Same-drawdown BTC | Beats it? |
+| ---------------------- | ---------- | -------- | ------------ | ------ | -------- | ----------------- | --------- |
+| S1 momentum rotation   | −33.48%    | −84.02%  | −98.65%      | 435    | 100%     | 100% BTC: +59.40% | no        |
+| S1R gated rotation     | +2.77%     | +13.06%  | −80.42%      | 251    | 52%      | 100% BTC: +59.40% | no        |
+| S2 breakout            | −9.77%     | −37.01%  | −94.90%      | 524    | 54%      | 100% BTC: +59.40% | no        |
+| S2R gated breakout     | +4.86%     | +23.79%  | −79.78%      | 365    | 33%      | 100% BTC: +59.40% | no        |
+| S3 volume surge        | +1.72%     | +7.96%   | −86.34%      | 333    | 37%      | 100% BTC: +59.40% | no        |
+| S4 dip buying          | −17.91%    | −58.85%  | −60.94%      | 477    | 13%      | 68% BTC: +44.66%  | no        |
+| _Hold BTC_             | +59.40%    | +714.58% | −76.67%      | 1      | 100%     |                   |           |
+| _Top 50, equal weight_ | +21.07%    | +136.31% | −90.58%      | 181    | 100%     |                   |           |
+| _BTC 200-day filter_   | +37.98%    | +325.53% | −67.64%      | 16     | 55%      | 80% BTC: +50.89%  | no        |
+
+Noted without adjusting anything:
+
+- **Only S2R beat the yardstick on B.** It made +61% a year against +48% for
+  the 74% BTC allocation with the same drawdown.
+- **On C it did not:** +4.9% a year. In 2019–2020, C's universe held only a
+  dozen or so coins. Criterion 5 tests C on the holdout only.
+- **S1, the momentum rotation, is the "Muggli" profile in full.** A
+  verification pass on its trades showed equity grew 3.4× by the end of 2021,
+  from $10,000 to $34,181. It then fell to $1,380 in 2022, a 96% loss in one
+  year, as concentrated top-5 bets ran into LUNA, FTX and the bear market.
+  Rotating weekly at 65 bps a fill also costs about 1% a week in fees, and
+  even at 15 bps it lost 19% a year.
+- **Dip buying (S4) lost in every cost case.**
+- **Holding the top 50 equally** did far worse than holding BTC, at a deeper
+  drawdown.
+- The BTC 200-day filter, the strategy now in paper trading, also trailed its
+  yardstick in this window. EXPERIMENT-001's development window was
+  2015–2021.
