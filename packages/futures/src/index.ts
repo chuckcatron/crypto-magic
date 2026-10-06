@@ -7,3 +7,4 @@ export * from './sim/rotation-account';
 export * from './sim/metrics';
 export * from './sim/backtest';
 export * from './universe';
+export * from './portfolio';
