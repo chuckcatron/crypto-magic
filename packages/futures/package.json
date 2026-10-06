@@ -1,0 +1,22 @@
+{
+  "name": "@crypto-magic/futures",
+  "version": "0.1.0",
+  "private": true,
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc -b tsconfig.build.json",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "experiment-008": "tsx src/experiment/run-008.ts",
+    "validate-008": "tsx src/experiment/validate-data.ts"
+  },
+  "dependencies": {
+    "@crypto-magic/core": "workspace:*"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "vitest": "^2.1.8"
+  }
+}

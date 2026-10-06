@@ -169,6 +169,19 @@ importers:
         specifier: ^2.1.8
         version: 2.1.9(@types/node@22.20.4)(terser@5.51.2)
 
+  packages/futures:
+    dependencies:
+      '@crypto-magic/core':
+        specifier: workspace:*
+        version: link:../core
+    devDependencies:
+      tsx:
+        specifier: ^4.19.2
+        version: 4.23.15
+      vitest:
+        specifier: ^2.1.8
+        version: 2.1.9(@types/node@22.20.4)(terser@5.51.2)
+
   packages/insight:
     dependencies:
       '@crypto-magic/core':
