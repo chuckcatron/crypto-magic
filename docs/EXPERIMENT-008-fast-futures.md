@@ -422,6 +422,107 @@ Noted without adjusting anything:
   nearly all of that came in the 2020–21 bull market, when even the weakest
   coins rose: −70% in 2020 and −46% in 2021. Shorts made +32% in 2022.
 
+### Holdout, 2023-07-01 → 2026-10-01 (run once, nothing changed)
+
+Run once at 16:28:41Z, after the development results were on GitHub
+(`29de005`, pushed 16:28:30Z). Same input files. Pooled across coins:
+
+| Strategy | Annualized | Total   | t-stat | Max drawdown | Trades | Annualized at stress costs |
+| -------- | ---------- | ------- | ------ | ------------ | ------ | -------------------------- |
+| F1       | −31.75%    | −71.15% | −9.23  | −71.32%      | 3,575  | −51.44%                    |
+| F2       | −7.09%     | −21.28% | −5.28  | −21.28%      | 445    | −13.16%                    |
+| F3       | −47.28%    | −87.56% | −10.45 | −87.62%      | 5,434  | −68.78%                    |
+| F4       | −2.09%     | −6.64%  | 0.06   | −34.63%      | 912    | −5.70%                     |
+
+Per coin, base costs, as a percentage of starting equity:
+
+| Strategy | Coin | Annualized | Max drawdown | Trades | Win rate | Long P&L | Short P&L | Fees and funding | Exits                                  |
+| -------- | ---- | ---------- | ------------ | ------ | -------- | -------- | --------- | ---------------- | -------------------------------------- |
+| F1       | BTC  | −31.72%    | −71.24%      | 965    | 48.7%    | −29.01%  | −42.11%   | 70.48%           | stop 479, target 451, time 35          |
+| F1       | ETH  | −39.19%    | −80.56%      | 1,351  | 48.0%    | −40.52%  | −39.67%   | 73.91%           | stop 676, target 623, time 52          |
+| F1       | SOL  | −23.97%    | −59.53%      | 1,259  | 51.0%    | −20.23%  | −38.79%   | 72.83%           | stop 602, target 631, time 26          |
+| F2       | BTC  | −5.17%     | −15.86%      | 122    | 35.2%    | −6.48%   | −9.38%    | 18.37%           | stop 79, target 43                     |
+| F2       | ETH  | −10.56%    | −30.46%      | 160    | 28.1%    | −15.63%  | −14.83%   | 21.27%           | stop 115, target 45                    |
+| F2       | SOL  | −5.56%     | −17.91%      | 163    | 34.4%    | −3.59%   | −13.40%   | 20.22%           | stop 107, target 56                    |
+| F3       | BTC  | −49.16%    | −89.04%      | 1,738  | 40.7%    | −44.39%  | −44.55%   | 96.87%           | stop 1,020, target 697, time 20, end 1 |
+| F3       | ETH  | −48.98%    | −88.83%      | 1,781  | 38.7%    | −39.71%  | −49.11%   | 73.44%           | stop 1,082, target 683, time 15, end 1 |
+| F3       | SOL  | −44.36%    | −85.46%      | 1,915  | 38.4%    | −51.41%  | −33.75%   | 66.01%           | stop 1,178, target 734, time 2, end 1  |
+| F4       | all  | −2.09%     | −34.63%      | 912    | 43.2%    | +55.41%  | −62.06%   | 53.85%           | rebalance 662, stop 236, end 14        |
+
+Holdout halves, pooled, base costs:
+
+| Strategy | 2023-07-01 → 2025-02-15 | 2025-02-15 → 2026-10-01 |
+| -------- | ----------------------- | ----------------------- |
+| F1       | −38.44%                 | −53.14%                 |
+| F2       | −11.63%                 | −10.92%                 |
+| F3       | −63.70%                 | −65.71%                 |
+| F4       | +5.13%                  | −11.20%                 |
+
+### Applying the decision rule
+
+| Criterion                      | F1               | F2               | F3               | F4                |
+| ------------------------------ | ---------------- | ---------------- | ---------------- | ----------------- |
+| 1. Development annualized > 0  | **FAIL** −37.01% | **FAIL** −7.04%  | **FAIL** −35.32% | **FAIL** −10.33%  |
+| 2. Holdout annualized > 0      | **FAIL** −31.75% | **FAIL** −7.09%  | **FAIL** −47.28% | **FAIL** −2.09%   |
+| 3. Holdout t-stat ≥ 2.5        | **FAIL** −9.23   | **FAIL** −5.28   | **FAIL** −10.45  | **FAIL** 0.06     |
+| 4. Holdout > 0 at stress costs | **FAIL** −51.44% | **FAIL** −13.16% | **FAIL** −68.78% | **FAIL** −5.70%   |
+| 5. Holdout > 0 in each half    | **FAIL** both    | **FAIL** both    | **FAIL** both    | **FAIL** 2nd half |
+| 6. Holdout trades ≥ 200        | PASS 3,575       | PASS 445         | PASS 5,434       | PASS 912          |
+| 7. Holdout max drawdown ≤ 25%  | **FAIL** −71.32% | PASS −21.28%     | **FAIL** −87.62% | **FAIL** −34.63%  |
+| 8. Holdout > 0 on 2 of 3 coins | **FAIL** 0 of 3  | **FAIL** 0 of 3  | **FAIL** 0 of 3  | n/a               |
+| **Verdict**                    | **FAIL**         | **FAIL**         | **FAIL**         | **FAIL**          |
+
+## Verdict
+
+**All four strategies fail.** None goes to forward paper trading as a
+candidate, and nothing goes live. The paper engine may run them only to test
+its machinery (see "What a pass would and would not mean").
+
+## What this means
+
+None of this changes the verdict.
+
+1. **The fast strategies have no edge before costs, so cheaper fills will not
+   rescue them.** The average price move each trade captured, in the holdout:
+
+   | Strategy | BTC      | ETH      | SOL      |
+   | -------- | -------- | -------- | -------- |
+   | F1       | +0.7 bps | −3.1 bps | +5.6 bps |
+   | F2       | +2.7 bps | −8.0 bps | +5.7 bps |
+   | F3       | −0.0 bps | −5.6 bps | −9.1 bps |
+
+   That is about zero, in both windows, on all three coins, against a round
+   trip of about 16 bps. Maker orders at a few bps would shrink the loss.
+   They would not turn zero into a gain. On 5- and 15-minute bars, these
+   textbook ideas find nothing that the market's faster participants have not
+   already taken.
+
+2. **F4 is the only one with a real return before costs, and the assumed
+   funding took most of it.** Per sub-account, as a percentage of starting
+   equity:
+
+   | Window      | Before costs | Fees   | Funding | After costs |
+   | ----------- | ------------ | ------ | ------- | ----------- |
+   | Development | +9.0%        | −11.8% | −35.9%  | −38.8%      |
+   | Holdout     | +47.2%       | −12.4% | −41.5%  | −6.6%       |
+
+   Its longs and shorts mostly cancelled each other. The longs won in rising
+   years and the shorts in falling ones: +57% and −51% in 2024, −18% and +24%
+   in 2025. The protocol charges funding to both sides. A real long-short book
+   usually pays funding on its longs and collects it on its shorts, so the
+   assumption is harshest on exactly this strategy. Even before any costs,
+   though, development made about 2% a year. Testing F4 with real funding
+   history would be a new, pre-registered experiment, run on data this one
+   has now seen. That makes it weaker evidence from the start.
+
+3. **This is the third time the same pattern has shown up.** ta-ensemble-v1
+   on hourly bars (`docs/BACKTEST.md`), the cost measurement that opens this
+   protocol, and now four fast strategies on cheap futures all point the same
+   way. The only rule this repo trades after a pre-registered pass is still
+   the slowest one, the 200-day regime filter on BTC.
+
+## Process notes
+
 ### Implementation choices (fixed before the development run)
 
 Rule 1 says the code takes the conservative choice wherever this protocol is
@@ -459,3 +560,12 @@ pnpm --filter @crypto-magic/futures validate-008
 pnpm --filter @crypto-magic/futures experiment-008 --window dev
 pnpm --filter @crypto-magic/futures experiment-008 --window holdout
 ```
+
+### Runs
+
+- Each window ran once at base costs and once at stress costs. Nothing was
+  re-run. A run takes about 3 minutes, most of it F2's squeeze scan.
+- Between the development run and the holdout, a lint pass made two
+  typing-only edits: a type parameter on a `Map` in the rotation account, and
+  one in a test. Neither changes behavior. The holdout ran on the committed
+  code (`6ffccff`).
