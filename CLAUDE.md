@@ -9,6 +9,10 @@ file covers working rules and where things stand.
 - **Never add Coinbase API keys. Never commit `.env` or `data/`.**
 - Be at least 90% sure before acting. Follow best practices. The owner works in
   Next.js and NestJS, and deploys to AWS with Amplify or CDK.
+- Give the owner shell commands with no `#` comments. Their zsh does not treat
+  `#` as a comment in pasted input, so a comment runs as part of the command,
+  and an apostrophe in one opens a quote that swallows the lines after it
+  (reproduced 2026-10-06).
 - Work only on branch `claude/eloquent-wright-ab93he`. The owner merges PRs.
   Open a PR only when asked. They usually just say "PR".
 - After a PR is merged, restart the branch from main:
@@ -31,6 +35,17 @@ file covers working rules and where things stand.
   - `STRATEGY=regime`, `GRANULARITY=ONE_DAY`
   - BTC-USD only, `REGIME_ALLOCATION_PCT=99`
   - A 10-ATR disaster stop
+- **Machines.** The soak does not run on the Mac Studio. On 2026-10-06,
+  `scripts/doctor.sh` in the Mac Studio's `~/crypto-magic` showed no `.env`, no
+  build, no launchd service and nothing on port 4000. It is probably still on
+  the MacBook Pro that `docs/SETUP-AND-MIGRATION.md` started on (unconfirmed).
+  The Mac Studio has Node 24.21.0 and is where the futures paper engine is
+  being set up.
+- **better-sqlite3 11.10.0**, used by both engines, ships ready-made Mac
+  binaries for Node 20, 22 and 23 only. On Node 24 and 25 it compiles from
+  source in 1–3 minutes, and pnpm's default reporter shows nothing meanwhile
+  (`pnpm install --reporter=append-only` shows the compile). It does not compile
+  on Node 26: V8 removed APIs it uses.
 - **The paper soak** is step 1 of `docs/GOING-LIVE.md`, which asks for at least
   two weeks. It runs to about **2026-10-13**. Going live after that means
   working through `docs/GOING-LIVE.md` in order, up to `pnpm preflight`

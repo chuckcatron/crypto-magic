@@ -323,3 +323,9 @@ Symptoms of skipping a step: `cm restart` says "not answering after 30s", and
 `logs/engine.error.log` shows `NODE_MODULE_VERSION` (step 1) or
 `dyld: Library not loaded` (Homebrew removed a library the old node needed:
 step 2).
+
+Not every version works. The `better-sqlite3` the engine pins (11.10.0)
+downloads ready-made for Node 22, compiles from source on Node 24 (a few
+silent minutes; it needs `xcode-select --install`), and cannot build at all on
+Node 26. Stay on `node@22` or `node@24`. Plain `brew install node` installs the
+newest Node.
