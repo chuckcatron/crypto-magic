@@ -313,3 +313,149 @@ weakens a pass more than a fail.
 ## Results
 
 _(appended after the runs)_
+
+The protocol was committed as `46751fd` at 15:58:59Z on 2026-10-06 and was on
+GitHub by 15:59:02Z. Everything below was produced after that.
+
+### Data, fetched after the protocol was pushed
+
+`scripts/fetch-coinbase-history.mjs` gained `--granularity` and `--to`, retries
+on network errors, and accepts futures product IDs. These are tooling changes
+only.
+
+| File          | 5-minute bars | From       | To         | SHA-256 (first 16) |
+| ------------- | ------------- | ---------- | ---------- | ------------------ |
+| `btc-5m.csv`  | 841,043       | 2018-10-01 | 2026-09-30 | `662af1770005886b` |
+| `eth-5m.csv`  | 841,109       | 2018-10-01 | 2026-09-30 | `6e044150ad83cd6f` |
+| `sol-5m.csv`  | 555,949       | 2021-06-17 | 2026-09-30 | `8cad8df34f9ea8c0` |
+| `daily/*.csv` | 23 files      | listing    | 2026-09-30 | listed below       |
+
+Daily files, SHA-256 (first 16): AAVE `ea50ce1981ed1954`, ADA
+`1520bc2af1b4408b`, AVAX `70bff46de68a1198`, BCH `47d39517da9fdb6b`, BNB
+`717529df551dff03`, BTC `fbdc8b9418a8fe01`, DOGE `35cddc0321b6416f`, DOT
+`07ede0b0f24828de`, ENA `ba01d82b1b08ee5f`, ETH `3704a806302e52ae`, HBAR
+`e9fec272fedcbce9`, HYPE `19be7853150ac659`, LINK `d3f80b8661a4fe13`, LTC
+`d8af4dc443d74209`, NEAR `07bdb220df7f9159`, ONDO `8945ed6e39060914`, PEPE
+`7731ee675e7c4760`, SHIB `d3cafd84c71650f3`, SOL `e92e9b1d7449b6c5`, SUI
+`96d184f86a8166ad`, XLM `21c527da66e76bc6`, XRP `92e08261eb1d60fa`, ZEC
+`f369f711eeb12903`.
+
+**(a) Missing 5-minute bars, by year.** A year has 105,120 of them. SOL's
+history starts in 2021.
+
+| Coin    | 2018 | 2019 | 2020 | 2021 | 2022 | 2023 | 2024 | 2025 | 2026 |
+| ------- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- | ---- |
+| BTC-USD | 32   | 105  | 108  | 11   | 1    | 63   | 24   | 70   | 79   |
+| ETH-USD | 11   | 53   | 107  | 11   | 1    | 63   | 25   | 76   | 80   |
+| SOL-USD | —    | —    | —    | 13   | 1    | 68   | 41   | 71   | 80   |
+
+**(b) The 5-minute bars against Coinbase's daily candles.** BTC: 0 of 2,922
+days differ by more than 0.05%. ETH: 0 of 2,922. SOL: 22 of 1,932 (1.14%),
+which is over the 1% line, so it was investigated before anything ran.
+
+All 22 days fall between May and November 2023, when SOL traded between $14
+and $40 and its price moved in $0.01 steps. One step was then 0.03–0.07% of
+the price. On every one of those days the two closes differ by 1 to 3 cents.
+Opens, highs and lows are identical. The cause is rounding of the day's last
+trade, not missing or wrong data. Nothing was changed.
+
+**(c) Perpetuals against spot**, 5-minute closes, 2025-07-21 → 2026-10-01:
+
+| Perpetual         | Bars matched | Median basis | 5th–95th percentile | Beyond ±0.1% | Return correlation |
+| ----------------- | ------------ | ------------ | ------------------- | ------------ | ------------------ |
+| `BIP-20DEC30-CDE` | 123,259      | +0.019%      | −0.037% to +0.080%  | 2.5%         | 0.962              |
+| `ETP-20DEC30-CDE` | 122,999      | +0.028%      | −0.055% to +0.119%  | 9.9%         | 0.950              |
+| `SLP-20DEC30-CDE` | 109,067      | +0.015%      | −0.090% to +0.124%  | 12.6%        | 0.921              |
+
+The perpetuals trade at a small premium to spot, and their 5-minute moves
+track spot closely. Spot is a fair proxy. Where the two differ, a perpetual
+trader sees extra noise, which costs more, not less.
+
+### Development, 2019-01-01 → 2023-07-01 (recorded before the holdout was run)
+
+Run once at 16:22:35Z, at base and stress costs. Pooled across coins:
+
+| Strategy | Annualized | Total   | t-stat | Max drawdown | Trades | Annualized at stress costs |
+| -------- | ---------- | ------- | ------ | ------------ | ------ | -------------------------- |
+| F1       | −37.01%    | −87.50% | −11.60 | −87.52%      | 4,694  | −54.76%                    |
+| F2       | −7.04%     | −27.98% | −4.12  | −30.05%      | 657    | −14.32%                    |
+| F3       | −35.32%    | −85.91% | −7.83  | −86.01%      | 5,885  | −58.87%                    |
+| F4       | −10.33%    | −38.76% | −0.40  | −54.24%      | 608    | −13.50%                    |
+
+Per coin, base costs. The P&L columns are a percentage of the sub-account's
+starting equity.
+
+| Strategy | Coin | Annualized | Max drawdown | Trades | Win rate | Long P&L | Short P&L | Fees and funding | Exits                                 |
+| -------- | ---- | ---------- | ------------ | ------ | -------- | -------- | --------- | ---------------- | ------------------------------------- |
+| F1       | BTC  | −39.67%    | −89.80%      | 1,909  | 46.6%    | −38.95%  | −50.76%   | 67.13%           | stop 945, target 844, time 120        |
+| F1       | ETH  | −39.83%    | −89.90%      | 1,998  | 46.0%    | −40.90%  | −48.93%   | 58.63%           | stop 1,019, target 879, time 100      |
+| F1       | SOL  | −17.56%    | −32.28%      | 787    | 52.0%    | −10.85%  | −18.92%   | 41.46%           | stop 372, target 397, time 18         |
+| F2       | BTC  | −7.17%     | −31.32%      | 270    | 35.2%    | −6.36%   | −22.07%   | 35.87%           | stop 175, target 95                   |
+| F2       | ETH  | −7.54%     | −32.14%      | 268    | 34.3%    | −14.20%  | −15.50%   | 31.26%           | stop 176, target 92                   |
+| F2       | SOL  | −9.81%     | −18.30%      | 119    | 30.3%    | −12.81%  | −4.40%    | 11.57%           | stop 83, target 36                    |
+| F3       | BTC  | −39.52%    | −89.81%      | 2,371  | 41.0%    | −56.01%  | −33.58%   | 110.72%          | stop 1,394, target 968, time 8, end 1 |
+| F3       | ETH  | −35.51%    | −86.35%      | 2,467  | 40.5%    | −52.20%  | −33.90%   | 107.55%          | stop 1,467, target 996, time 4        |
+| F3       | SOL  | −31.51%    | −50.82%      | 1,047  | 39.7%    | −34.19%  | −15.78%   | 44.71%           | stop 630, target 416, time 1          |
+| F4       | all  | −10.33%    | −54.24%      | 608    | 44.6%    | +45.17%  | −83.93%   | 47.71%           | rebalance 417, stop 181, end 10       |
+
+**Every strategy already fails criterion 1.** Under rule 2 the holdout still
+runs for all four.
+
+Noted without adjusting anything:
+
+- **F1–F3 have no edge before costs, so this is not mainly a cost problem.**
+  Measured as the average price move captured per trade, against a round trip
+  that costs about 16 bps:
+
+  | Strategy | BTC      | ETH      | SOL       |
+  | -------- | -------- | -------- | --------- |
+  | F1       | −3.6 bps | −4.5 bps | +8.6 bps  |
+  | F2       | +3.8 bps | −0.2 bps | −18.7 bps |
+  | F3       | +0.7 bps | +1.0 bps | +1.2 bps  |
+
+  Zero-ish before costs, minus 16 bps a trade, thousands of times, gives
+  −86% to −88% for F1 and F3. ta-ensemble-v1's hourly signal at least had an
+  edge before costs (a profit factor of 1.39). These have none.
+
+- **F4's long leg made money, and its short leg lost almost twice as much.**
+  The long side made +45% of starting equity. The short side lost 84%, and
+  nearly all of that came in the 2020–21 bull market, when even the weakest
+  coins rose: −70% in 2020 and −46% in 2021. Shorts made +32% in 2022.
+
+### Implementation choices (fixed before the development run)
+
+Rule 1 says the code takes the conservative choice wherever this protocol is
+silent. These are the places it had to choose:
+
+1. **The daily-loss halt is checked after each exit.** A decision at the close
+   of the 23:55 bar is made at 00:00. The account starts the new day only when
+   the next bar arrives, so a halt from the old day blocks that one decision.
+2. **F1–F3 funding** is charged at exit, on the entry notional, for the hours
+   held. An exit inside a bar is timed at that bar's close.
+3. **A target fills at the target price,** even when a bar opens beyond it.
+   There is no price improvement.
+4. **F3 takes both RSI values from one computation** over the 300 bars ending
+   at the current close.
+5. **F4:**
+   - A full day's funding is charged on every position held at the open,
+     including one stopped out that day.
+   - The 1× gross cap is applied at each rebalance. Positions are not trimmed
+     between rebalances.
+   - A coin with no bar on a Monday sits out that week.
+   - A held coin with no bar at a rebalance is closed at its last close.
+6. **Capital and warmup.** Each sub-account starts with $10,000, and sizes are
+   fractional. Each window is fed 60 days of 5-minute bars before it starts;
+   F3 needs 50.2. F4's calendar starts 40 days early.
+
+The simulation is `packages/futures` (47 tests). One of those tests checks
+that every strategy gives identical signals on a full history and on a series
+rebuilt from a recent fetch, as the paper engine does. Commands:
+
+```bash
+node scripts/fetch-coinbase-history.mjs --product BTC-USD --granularity FIVE_MINUTE \
+  --from 2018-10-01 --to 2026-10-01 > data/btc-5m.csv   # likewise eth (2018-10-01), sol (2021-06-17)
+node scripts/fetch-coinbase-history.mjs --product AAVE-USD --to 2026-10-01 > data/daily/AAVE-USD.csv  # each universe coin
+pnpm --filter @crypto-magic/futures validate-008
+pnpm --filter @crypto-magic/futures experiment-008 --window dev
+pnpm --filter @crypto-magic/futures experiment-008 --window holdout
+```
