@@ -32,21 +32,55 @@ equity. That's 9 for F1–F3, plus one for the F4 rotation.
 It shares the repo, the `.env` (for the alert channels only) and the `data/`
 folder with the regime engine. It uses its own port, database and kill switch.
 
+To run it in the foreground (Ctrl-C stops it):
+
 ```bash
 pnpm install
-pnpm build
-pnpm futures:paper            # leave it running, e.g. in tmux
-curl -s http://127.0.0.1:4100/api/status
+pnpm turbo run build --filter=@crypto-magic/futures-engine...
+pnpm futures:paper
 ```
 
-It is deliberately **not** in `scripts/install-launchd.sh` yet. That script
-manages the regime engine's paper soak, and it should not change while the
-soak runs. Adding a third launchd service is a small follow-up once the soak
-ends.
+Then, from another terminal:
+
+```bash
+curl -s http://127.0.0.1:4100/api/status | jq
+```
 
 On the first start it fetches about 50 days of 5-minute bars per coin (about
-150 requests) and 40 days of daily bars for the universe. Then it trades only
-on bars that close after it started.
+150 requests) and 40 days of daily bars for the universe. The API answers
+straight away, and `lastTickAt` stays null until that first pass completes.
+Then it trades only on bars that close after it started.
+
+Only one copy can run at a time. The engine claims its API port before doing
+anything else, so a second copy on the same port exits at once. It does so
+before touching the database or sending an alert.
+
+### As a service on a Mac
+
+`scripts/install-launchd-futures.sh` installs it as the launchd agent
+`com.cryptomagic.futures`.
+
+- It starts at login and restarts after a crash.
+- It keeps the Mac out of idle sleep while it runs.
+- It is separate from `scripts/install-launchd.sh`, and never touches the
+  regime engine's services.
+
+Run the installer from a shell whose `node -v` is the Node the engine was
+built with, because the service records that `node`. Before installing, it:
+
+- refuses a `node` the database module will not load under;
+- stops a copy started by hand, if its PID is in `data/futures-paper.pid`;
+- refuses to start while anything else answers on the port.
+
+| To                               | Run                                                           |
+| -------------------------------- | ------------------------------------------------------------- |
+| Install or reinstall, then start | `./scripts/install-launchd-futures.sh`                        |
+| Restart                          | `launchctl kickstart -k gui/$(id -u)/com.cryptomagic.futures` |
+| Stop it and remove the service   | `./scripts/install-launchd-futures.sh --uninstall`            |
+| Follow the log                   | `tail -f logs/futures-paper.log`                              |
+
+Under launchd, a process you kill comes back within 30 seconds. To keep it
+stopped, uninstall the service; that leaves its database alone.
 
 ## Settings
 
@@ -73,8 +107,8 @@ touch data/FUTURES_KILL_SWITCH    # no new paper entries; open ones still exit
 rm data/FUTURES_KILL_SWITCH       # resume
 ```
 
-Stop the process with Ctrl-C, or send it SIGTERM. On the next start it resumes
-from its database. It processes the bars it missed: open positions are
+Stop the process with Ctrl-C, or send it SIGTERM. As a service, uninstall it
+instead (above). On the next start it resumes from its database. It processes the bars it missed: open positions are
 managed through them, but it makes **no new entries** on any decision more
 than 10 minutes old. A bot that was down could not have made those trades.
 

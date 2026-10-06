@@ -45,8 +45,10 @@ file covers working rules and where things stand.
   no `.env`, no build, no launchd service and nothing on port 4000.
   better-sqlite3 would not build there on Node 24.21.0, so the owner switched
   it to Node 22. The futures paper engine has run there since 2026-10-06 19:25
-  UTC. It was started with `nohup`, and its PID is in `data/futures-paper.pid`.
-  It is not under launchd, so a reboot stops it.
+  UTC, started by hand with `nohup` (PID in `data/futures-paper.pid`).
+  `scripts/install-launchd-futures.sh`, added the same day, moves it under
+  launchd as `com.cryptomagic.futures`. Until the owner confirms they ran it
+  there, assume a reboot stops the engine.
 
 - **better-sqlite3 11.10.0**, used by both engines, ships ready-made Mac
   binaries for Node 20, 22 and 23 only.
@@ -103,8 +105,10 @@ file covers working rules and where things stand.
     paper-only engine that runs the four forward on live public prices: port
     4100, its own `data/futures-paper.db`, no key, no order path. The owner
     said "build it with futures in mind; you are free to paper trade". It runs
-    on the Mac Studio (see Machines), not under launchd yet. See
-    `docs/FUTURES-PAPER.md`.
+    on the Mac Studio (see Machines). `scripts/install-launchd-futures.sh`
+    makes it a launchd agent, separate from the regime services. The engine
+    claims its API port before trading, so a second copy exits before touching
+    the database. See `docs/FUTURES-PAPER.md`.
 - **Muggli.** The owner's friend Tom ("Muggli") reports +200% in 5 months, live
   since about May 2026, with a bot that trades any crypto. He started from a
   backtest and trades bitcoin he mined. Asked for, but not received: his trade
@@ -146,9 +150,6 @@ file covers working rules and where things stand.
     run on data EXPERIMENT-008 has already seen, so it starts as weaker
     evidence. EXPERIMENT-009 already tested long-only gated rotation (S1R),
     which failed.
-  - A launchd service for the futures paper engine on the Mac Studio, so it
-    survives reboots. The Studio does not run the soak, so this can happen
-    before the soak ends.
   - Upgrading better-sqlite3 to 12.11.1 after the soak, then moving both Macs
     to Node 24. It is a major version, so read its breaking changes first.
   - A pre-registered experiment running the regime filter on SPY. Alpaca's
@@ -181,6 +182,7 @@ pnpm --filter @crypto-magic/futures experiment-009 --window dev   # or holdout
 # Futures paper engine (after pnpm build)
 pnpm futures:paper
 curl -s http://127.0.0.1:4100/api/status
+./scripts/install-launchd-futures.sh   # macOS: as a launchd agent; --uninstall removes it
 ```
 
 The CSVs live in `data/`, which is gitignored, so a fresh clone won't have

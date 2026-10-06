@@ -1,10 +1,5 @@
 import { existsSync } from 'node:fs';
-import {
-  Inject,
-  Injectable,
-  type OnApplicationBootstrap,
-  type OnModuleDestroy,
-} from '@nestjs/common';
+import { Inject, Injectable, type OnModuleDestroy } from '@nestjs/common';
 import {
   BASE_COSTS,
   DAY,
@@ -75,7 +70,7 @@ interface IntradaySlot {
  * are refused, and so is every new entry while the kill-switch file exists.
  */
 @Injectable()
-export class PaperTraderService implements OnApplicationBootstrap, OnModuleDestroy {
+export class PaperTraderService implements OnModuleDestroy {
   private readonly log = childLogger('paper');
   private readonly series = new Map<string, MarketSeries>();
   private readonly slots = new Map<string, IntradaySlot>();
@@ -96,7 +91,11 @@ export class PaperTraderService implements OnApplicationBootstrap, OnModuleDestr
     private readonly store: PaperStore,
   ) {}
 
-  async onApplicationBootstrap(): Promise<void> {
+  /**
+   * Start trading: warm up, catch up, then poll. main.ts calls this only once
+   * the API holds its port, so a second copy of the engine never gets here.
+   */
+  async run(): Promise<void> {
     await this.start();
     this.timer = setInterval(() => void this.tick(), this.config.FUTURES_POLL_SECONDS * 1000);
   }
