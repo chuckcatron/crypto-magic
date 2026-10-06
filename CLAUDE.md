@@ -44,6 +44,7 @@ file covers working rules and where things stand.
   The Mac Studio's `~/crypto-magic` has no regime bot. The doctor there showed
   no `.env`, no build, no launchd service and nothing on port 4000. It has Node
   24.21.0 and is where the futures paper engine is being set up.
+
 - **better-sqlite3 11.10.0**, used by both engines, ships ready-made Mac
   binaries for Node 20, 22 and 23 only. On Node 24 and 25 it compiles from
   source in 1–3 minutes, and pnpm's default reporter shows nothing meanwhile
