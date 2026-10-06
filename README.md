@@ -13,7 +13,9 @@ packages/core        pure domain — indicators, strategy, risk, backtester. No 
 packages/exchange    ExchangeAdapter port + Coinbase adapter + paper adapter
 packages/notify      alert policy + ntfy / Discord / Telegram channels
 packages/insight     LLM port + Ollama, news port + CryptoPanic, review prompts
+packages/futures     long/short futures simulation: strategies, risk rules, backtester
 apps/engine          NestJS engine: the loop, persistence, dashboard API
+apps/futures-engine  NestJS paper-only engine for the futures strategies
 apps/web             Next.js dashboard
 ```
 
@@ -53,6 +55,16 @@ a proxy: +16.7%/yr net in 2020–2021, then roughly what Treasury bills paid in
 2022–2023 — less than cash in each of those years. Stepping in and out around
 the funding rate failed in both periods on switching costs. See
 [`docs/EXPERIMENT-002-funding-carry.md`](docs/EXPERIMENT-002-funding-carry.md).
+
+**Fast trading fails, even on cheap futures.** Four pre-registered strategies,
+long and short, on Coinbase's US perpetual futures costs: a flush catcher and a
+squeeze breakout on 5- and 15-minute bars, a trend pullback, and weekly
+momentum across 23 coins. All four lost money in development (2019–2023) and
+in the holdout (2023–2026). The three fast ones captured about zero per trade
+before costs, so cheaper fills would not save them. See
+[`docs/EXPERIMENT-008-fast-futures.md`](docs/EXPERIMENT-008-fast-futures.md). A
+paper-only engine runs them forward as a test of the futures machinery:
+[`docs/FUTURES-PAPER.md`](docs/FUTURES-PAPER.md).
 
 ## Before you risk real money
 
@@ -338,7 +350,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 314 tests
+pnpm test        # 502 tests
 pnpm typecheck
 ```
 
