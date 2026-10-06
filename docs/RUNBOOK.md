@@ -325,7 +325,7 @@ Symptoms of skipping a step: `cm restart` says "not answering after 30s", and
 step 2).
 
 Not every version works. The `better-sqlite3` the engine pins (11.10.0)
-downloads ready-made for Node 22, compiles from source on Node 24 (a few
-silent minutes; it needs `xcode-select --install`), and cannot build at all on
-Node 26. Stay on `node@22` or `node@24`. Plain `brew install node` installs the
+downloads ready-made for Node 22. On Node 24 it has to compile from source,
+which failed on the Mac Studio, and on Node 26 it cannot build at all. Stay on
+`node@22` until the library is upgraded. Plain `brew install node` installs the
 newest Node.

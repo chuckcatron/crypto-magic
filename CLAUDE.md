@@ -42,14 +42,21 @@ file covers working rules and where things stand.
   - equity $1,015.97 from $1,000.
 
   The Mac Studio's `~/crypto-magic` has no regime bot. The doctor there showed
-  no `.env`, no build, no launchd service and nothing on port 4000. It has Node
-  24.21.0 and is where the futures paper engine is being set up.
+  no `.env`, no build, no launchd service and nothing on port 4000.
+  better-sqlite3 would not build there on Node 24.21.0, so the owner switched
+  it to Node 22. The futures paper engine has run there since 2026-10-06 19:25
+  UTC. It was started with `nohup`, and its PID is in `data/futures-paper.pid`.
+  It is not under launchd, so a reboot stops it.
 
 - **better-sqlite3 11.10.0**, used by both engines, ships ready-made Mac
-  binaries for Node 20, 22 and 23 only. On Node 24 and 25 it compiles from
-  source in 1–3 minutes, and pnpm's default reporter shows nothing meanwhile
-  (`pnpm install --reporter=append-only` shows the compile). It does not compile
-  on Node 26: V8 removed APIs it uses.
+  binaries for Node 20, 22 and 23 only.
+  - On Node 24 it has to compile from source. That worked in the Linux sandbox
+    but not on the Mac Studio. `pnpm install --reporter=append-only` shows a
+    compile's output.
+  - It cannot compile on Node 26: V8 removed APIs it uses.
+  - Keep the Macs on Node 22, which reaches end of life on 2027-04-30.
+  - 12.11.1 ships Mac binaries for Node 22, 24 and 26. Upgrading to it after
+    the soak is the way onto Node 24.
 - **The paper soak** is step 1 of `docs/GOING-LIVE.md`, which asks for at least
   two weeks. It runs to about **2026-10-13**. Going live after that means
   working through `docs/GOING-LIVE.md` in order, up to `pnpm preflight`
@@ -95,8 +102,8 @@ file covers working rules and where things stand.
   - `packages/futures` holds the simulation. `apps/futures-engine` is a
     paper-only engine that runs the four forward on live public prices: port
     4100, its own `data/futures-paper.db`, no key, no order path. The owner
-    said "build it with futures in mind; you are free to paper trade". It is
-    not under launchd yet, to keep the regime soak untouched. See
+    said "build it with futures in mind; you are free to paper trade". It runs
+    on the Mac Studio (see Machines), not under launchd yet. See
     `docs/FUTURES-PAPER.md`.
 - **Muggli.** The owner's friend Tom ("Muggli") reports +200% in 5 months, live
   since about May 2026, with a bot that trades any crypto. He started from a
@@ -139,8 +146,11 @@ file covers working rules and where things stand.
     run on data EXPERIMENT-008 has already seen, so it starts as weaker
     evidence. EXPERIMENT-009 already tested long-only gated rotation (S1R),
     which failed.
-  - Adding the futures paper engine to `scripts/install-launchd.sh` after the
-    regime soak ends.
+  - A launchd service for the futures paper engine on the Mac Studio, so it
+    survives reboots. The Studio does not run the soak, so this can happen
+    before the soak ends.
+  - Upgrading better-sqlite3 to 12.11.1 after the soak, then moving both Macs
+    to Node 24. It is a major version, so read its breaking changes first.
   - A pre-registered experiment running the regime filter on SPY. Alpaca's
     real advantage is commission-free stocks and ETFs.
   - Using Coinbase maker limit orders (about 40 bps) instead of market orders,
