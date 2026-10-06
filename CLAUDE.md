@@ -47,6 +47,7 @@ file covers working rules and where things stand.
   | 006 | Three coins or BTC alone       | BTC alone, but the result is fragile                 |
   | 007 | Faster exit line               | Neither variant passed. Exit unchanged               |
   | 008 | Fast long/short on US perps    | All four failed. No edge before costs                |
+  | 009 | "Trade any crypto" bots        | All six failed. All lost money in 2023–2026          |
 
 - **Fee sensitivity**, run 2026-10-02 and not committed as an experiment.
   Regime strategy, full exposure. Each cell is annualized return / max
@@ -83,6 +84,19 @@ file covers working rules and where things stand.
   backtest and trades bitcoin he mined. Asked for, but not received: his trade
   history CSV and his rules. Over 2026-05-06 → 2026-10-05, BTC held made +5%,
   the median of the top 96 coins +15%, and 6 coins tripled.
+- **EXPERIMENT-009 (2026-10-06)** tested the archetypes Muggli could be
+  running, on a survivorship-free universe.
+  - The universe: every Binance USDT pair from the public archive, delisted
+    ones included (191 of 589). It was fetched with
+    `scripts/fetch-binance-daily.mjs` through the archive's S3 endpoint, which
+    the sandbox allows.
+  - All six failed. In the holdout, all lost money while BTC made +36% a year.
+  - The gated breakout (S2R) made +43% over Muggli's five months but lost
+    about 57% in each of 2024 and 2025. His number fits a hot streak of a
+    breakout-style bot.
+  - The BTC 200-day filter nearly tied its yardstick in that holdout (+22.0%
+    against +23.0%).
+  - The simulation is `packages/futures/src/portfolio`.
 
 ## Open threads
 
@@ -102,9 +116,10 @@ file covers working rules and where things stand.
 - **Offered, no answer yet. Don't start without a yes:**
   - Auditing Muggli's trade history, if he shares it: real return after fees
     and deposits, drawdown, what carried it, and against holding the same coins.
-  - A new pre-registered experiment on F4 with real funding history, and/or
-    long-only with the BTC regime filter. It would run on data EXPERIMENT-008
-    has already seen, so it starts as weaker evidence.
+  - A new pre-registered experiment on F4 with real funding history. It would
+    run on data EXPERIMENT-008 has already seen, so it starts as weaker
+    evidence. EXPERIMENT-009 already tested long-only gated rotation (S1R),
+    which failed.
   - Adding the futures paper engine to `scripts/install-launchd.sh` after the
     regime soak ends.
   - A pre-registered experiment running the regime filter on SPY. Alpaca's
@@ -129,6 +144,10 @@ npx tsx src/backtest/run-backtest.ts --granularity ONE_DAY --strategy regime \
 # EXPERIMENT-008 (the data commands are in the doc's process notes)
 pnpm --filter @crypto-magic/futures validate-008
 pnpm --filter @crypto-magic/futures experiment-008 --window dev   # or holdout
+
+# EXPERIMENT-009 (data: scripts/fetch-binance-daily.mjs, fetch-coinbase-history.mjs)
+pnpm --filter @crypto-magic/futures inventory-009
+pnpm --filter @crypto-magic/futures experiment-009 --window dev   # or holdout
 
 # Futures paper engine (after pnpm build)
 pnpm futures:paper

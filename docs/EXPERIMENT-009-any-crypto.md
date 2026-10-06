@@ -351,3 +351,132 @@ Noted without adjusting anything:
 - The BTC 200-day filter, the strategy now in paper trading, also trailed its
   yardstick in this window. EXPERIMENT-001's development window was
   2015–2021.
+
+### Holdout, 2023-07-01 → 2026-10-01 (run once, nothing changed)
+
+Run once at 17:26:47Z, after the development results were on GitHub
+(`06e2874`, pushed 17:26:32Z).
+
+**Universe B**, base costs, with the stress and low-fee returns alongside:
+
+| Strategy               | Annualized | Total    | Max drawdown | Trades | Invested | Same-drawdown BTC | Beats it? | At 130 bps | At 15 bps |
+| ---------------------- | ---------- | -------- | ------------ | ------ | -------- | ----------------- | --------- | ---------- | --------- |
+| S1 momentum rotation   | −84.08%    | −99.75%  | −99.80%      | 394    | 100%     | 100% BTC: +35.82% | no        | −88.57%    | −79.42%   |
+| S1R gated rotation     | −67.61%    | −97.45%  | −97.98%      | 272    | 58%      | 100% BTC: +35.82% | no        | −74.15%    | −61.44%   |
+| S2 breakout            | −51.73%    | −90.66%  | −95.47%      | 567    | 73%      | 100% BTC: +35.82% | no        | −62.24%    | −42.96%   |
+| S2R gated breakout     | −31.36%    | −70.61%  | −85.99%      | 409    | 46%      | 100% BTC: +35.82% | no        | −41.23%    | −22.60%   |
+| S3 volume surge        | −27.63%    | −65.09%  | −84.45%      | 356    | 52%      | 100% BTC: +35.82% | no        | −36.89%    | −19.06%   |
+| S4 dip buying          | −27.24%    | −64.48%  | −72.80%      | 804    | 28%      | 100% BTC: +35.82% | no        | −47.34%    | −6.82%    |
+| _Hold BTC_             | +35.82%    | +170.88% | −52.97%      | 1      | 100%     |                   |           |            |           |
+| _Top 50, equal weight_ | −32.10%    | −71.64%  | −91.44%      | 475    | 100%     |                   |           |            |           |
+| _BTC 200-day filter_   | +22.04%    | +91.22%  | −35.22%      | 17     | 61%      | 60% BTC: +22.95%  | no        |            |           |
+
+**Universe C** (Coinbase), base costs:
+
+| Strategy               | Annualized | Total    | Max drawdown | Trades | Invested | Same-drawdown BTC | Beats it? |
+| ---------------------- | ---------- | -------- | ------------ | ------ | -------- | ----------------- | --------- |
+| S1 momentum rotation   | −80.23%    | −99.49%  | −99.73%      | 391    | 100%     | 100% BTC: +35.79% | no        |
+| S1R gated rotation     | −63.95%    | −96.39%  | −97.71%      | 278    | 58%      | 100% BTC: +35.79% | no        |
+| S2 breakout            | −42.20%    | −83.21%  | −94.88%      | 565    | 72%      | 100% BTC: +35.79% | no        |
+| S2R gated breakout     | −14.14%    | −39.13%  | −80.34%      | 408    | 46%      | 100% BTC: +35.79% | no        |
+| S3 volume surge        | −22.95%    | −57.21%  | −82.77%      | 382    | 54%      | 100% BTC: +35.79% | no        |
+| S4 dip buying          | −14.93%    | −40.91%  | −60.74%      | 738    | 26%      | 100% BTC: +35.79% | no        |
+| _Hold BTC_             | +35.79%    | +170.71% | −53.08%      | 1      | 100%     |                   |           |
+| _Top 50, equal weight_ | −17.99%    | −47.57%  | −88.76%      | 366    | 100%     |                   |           |
+| _BTC 200-day filter_   | +21.83%    | +90.14%  | −35.37%      | 17     | 61%      | 60% BTC: +23.00%  | no        |
+
+**Holdout halves, and Muggli's five months** (2026-05-06 → 2026-10-01, from
+the same runs), base costs, total return:
+
+| Strategy               | B: first half | B: second half | B: Muggli's 5 months | C: Muggli's 5 months |
+| ---------------------- | ------------- | -------------- | -------------------- | -------------------- |
+| S1 momentum rotation   | −70.58%       | −99.14%        | −85.55%              | −54.14%              |
+| S1R gated rotation     | −81.75%       | −86.04%        | −25.48%              | −6.12%               |
+| S2 breakout            | −49.89%       | −81.36%        | −10.44%              | −15.50%              |
+| S2R gated breakout     | −57.54%       | −30.78%        | **+43.09%**          | **+53.10%**          |
+| S3 volume surge        | −0.17%        | −65.03%        | −21.53%              | −15.86%              |
+| S4 dip buying          | −46.10%       | −34.09%        | −25.77%              | −20.58%              |
+| _Hold BTC_             | +217.90%      | −14.79%        | +2.69%               | +2.60%               |
+| _Top 50, equal weight_ | +7.46%        | −73.61%        | −4.03%               | +20.04%              |
+| _BTC 200-day filter_   | +121.46%      | −13.66%        | +19.05%              | +19.01%              |
+
+### Applying the decision rule
+
+| Criterion                     | S1       | S1R      | S2       | S2R                       | S3       | S4       |
+| ----------------------------- | -------- | -------- | -------- | ------------------------- | -------- | -------- |
+| 1. B development beats it     | **FAIL** | **FAIL** | **FAIL** | PASS +61.2% vs +47.8%     | **FAIL** | **FAIL** |
+| 2. B holdout beats it         | **FAIL** | **FAIL** | **FAIL** | **FAIL** −31.4% vs +35.8% | **FAIL** | **FAIL** |
+| 3. B holdout > 0 in each half | **FAIL** | **FAIL** | **FAIL** | **FAIL**                  | **FAIL** | **FAIL** |
+| 4. B holdout > 0 at 130 bps   | **FAIL** | **FAIL** | **FAIL** | **FAIL**                  | **FAIL** | **FAIL** |
+| 5. C holdout beats it         | **FAIL** | **FAIL** | **FAIL** | **FAIL**                  | **FAIL** | **FAIL** |
+| **Verdict**                   | **FAIL** | **FAIL** | **FAIL** | **FAIL**                  | **FAIL** | **FAIL** |
+
+## Verdict
+
+**All six fail.** No "trade any crypto" rule here beat holding Bitcoin. Over
+the holdout, every one of them lost money, on both venues and at every cost,
+including 15 bps. Nothing changes: the BTC 200-day filter stays the only
+tested rule.
+
+## What this means
+
+None of this changes the verdict.
+
+1. **2023–2026 punished breadth.** BTC made +171% in the holdout while the
+   top 50 coins, held equally, lost 72%. Every rule here spends most of its
+   time in altcoins, so each one was swimming against that.
+2. **These bots look brilliant in the right months, then give it back.** The
+   momentum rotation grew $10,000 to $34,181 by the end of 2021 (development),
+   then fell to $1,380 in 2022. In the holdout, its equity ended each year at
+   $7,361 (2023), $4,775 (2024), $406 (2025) and $25 (September 2026). Its
+   trades won 26% of the time, at −5.7% on average. It kept buying coins at
+   the top of their pumps.
+3. **Muggli's five months are exactly the kind of months that flatter one of
+   these.** Over 2026-05-06 → 2026-10-01, S2R, the gated breakout, made +43%
+   on Binance and +53% on Coinbase while BTC made +3%. The same rule lost 57%
+   in 2024 and 58% in 2025.
+   - A breakout-style bot on altcoins, concentrated or leveraged, turning +43%
+     into +200% over those five months is entirely consistent with these
+     results.
+   - So is a long run of losses before or after.
+   - Five strong months are not evidence of a rule that lasts. Seven years on
+     a universe that includes the coins that died are.
+4. **Where we perform best is still the slow, BTC-only rule.** Over the
+   holdout, the BTC 200-day filter made +22.0% a year at a −35% drawdown. It
+   missed its yardstick by 0.9 points a year: the 60% BTC holding with the
+   same drawdown made +23.0%. That is a near-tie, not a pass. It is also the
+   strategy in paper trading now. Nothing faster or broader came close.
+
+## Process notes
+
+- Each universe, window and cost case ran once. Nothing was re-run for a
+  different result. After each window, a separate verification pass rebuilt
+  S1's and S2R's runs (deterministic, identical numbers) to read their trades
+  and yearly equity. Those figures are the ones quoted above.
+- Data checks in the holdout: only two one-day moves beyond ×5 or ÷5 among
+  universe members, OM on 2025-04-13 (×0.16) and DEXE on 2026-07-21 (×0.18).
+  Both are real crashes, not data errors. Tickers relisted after a gap, and
+  token swaps, are handled by the delisting rule (listed under "Data" above).
+- The development note says C held "a dozen or so coins" in 2019–2020. The
+  inventory shows 13 coins with Coinbase history by the end of 2019, and 30
+  by the end of 2020.
+- Implementation choices the protocol left open:
+  - The first decision is made at the close of the day before each window, so
+    every rule can be invested from the first open. The window still starts
+    in cash.
+  - A coin's 28-day return needs a bar exactly 28 days earlier. A coin
+    without one is not ranked.
+  - S1's weekly resize trades every difference, however small, as the
+    protocol says.
+  - In S1R and S2R, BTC without 200 days of history counts as below the gate.
+    This never happens in either window.
+- Run time: about 7 seconds per window for all 36 runs.
+- Commands:
+
+```bash
+node scripts/fetch-binance-daily.mjs --through 2026-09            # B
+node scripts/fetch-coinbase-history.mjs --product <ID> --to 2026-10-01 > data/coinbase-daily/<ID>.csv   # each C product
+pnpm --filter @crypto-magic/futures inventory-009
+pnpm --filter @crypto-magic/futures experiment-009 --window dev
+pnpm --filter @crypto-magic/futures experiment-009 --window holdout
+```

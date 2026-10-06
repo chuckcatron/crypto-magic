@@ -66,6 +66,17 @@ before costs, so cheaper fills would not save them. See
 paper-only engine runs them forward as a test of the futures machinery:
 [`docs/FUTURES-PAPER.md`](docs/FUTURES-PAPER.md).
 
+**"Trade any crypto" bots fail too.** Six pre-registered long-only rules, the
+kinds of bot that could produce a friend's +200% in five months: momentum
+rotation, breakout trend following, volume-surge chasing and dip buying, two
+of them behind the BTC 200-day gate. They were tested on every Binance USDT
+pair, including the 191 that died or were delisted, so the test can't be
+fooled by survivors. None beat holding Bitcoin at the same drawdown. In
+2023–2026 all six lost money while BTC made +36% a year. They look brilliant
+in the right months (the gated breakout made +43% over the friend's five) and
+give it back. See
+[`docs/EXPERIMENT-009-any-crypto.md`](docs/EXPERIMENT-009-any-crypto.md).
+
 ## Before you risk real money
 
 ```bash
@@ -350,7 +361,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 502 tests
+pnpm test        # 517 tests
 pnpm typecheck
 ```
 
