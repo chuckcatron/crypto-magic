@@ -30,17 +30,20 @@ file covers working rules and where things stand.
 
 ## Where things stand
 
-- **The bot** is paper-trading on the owner's Mac under launchd, using live
-  Coinbase public prices. Settings:
+- **The bot** is paper-trading on the owner's MacBook Pro under launchd, using
+  live Coinbase public prices. Settings:
   - `STRATEGY=regime`, `GRANULARITY=ONE_DAY`
   - BTC-USD only, `REGIME_ALLOCATION_PCT=99`
   - A 10-ATR disaster stop
-- **Machines.** The soak does not run on the Mac Studio. On 2026-10-06,
-  `scripts/doctor.sh` in the Mac Studio's `~/crypto-magic` showed no `.env`, no
-  build, no launchd service and nothing on port 4000. It is probably still on
-  the MacBook Pro that `docs/SETUP-AND-MIGRATION.md` started on (unconfirmed).
-  The Mac Studio has Node 24.21.0 and is where the futures paper engine is
-  being set up.
+- **Machines.** The soak runs on the MacBook Pro. `node scripts/cm.mjs` there
+  on 2026-10-06 showed:
+  - the loop live and the dead-man pinging;
+  - one position, 0.01184166 BTC bought 9 days earlier at $83,603.04;
+  - equity $1,015.97 from $1,000.
+
+  The Mac Studio's `~/crypto-magic` has no regime bot. The doctor there showed
+  no `.env`, no build, no launchd service and nothing on port 4000. It has Node
+  24.21.0 and is where the futures paper engine is being set up.
 - **better-sqlite3 11.10.0**, used by both engines, ships ready-made Mac
   binaries for Node 20, 22 and 23 only. On Node 24 and 25 it compiles from
   source in 1–3 minutes, and pnpm's default reporter shows nothing meanwhile
