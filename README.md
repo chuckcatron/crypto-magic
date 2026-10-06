@@ -15,7 +15,7 @@ packages/notify      alert policy + ntfy / Discord / Telegram channels
 packages/insight     LLM port + Ollama, news port + CryptoPanic, review prompts
 packages/futures     long/short futures simulation: strategies, risk rules, backtester
 apps/engine          NestJS engine: the loop, persistence, dashboard API
-apps/futures-engine  NestJS paper-only engine for the futures strategies
+apps/futures-engine  NestJS paper-only engine for the futures strategies, with its own dashboard
 apps/web             Next.js dashboard
 ```
 
@@ -361,7 +361,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 519 tests
+pnpm test        # 527 tests
 pnpm typecheck
 ```
 

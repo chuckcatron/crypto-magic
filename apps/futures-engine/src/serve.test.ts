@@ -77,6 +77,49 @@ describe('serveThenTrade', () => {
         .recentEvents(10)
         .map((e) => e.kind),
     ).toContain('engine_started');
+    const equity = (await (await fetch(`http://127.0.0.1:${port}/api/equity`)).json()) as {
+      paperEquity: number;
+      strategies: { strategy: string; accounts: number }[];
+    };
+    expect(equity.paperEquity).toBe(10_000);
+    expect(equity.strategies.map((s) => [s.strategy, s.accounts])).toEqual([
+      ['F1', 3],
+      ['F2', 3],
+      ['F3', 3],
+      ['F4', 1],
+    ]);
+  });
+
+  it('serves the dashboard under a strict content policy, and nothing else', async () => {
+    const port = await freePort();
+    await serveThenTrade(await engine(port));
+    const base = `http://127.0.0.1:${port}`;
+
+    const page = await fetch(`${base}/`);
+    expect(page.status).toBe(200);
+    expect(page.headers.get('content-type')).toContain('text/html');
+    expect(page.headers.get('x-content-type-options')).toBe('nosniff');
+    const policy = page.headers.get('content-security-policy') ?? '';
+    expect(policy).toContain("default-src 'none'");
+    expect(policy).toContain("script-src 'self'");
+    expect(policy).not.toContain('unsafe-inline');
+    const html = await page.text();
+    expect(html).toContain('<script src="dashboard.js" defer></script>');
+    // Nothing inline for the policy to block.
+    expect(html).not.toMatch(/<script>|<style|\sstyle=|\son[a-z]+=/i);
+
+    for (const [file, type] of [
+      ['dashboard.js', 'text/javascript'],
+      ['dashboard.css', 'text/css'],
+    ] as const) {
+      const response = await fetch(`${base}/${file}`);
+      expect(response.status).toBe(200);
+      expect(response.headers.get('content-type')).toContain(type);
+    }
+    expect((await fetch(`${base}/package.json`)).status).toBe(404);
+    expect((await fetch(`${base}/../package.json`)).status).toBe(404);
+    // The same guard as the API: reads only.
+    expect((await fetch(`${base}/`, { method: 'POST' })).status).toBe(405);
   });
 
   it('stops a second engine on the same port before it touches the database or alerts', async () => {

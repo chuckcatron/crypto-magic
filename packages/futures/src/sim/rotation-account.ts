@@ -149,6 +149,11 @@ export class RotationAccount {
     return [...this.holdings.values()];
   }
 
+  /** The last daily close seen for a coin: the price its holding is marked at. */
+  priceOf(productId: string): number | undefined {
+    return this.lastClose.get(productId);
+  }
+
   /** Feed one UTC day: every coin's daily bar that opened at `day` (00:00 UTC). */
   onDay(day: number, bars: ReadonlyMap<string, Bar>): void {
     if (day % DAY !== 0) throw new Error(`a day must start at 00:00 UTC, got ${day}`);

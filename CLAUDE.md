@@ -109,6 +109,13 @@ file covers working rules and where things stand.
     makes it a launchd agent, separate from the regime services. The engine
     claims its API port before trading, so a second copy exits before touching
     the database. See `docs/FUTURES-PAPER.md`.
+  - Its dashboard is at <http://127.0.0.1:4100>. The owner asked for it to be
+    "super user friendly". The engine serves it from
+    `apps/futures-engine/public` (plain HTML, CSS and JS, no build step) under
+    a CSP that allows no inline code. It is read-only, like the API.
+  - Visual QA was done in the sandbox with Playwright's Chromium, against a
+    fixture server and against the real engine. The chart colors are
+    dataviz-validated categorical slots 1–4.
 - **Muggli.** The owner's friend Tom ("Muggli") reports +200% in 5 months, live
   since about May 2026, with a bot that trades any crypto. He started from a
   backtest and trades bitcoin he mined. Asked for, but not received: his trade
@@ -182,6 +189,7 @@ pnpm --filter @crypto-magic/futures experiment-009 --window dev   # or holdout
 # Futures paper engine (after pnpm build)
 pnpm futures:paper
 curl -s http://127.0.0.1:4100/api/status
+open http://127.0.0.1:4100              # the dashboard (macOS)
 ./scripts/install-launchd-futures.sh   # macOS: as a launchd agent; --uninstall removes it
 ```
 

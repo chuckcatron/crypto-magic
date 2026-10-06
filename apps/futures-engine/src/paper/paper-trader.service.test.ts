@@ -178,6 +178,9 @@ describe('PaperTraderService', () => {
     expect(position.direction).toBe('LONG');
     expect(position.entryPrice).toBeCloseTo(p * 0.98);
     expect(alerter.sent.some((a) => a.kind === 'opened')).toBe(true);
+    // Marked at the close: 0.1% of p above the fill.
+    expect(btc(trader).markPrice).toBeCloseTo(p * 0.981);
+    expect(btc(trader).openPnl).toBeCloseTo(position.size * p * 0.001);
 
     // The target is half the 2% move back: entry + 1% of p.
     await step(trader, [p * 0.995]);
@@ -186,7 +189,28 @@ describe('PaperTraderService', () => {
     expect(trade!.exit_reason).toBe('target');
     expect(trade!.exit_price).toBeCloseTo(p * 0.99);
     expect(btc(trader).position).toBeNull();
+    expect(btc(trader).openPnl).toBeNull();
     expect(btc(trader).equity).toBeGreaterThan(10_000);
+    expect(btc(trader)).toMatchObject({ trades: 1, wins: 1, netPnl: trade!.net_pnl });
+  });
+
+  it('reports each strategy’s P&L from the start to now', async () => {
+    const trader = service();
+    await trader.start();
+    const p = candles.lastClose('BTC-USD');
+    await step(trader, [p * 0.998, p * 0.996, p * 0.98], 200);
+    await step(trader, [p * 0.981]);
+    await step(trader, [p * 0.995]);
+
+    const history = trader.pnlHistory();
+    expect(history.paperEquity).toBe(10_000);
+    expect(history.strategies.map((s) => [s.strategy, s.accounts])).toEqual([['F1', 3]]);
+    const points = history.strategies[0]!.points;
+    expect(points[0]).toEqual({ t: trader.status().startedAt, pnl: 0 });
+    const total = trader.status().accounts.reduce((sum, a) => sum + a.equity, 0);
+    expect(points.at(-1)!.t).toBe(new Date(now * 1000).toISOString());
+    expect(points.at(-1)!.pnl).toBeCloseTo(total - 30_000, 9);
+    expect(points.at(-1)!.pnl).toBeGreaterThan(0);
   });
 
   it('resumes after a restart from its saved state, without duplicating trades', async () => {
@@ -297,6 +321,15 @@ describe('PaperTraderService', () => {
       expect(rotation.longs).toEqual(['BTC-USD', 'ETH-USD']);
       expect(rotation.shorts).toEqual(['DOGE-USD', 'LINK-USD']);
       expect(rotation.positions).toHaveLength(4);
+      // Each holding is marked at its coin's latest daily close.
+      const btcBar = candles.daily.get('BTC-USD')!.find((b) => b.t === START + 7 * DAY)!;
+      const btcHolding = rotation.positions.find((h) => h.productId === 'BTC-USD')!;
+      expect(btcHolding.markPrice).toBe(btcBar.c);
+      expect(btcHolding.openPnl).toBeCloseTo(
+        btcHolding.size * (btcBar.c - btcHolding.averageEntry),
+        9,
+      );
+      expect(rotation).toMatchObject({ trades: 0, wins: 0, netPnl: 0 });
 
       const restarted = service('F4');
       await restarted.start();

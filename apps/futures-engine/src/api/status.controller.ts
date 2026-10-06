@@ -20,6 +20,11 @@ export class StatusController {
     return this.trader.status();
   }
 
+  @Get('equity')
+  equity() {
+    return this.trader.pnlHistory();
+  }
+
   @Get('trades')
   trades(@Query('limit') limit?: string) {
     return this.store.recentTrades(limitOf(limit, 50));

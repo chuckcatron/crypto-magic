@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { StatusController } from './api/status.controller';
+import { DashboardController } from './dashboard/dashboard.controller';
 import { FUTURES_CONFIG, loadConfig, type FuturesConfig } from './config/config';
 import { CANDLE_SOURCE, CoinbaseCandleSource } from './market/candle-source';
 import { ALERTER, NotifyAlerter } from './paper/alerts';
@@ -7,7 +8,7 @@ import { CLOCK, PaperTraderService } from './paper/paper-trader.service';
 import { PaperStore } from './paper/store';
 
 @Module({
-  controllers: [StatusController],
+  controllers: [StatusController, DashboardController],
   providers: [
     { provide: FUTURES_CONFIG, useFactory: () => loadConfig() },
     {

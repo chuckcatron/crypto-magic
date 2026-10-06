@@ -51,6 +51,22 @@ describe('IntradayAccount', () => {
     expect(position.size).toBe(25);
   });
 
+  it('reports the mark price and the open position P&L at the last close', () => {
+    const { account, feed } = setup(
+      new Map([[at(0), signal({ stopDistance: 2, targetDistance: 4 })]]),
+    );
+    expect(account.markPrice).toBeNull();
+    feed([bar(at(0), 100, 100)]);
+    expect(account.markPrice).toBe(100);
+    expect(account.openPnl).toBe(0);
+
+    // Fills 25 at 101, marks at 102.
+    feed([bar(at(1), 101, 102)]);
+    expect(account.markPrice).toBe(102);
+    expect(account.openPnl).toBeCloseTo(25);
+    expect(account.equity).toBeCloseTo(10_025);
+  });
+
   it('caps the position at 1× equity when the stop is tight', () => {
     const { account, feed } = setup(new Map([[at(0), signal({ stopDistance: 0.1 })]]));
     feed([bar(at(0), 100, 100), bar(at(1), 100, 100)]);

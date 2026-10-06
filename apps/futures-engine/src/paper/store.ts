@@ -149,12 +149,25 @@ export class PaperStore {
       .all(limit) as StoredEvent[];
   }
 
-  tradeCounts(): Record<string, number> {
+  /** Closed trades, winners and net P&L, per sub-account that has any. */
+  tradeStats(): Record<string, TradeStats> {
     const rows = this.db
-      .prepare('SELECT account_id, COUNT(*) AS n FROM trades GROUP BY account_id')
-      .all() as { account_id: string; n: number }[];
-    return Object.fromEntries(rows.map((r) => [r.account_id, r.n]));
+      .prepare(
+        `SELECT account_id, COUNT(*) AS trades, SUM(net_pnl > 0) AS wins, SUM(net_pnl) AS net_pnl
+         FROM trades GROUP BY account_id`,
+      )
+      .all() as { account_id: string; trades: number; wins: number; net_pnl: number }[];
+    return Object.fromEntries(
+      rows.map((r) => [r.account_id, { trades: r.trades, wins: r.wins, netPnl: r.net_pnl }]),
+    );
   }
+}
+
+export interface TradeStats {
+  readonly trades: number;
+  readonly wins: number;
+  /** Sum of the closed trades' net P&L, after fees and funding. */
+  readonly netPnl: number;
 }
 
 export interface StoredTrade {

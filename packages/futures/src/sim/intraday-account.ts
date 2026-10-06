@@ -120,6 +120,16 @@ export class IntradayAccount {
     return this.position;
   }
 
+  /** The close the account was last marked at; null until it has seen a bar since starting. */
+  get markPrice(): number | null {
+    return this.lastClose;
+  }
+
+  /** The open position's price P&L at the last mark, before exit costs; 0 when flat. */
+  get openPnl(): number {
+    return this.lastMark - this.cash;
+  }
+
   get pendingEntry(): EntrySignal | null {
     return this.pending;
   }

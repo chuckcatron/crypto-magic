@@ -1,0 +1,954 @@
+/*
+ * Futures paper dashboard. Colors follow the dataviz reference palette:
+ * strategy lines use categorical slots 1-4 (validated for light and dark,
+ * adjacent pairs), P&L text uses the up/down text tokens (>= 4.5:1), and
+ * status always pairs a colored icon with a text label.
+ */
+
+:root {
+  color-scheme: light;
+  --page: #f9f9f7;
+  --surface: #fcfcfb;
+  --raised: #ffffff;
+  --ink: #0b0b0b;
+  --ink-2: #52514e;
+  --muted: #898781;
+  --grid: #e1e0d9;
+  --axis: #c3c2b7;
+  --border: rgba(11, 11, 11, 0.1);
+  --wash: rgba(11, 11, 11, 0.04);
+  --up: #006300;
+  --down: #d03b3b;
+  --s1: #2a78d6;
+  --s2: #eb6834;
+  --s3: #1baf7a;
+  --s4: #eda100;
+  --good: #0ca30c;
+  --warning: #fab219;
+  --serious: #ec835a;
+  --critical: #d03b3b;
+  --info: #898781;
+  --focus: #2a78d6;
+  --shadow: 0 1px 2px rgba(11, 11, 11, 0.05), 0 8px 24px rgba(11, 11, 11, 0.04);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    color-scheme: dark;
+    --page: #0d0d0d;
+    --surface: #1a1a19;
+    --raised: #232322;
+    --ink: #ffffff;
+    --ink-2: #c3c2b7;
+    --muted: #898781;
+    --grid: #2c2c2a;
+    --axis: #383835;
+    --border: rgba(255, 255, 255, 0.1);
+    --wash: rgba(255, 255, 255, 0.05);
+    --up: #0ca30c;
+    --down: #e66767;
+    --s1: #3987e5;
+    --s2: #d95926;
+    --s3: #199e70;
+    --s4: #c98500;
+    --focus: #3987e5;
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+  }
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --page: #0d0d0d;
+  --surface: #1a1a19;
+  --raised: #232322;
+  --ink: #ffffff;
+  --ink-2: #c3c2b7;
+  --muted: #898781;
+  --grid: #2c2c2a;
+  --axis: #383835;
+  --border: rgba(255, 255, 255, 0.1);
+  --wash: rgba(255, 255, 255, 0.05);
+  --up: #0ca30c;
+  --down: #e66767;
+  --s1: #3987e5;
+  --s2: #d95926;
+  --s3: #199e70;
+  --s4: #c98500;
+  --focus: #3987e5;
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.4);
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  margin: 0;
+  background: var(--page);
+  color: var(--ink);
+  font-family:
+    system-ui,
+    -apple-system,
+    'Segoe UI',
+    sans-serif;
+  font-size: 15px;
+  line-height: 1.5;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+h2 {
+  font-size: 17px;
+  font-weight: 600;
+}
+
+h3 {
+  font-size: 16px;
+  font-weight: 600;
+}
+
+code {
+  font-family: ui-monospace, 'SF Mono', Menlo, monospace;
+  font-size: 0.92em;
+  background: var(--wash);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+:focus-visible {
+  outline: 2px solid var(--focus);
+  outline-offset: 2px;
+}
+
+.skip-link {
+  position: absolute;
+  left: 16px;
+  top: -48px;
+  background: var(--raised);
+  color: var(--ink);
+  padding: 8px 12px;
+  border-radius: 8px;
+  z-index: 10;
+}
+
+.skip-link:focus {
+  top: 12px;
+}
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+/* ---- Top bar ------------------------------------------------------------- */
+
+.topbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px 24px;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 20px 16px 8px;
+}
+
+.brand {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.brand h1 {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+.paper-badge {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--ink-2);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 2px 10px;
+}
+
+.topbar-right {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.engine-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: 14px;
+}
+
+.status-label {
+  font-weight: 600;
+}
+
+.status-detail {
+  color: var(--ink-2);
+}
+
+.theme-toggle,
+.text-button {
+  font: inherit;
+  font-size: 14px;
+  color: var(--ink);
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+
+.theme-toggle:hover,
+.text-button:hover {
+  background: var(--wash);
+}
+
+/* Status icons: a shape per level, so it never rests on color alone. */
+.status-icon,
+.level-icon {
+  display: inline-block;
+  flex: none;
+  width: 10px;
+  height: 10px;
+}
+
+[data-level='good'] > .status-icon,
+.level-icon[data-level='good'] {
+  background: var(--good);
+  border-radius: 50%;
+}
+
+[data-level='info'] > .status-icon,
+.level-icon[data-level='info'] {
+  border: 2px solid var(--info);
+  border-radius: 50%;
+}
+
+[data-level='warning'] > .status-icon,
+.level-icon[data-level='warning'] {
+  width: 12px;
+  background: var(--warning);
+  clip-path: polygon(50% 0, 100% 100%, 0 100%);
+}
+
+[data-level='critical'] > .status-icon,
+.level-icon[data-level='critical'] {
+  background: var(--critical);
+  border-radius: 2px;
+}
+
+/* In a trade: a filled ink dot. Not a status color: holding a position is neither good nor bad. */
+.level-icon[data-level='active'] {
+  background: var(--ink-2);
+  border-radius: 50%;
+}
+
+/* ---- Banners -------------------------------------------------------------- */
+
+.banners {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 16px;
+}
+
+.banner {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+  margin-top: 12px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 10px;
+  padding: 12px 16px;
+}
+
+.banner[data-level='critical'] {
+  border-left-color: var(--critical);
+}
+
+.banner[data-level='warning'] {
+  border-left-color: var(--warning);
+}
+
+.banner .level-icon {
+  margin-top: 6px;
+}
+
+.banner-title {
+  font-weight: 600;
+}
+
+.banner-text {
+  color: var(--ink-2);
+}
+
+/* ---- Page and cards ------------------------------------------------------- */
+
+.page {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 12px 16px 32px;
+  display: grid;
+  gap: 16px;
+}
+
+body.is-loading .page {
+  opacity: 0.6;
+}
+
+body.is-offline .page {
+  opacity: 0.75;
+}
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  box-shadow: var(--shadow);
+  padding: 20px;
+  min-width: 0;
+}
+
+.card-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.card-sub {
+  color: var(--ink-2);
+  font-size: 14px;
+  margin-top: 2px;
+}
+
+.section-title {
+  margin: 8px 0 12px;
+}
+
+.muted {
+  color: var(--ink-2);
+}
+
+.empty {
+  color: var(--ink-2);
+  padding: 8px 0;
+}
+
+/* ---- Hero ------------------------------------------------------------------ */
+
+.hero {
+  padding: 24px;
+}
+
+.hero-label {
+  color: var(--ink-2);
+  font-weight: 600;
+}
+
+.hero-value {
+  font-size: clamp(42px, 7vw, 60px);
+  font-weight: 650;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  margin: 6px 0 4px;
+}
+
+.hero-sub {
+  color: var(--ink-2);
+}
+
+.hero-value .pnl .arrow {
+  font-size: 0.42em;
+  vertical-align: 0.42em;
+}
+
+.hero-summary {
+  margin-top: 12px;
+  max-width: 70ch;
+}
+
+/* ---- Stat tiles ------------------------------------------------------------ */
+
+.kpis {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.tile {
+  padding: 16px 18px;
+}
+
+.tile-label {
+  color: var(--ink-2);
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.tile-value {
+  font-size: 28px;
+  font-weight: 650;
+  letter-spacing: -0.01em;
+  margin: 4px 0 2px;
+}
+
+.tile-sub {
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+/* ---- P&L text: sign, arrow and color together ------------------------------ */
+
+.pnl {
+  white-space: nowrap;
+  font-weight: 600;
+}
+
+.pnl.up {
+  color: var(--up);
+}
+
+.pnl.down {
+  color: var(--down);
+}
+
+.pnl.flat {
+  color: var(--ink-2);
+}
+
+.pnl .arrow {
+  font-size: 0.72em;
+  margin-right: 0.3em;
+  vertical-align: 0.12em;
+}
+
+/* ---- Series identity -------------------------------------------------------- */
+
+.series-1 {
+  --series: var(--s1);
+}
+
+.series-2 {
+  --series: var(--s2);
+}
+
+.series-3 {
+  --series: var(--s3);
+}
+
+.series-4 {
+  --series: var(--s4);
+}
+
+/* A short stroke of the series color: the key for lines, never a filled box. */
+.key {
+  display: inline-block;
+  flex: none;
+  width: 16px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--series);
+  vertical-align: middle;
+}
+
+/* ---- Chart ------------------------------------------------------------------ */
+
+.legend {
+  list-style: none;
+  margin: 0 0 8px;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  font-size: 14px;
+}
+
+.legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.legend .legend-value {
+  color: var(--ink-2);
+}
+
+.chart {
+  position: relative;
+  min-height: 300px;
+  border-radius: 8px;
+}
+
+.chart.chart-empty {
+  min-height: 0;
+}
+
+.chart svg {
+  display: block;
+  width: 100%;
+  height: 300px;
+  overflow: visible;
+}
+
+.chart .grid {
+  stroke: var(--grid);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart .zero {
+  stroke: var(--axis);
+  stroke-width: 1;
+  shape-rendering: crispEdges;
+}
+
+.chart .tick {
+  fill: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.chart .end-label {
+  fill: var(--ink-2);
+  font-size: 12px;
+}
+
+.chart .line {
+  fill: none;
+  stroke: var(--series);
+  stroke-width: 2;
+  stroke-linejoin: round;
+  stroke-linecap: round;
+}
+
+.chart .dot {
+  fill: var(--series);
+  stroke: var(--surface);
+  stroke-width: 2;
+}
+
+.chart .crosshair {
+  stroke: var(--ink-2);
+  stroke-width: 1;
+  opacity: 0.5;
+  shape-rendering: crispEdges;
+}
+
+.chart .hit {
+  fill: transparent;
+  cursor: crosshair;
+}
+
+.tooltip {
+  position: absolute;
+  top: 8px;
+  z-index: 2;
+  min-width: 190px;
+  background: var(--raised);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  box-shadow: var(--shadow);
+  padding: 10px 12px;
+  pointer-events: none;
+  font-size: 13px;
+}
+
+.tooltip-time {
+  color: var(--ink-2);
+  margin-bottom: 6px;
+}
+
+.tooltip-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 2px 0;
+}
+
+.tooltip-row strong {
+  font-variant-numeric: tabular-nums;
+  min-width: 84px;
+}
+
+.tooltip-row span:last-child {
+  color: var(--ink-2);
+}
+
+.chart-table {
+  margin-top: 12px;
+}
+
+/* ---- Strategy cards ----------------------------------------------------------- */
+
+.strategy-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.strategy {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.strategy-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.strategy-head .key {
+  width: 22px;
+  height: 4px;
+}
+
+.code {
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--ink-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0 6px;
+}
+
+.strategy-blurb {
+  color: var(--ink-2);
+}
+
+.strategy-pnl {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+}
+
+.strategy-pnl .pnl {
+  font-size: 24px;
+}
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  margin: 0;
+}
+
+.facts div {
+  background: var(--wash);
+  border-radius: 8px;
+  padding: 8px 10px;
+}
+
+.facts dt {
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.facts dd {
+  margin: 0;
+  font-weight: 600;
+}
+
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border-top: 1px solid var(--grid);
+}
+
+.rows li {
+  display: grid;
+  grid-template-columns: 56px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--grid);
+}
+
+.coin {
+  font-weight: 650;
+}
+
+/* Wraps rather than truncates: a phone has no hover to show the rest. */
+.state {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 8px;
+  color: var(--ink-2);
+  min-width: 0;
+}
+
+.state .level-icon {
+  align-self: center;
+}
+
+.note {
+  font-size: 14px;
+  color: var(--ink-2);
+}
+
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-items: center;
+}
+
+.chips .chips-label {
+  font-size: 13px;
+  color: var(--ink-2);
+  margin-right: 2px;
+  min-width: 44px;
+}
+
+.chip {
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  padding: 1px 9px;
+}
+
+/* ---- Tables ------------------------------------------------------------------- */
+
+.table-scroll {
+  overflow-x: auto;
+  margin: 0 -4px;
+  padding: 0 4px;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+th {
+  text-align: left;
+  font-weight: 600;
+  color: var(--ink-2);
+  font-size: 13px;
+  padding: 8px 10px;
+  border-bottom: 1px solid var(--axis);
+  white-space: nowrap;
+}
+
+td {
+  padding: 10px;
+  border-bottom: 1px solid var(--grid);
+  vertical-align: top;
+}
+
+td.num,
+th.num {
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+tbody th {
+  color: var(--ink);
+  font-size: 14px;
+  border-bottom-color: var(--grid);
+}
+
+td .sub {
+  display: block;
+  color: var(--ink-2);
+  font-size: 12px;
+}
+
+.holdings {
+  margin-top: 8px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+.holdings + .table-scroll,
+.table-scroll + .holdings {
+  margin-top: 16px;
+}
+
+.holdings > summary {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 4px 16px;
+  padding: 12px 14px;
+  cursor: pointer;
+}
+
+.holdings > summary:hover {
+  background: var(--wash);
+}
+
+.holdings-title {
+  font-weight: 600;
+}
+
+.holdings-meta {
+  color: var(--ink-2);
+  font-size: 14px;
+}
+
+.holdings[open] > summary {
+  border-bottom: 1px solid var(--grid);
+}
+
+.holdings .table-scroll {
+  margin: 0;
+  padding: 0 10px 6px;
+}
+
+.side {
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+tbody tr:hover {
+  background: var(--wash);
+}
+
+/* ---- Activity and help ---------------------------------------------------------- */
+
+.columns {
+  display: grid;
+  grid-template-columns: minmax(0, 3fr) minmax(0, 2fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.activity {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.activity li {
+  display: grid;
+  grid-template-columns: 14px minmax(0, 1fr);
+  gap: 10px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--grid);
+}
+
+.activity li:last-child {
+  border-bottom: 0;
+}
+
+.activity .level-icon {
+  margin-top: 7px;
+}
+
+.activity-title {
+  font-weight: 600;
+}
+
+.activity-detail {
+  color: var(--ink-2);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.help details {
+  border-bottom: 1px solid var(--grid);
+  padding: 10px 0;
+}
+
+.help details:last-of-type {
+  border-bottom: 0;
+}
+
+.help summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.help details p {
+  margin-top: 6px;
+  color: var(--ink-2);
+}
+
+.footer {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 16px 32px;
+  color: var(--ink-2);
+  font-size: 13px;
+}
+
+/* ---- Small screens ---------------------------------------------------------------- */
+
+@media (max-width: 900px) {
+  .kpis {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .strategy-grid,
+  .columns {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .card {
+    padding: 16px;
+  }
+
+  .kpis {
+    gap: 10px;
+  }
+
+  .tile {
+    padding: 12px 14px;
+  }
+
+  .tile-value {
+    font-size: 24px;
+  }
+
+  .facts {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .card-head {
+    flex-direction: column;
+  }
+}

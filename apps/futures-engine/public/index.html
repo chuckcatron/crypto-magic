@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <title>Futures paper trading</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232a78d6'/%3E%3Cpath d='M6 21l6-6 5 4 9-10' fill='none' stroke='white' stroke-width='3' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E"
+    />
+    <link rel="stylesheet" href="dashboard.css" />
+    <script src="dashboard.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to the numbers</a>
+
+    <header class="topbar">
+      <div class="brand">
+        <h1>Futures paper trading</h1>
+        <span class="paper-badge">Paper money · no real trades</span>
+      </div>
+      <div class="topbar-right">
+        <p class="engine-status" id="engine-status" data-level="info">
+          <span class="status-icon" aria-hidden="true"></span>
+          <span class="status-label" id="status-label" role="status">Connecting</span>
+          <span class="status-detail" id="status-detail"></span>
+        </p>
+        <button type="button" class="theme-toggle" id="theme-toggle">Theme: auto</button>
+      </div>
+    </header>
+
+    <div class="banners" id="banners" aria-live="polite"></div>
+
+    <main id="main" class="page">
+      <section class="card hero" aria-labelledby="hero-label">
+        <p class="hero-label" id="hero-label">Total paper profit and loss</p>
+        <p class="hero-value" id="hero-value">—</p>
+        <p class="hero-sub" id="hero-sub">Waiting for the engine…</p>
+        <p class="hero-summary" id="hero-summary"></p>
+      </section>
+
+      <section class="kpis" aria-label="Key numbers">
+        <div class="card tile">
+          <p class="tile-label">Paper balance</p>
+          <p class="tile-value" id="kpi-balance">—</p>
+          <p class="tile-sub" id="kpi-balance-sub"></p>
+        </div>
+        <div class="card tile">
+          <p class="tile-label">Trades closed</p>
+          <p class="tile-value" id="kpi-trades">—</p>
+          <p class="tile-sub" id="kpi-trades-sub"></p>
+        </div>
+        <div class="card tile">
+          <p class="tile-label">Win rate</p>
+          <p class="tile-value" id="kpi-winrate">—</p>
+          <p class="tile-sub" id="kpi-winrate-sub"></p>
+        </div>
+        <div class="card tile">
+          <p class="tile-label">Open positions</p>
+          <p class="tile-value" id="kpi-open">—</p>
+          <p class="tile-sub" id="kpi-open-sub"></p>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="chart-title">
+        <div class="card-head">
+          <div>
+            <h2 id="chart-title">Profit and loss by strategy</h2>
+            <p class="card-sub">
+              Paper dollars since the start, at each day's close (00:00 UTC) and now.
+            </p>
+          </div>
+          <button
+            type="button"
+            class="text-button"
+            id="chart-table-toggle"
+            aria-controls="chart-table"
+            aria-expanded="false"
+          >
+            Show as a table
+          </button>
+        </div>
+        <ul class="legend" id="chart-legend" aria-label="Strategies in the chart"></ul>
+        <div
+          class="chart"
+          id="chart"
+          tabindex="0"
+          role="img"
+          aria-label="Profit and loss by strategy"
+        ></div>
+        <div class="chart-table" id="chart-table" hidden></div>
+      </section>
+
+      <section aria-labelledby="strategies-title">
+        <h2 class="section-title" id="strategies-title">The four strategies</h2>
+        <div class="strategy-grid" id="strategies"></div>
+      </section>
+
+      <section class="card" aria-labelledby="positions-title">
+        <div class="card-head">
+          <div>
+            <h2 id="positions-title">Open positions</h2>
+            <p class="card-sub">Paper trades in progress. “Now” is the latest closing price.</p>
+          </div>
+        </div>
+        <div id="positions"></div>
+      </section>
+
+      <section class="card" aria-labelledby="trades-title">
+        <div class="card-head">
+          <div>
+            <h2 id="trades-title">Recent trades</h2>
+            <p class="card-sub">The latest closed paper trades, newest first, after costs.</p>
+          </div>
+        </div>
+        <div id="trades"></div>
+      </section>
+
+      <div class="columns">
+        <section class="card" aria-labelledby="activity-title">
+          <div class="card-head">
+            <div>
+              <h2 id="activity-title">Activity</h2>
+              <p class="card-sub">What the engine has been doing, newest first.</p>
+            </div>
+          </div>
+          <ol class="activity" id="activity"></ol>
+        </section>
+
+        <section class="card help" aria-labelledby="help-title">
+          <div class="card-head">
+            <div>
+              <h2 id="help-title">How to read this page</h2>
+              <p class="card-sub">Short answers to the usual questions.</p>
+            </div>
+          </div>
+          <details>
+            <summary>Is any of this real money?</summary>
+            <p>
+              No. This engine trades paper money only. It has no exchange account, no API key and no
+              way to place an order. Each strategy-and-coin pair starts with its own pretend
+              balance.
+            </p>
+          </details>
+          <details>
+            <summary>Why run strategies that failed testing?</summary>
+            <p>
+              All four lost money in the backtest (EXPERIMENT-008). Running them on live prices
+              checks that the machinery works end to end, and that live results look like the
+              test’s. Good paper results can’t make a failed strategy live: only a new
+              pre-registered experiment can.
+            </p>
+          </details>
+          <details>
+            <summary>What do long and short mean?</summary>
+            <p>
+              <strong>Long</strong> bets that the price goes up. <strong>Short</strong> bets that it
+              goes down: with futures, a fall can be a profit.
+            </p>
+          </details>
+          <details>
+            <summary>What are the stop and the target?</summary>
+            <p>
+              Every trade starts with two exits already set: a <strong>stop-loss</strong> that caps
+              the loss, and a <strong>profit target</strong>. Whichever the price reaches first
+              closes the trade. Each strategy also has a time limit.
+            </p>
+          </details>
+          <details>
+            <summary>How much can one trade lose?</summary>
+            <p>
+              About 0.5% of its sub-account if the stop is hit, plus costs. A sub-account that loses
+              2% in one day stops opening trades until 00:00 UTC.
+            </p>
+          </details>
+          <details>
+            <summary>When does weekly momentum trade?</summary>
+            <p>
+              Once a week, at Monday 00:00 UTC, when it re-ranks the 23 coins. Between Mondays it
+              only closes a coin that falls 20% against it.
+            </p>
+          </details>
+          <details>
+            <summary>How do I pause new trades?</summary>
+            <p>
+              In the crypto-magic folder, create the kill-switch file with
+              <code>touch data/FUTURES_KILL_SWITCH</code>. Open positions still close normally.
+              Delete the file to resume.
+            </p>
+          </details>
+        </section>
+      </div>
+    </main>
+
+    <footer class="footer">
+      <p>
+        A read-only page from the futures paper engine on this Mac. It refreshes every 15 seconds
+        and cannot change anything. <span id="footer-refreshed"></span>
+      </p>
+    </footer>
+  </body>
+</html>

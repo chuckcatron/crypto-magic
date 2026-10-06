@@ -11,6 +11,7 @@ import {
   MarketSeries,
   ROTATION_UNIVERSE,
   RotationAccount,
+  sign,
   utcDay,
   type AccountListener,
   type Bar,
@@ -24,7 +25,8 @@ import { childLogger } from '../common/logger';
 import { FUTURES_CONFIG, type FuturesConfig } from '../config/config';
 import { CANDLE_SOURCE, type CandleSource } from '../market/candle-source';
 import { ALERTER, type Alerter } from './alerts';
-import { PaperStore } from './store';
+import { pnlHistory, type EquitySource } from './pnl-history';
+import { PaperStore, type TradeStats } from './store';
 
 /** UNIX seconds now. Injected so tests can move time. */
 export type Clock = () => number;
@@ -45,6 +47,13 @@ const SERIES_LIMITS = { m5: 16_000, m15: 1_000, h4: 320 };
 const ROTATION_ID = 'F4:universe';
 /** F4's ranking needs 22 closes; fetch comfortably more on a cold start. */
 const ROTATION_HISTORY_DAYS = 40;
+const NO_TRADES: TradeStats = { trades: 0, wins: 0, netPnl: 0 };
+
+function iso(t: number): string;
+function iso(t: number | null): string | null;
+function iso(t: number | null): string | null {
+  return t === null ? null : new Date(t * 1000).toISOString();
+}
 
 interface IntradaySlot {
   readonly id: string;
@@ -180,15 +189,17 @@ export class PaperTraderService implements OnModuleDestroy {
   }
 
   status() {
-    const counts = this.store.tradeCounts();
+    const stats = this.store.tradeStats();
     const equity = this.config.FUTURES_PAPER_EQUITY;
-    const iso = (t: number | null) => (t === null ? null : new Date(t * 1000).toISOString());
+    const rotation = this.rotation;
     return {
       mode: 'paper' as const,
       startedAt: iso(this.startedAt),
       lastTickAt: iso(this.lastTickAt),
       lastError: this.lastError,
       killSwitch: existsSync(this.config.FUTURES_KILL_SWITCH_PATH),
+      paperEquity: equity,
+      pollSeconds: this.config.FUTURES_POLL_SECONDS,
       accounts: [...this.slots.values()].map(({ id, strategyId, productId, account }) => ({
         id,
         strategy: strategyId,
@@ -196,23 +207,54 @@ export class PaperTraderService implements OnModuleDestroy {
         equity: account.equity,
         returnOnStart: account.equity / equity - 1,
         position: account.openPosition,
+        markPrice: account.markPrice,
+        openPnl: account.openPosition ? account.openPnl : null,
         pendingEntry: account.pendingEntry !== null,
         halted: account.halted,
         lastBar: iso(account.lastProcessedBarTime),
-        trades: counts[id] ?? 0,
+        ...(stats[id] ?? NO_TRADES),
       })),
-      rotation: this.rotation
+      rotation: rotation
         ? {
             id: ROTATION_ID,
-            equity: this.rotation.equity,
-            returnOnStart: this.rotation.equity / equity - 1,
-            positions: this.rotation.positions,
-            lastDay: iso(this.rotation.lastProcessedDay),
-            longs: this.rotation.lastPlan?.longs ?? [],
-            shorts: this.rotation.lastPlan?.shorts ?? [],
-            trades: counts[ROTATION_ID] ?? 0,
+            equity: rotation.equity,
+            returnOnStart: rotation.equity / equity - 1,
+            positions: rotation.positions.map((holding) => {
+              const markPrice = rotation.priceOf(holding.productId) ?? holding.averageEntry;
+              const move = markPrice - holding.averageEntry;
+              return {
+                ...holding,
+                markPrice,
+                openPnl: sign(holding.direction) * holding.size * move,
+              };
+            }),
+            lastDay: iso(rotation.lastProcessedDay),
+            longs: rotation.lastPlan?.longs ?? [],
+            shorts: rotation.lastPlan?.shorts ?? [],
+            ...(stats[ROTATION_ID] ?? NO_TRADES),
           }
         : null,
+    };
+  }
+
+  /** Each strategy's paper P&L over time, for the dashboard's chart. */
+  pnlHistory() {
+    const sources: EquitySource[] = [...this.slots.values()].map(({ strategyId, account }) => ({
+      strategy: strategyId,
+      daily: account.daily,
+      equity: account.equity,
+    }));
+    if (this.rotation) {
+      sources.push({ strategy: 'F4', daily: this.rotation.daily, equity: this.rotation.equity });
+    }
+    const equity = this.config.FUTURES_PAPER_EQUITY;
+    return {
+      startedAt: iso(this.startedAt),
+      paperEquity: equity,
+      strategies: pnlHistory(sources, equity, this.startedAt, this.clock()).map((s) => ({
+        ...s,
+        points: s.points.map((p) => ({ t: iso(p.t), pnl: p.pnl })),
+      })),
     };
   }
 

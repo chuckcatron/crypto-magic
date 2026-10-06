@@ -114,17 +114,47 @@ than 10 minutes old. A bot that was down could not have made those trades.
 
 To start over, stop it and delete `data/futures-paper.db*`.
 
+## The dashboard
+
+Open <http://127.0.0.1:4100> in a browser on the Mac that runs the engine. It
+refreshes itself every 15 seconds and shows:
+
+- the total paper profit and loss, in plain English;
+- profit and loss over time for each strategy, as a chart and as a table;
+- a card per strategy: what it does, its result, and what each coin is doing;
+- open positions, with entry, current price, stop, target and open P&L;
+- recent closed trades and why each closed;
+- the engine's activity, plus short answers to the usual questions.
+
+It warns, with a colored icon and a sentence, when the engine is unreachable,
+behind on prices, failing, or paused by the kill switch. It follows the system's
+light or dark mode; the **Theme** button overrides that.
+
+The engine itself serves the page, so it has nothing extra to run or build. The
+page only reads the API below, under a Content-Security-Policy that allows no
+inline code and no other origin. Like the API, it answers only on this Mac.
+
+From another machine, use an SSH tunnel and open <http://localhost:4100> there:
+
+```bash
+ssh -L 4100:127.0.0.1:4100 you@the-mac
+```
+
+The page's files are in `apps/futures-engine/public` and are read on each
+request: an edit shows on the next reload, with no rebuild or restart.
+
 ## The API
 
 Read-only, 127.0.0.1 only. It refuses any method but GET, any non-loopback
 `Host` (DNS rebinding), and any foreign `Origin`. It has no endpoint that
 changes anything.
 
-| Endpoint                   | Returns                                                                                       |
-| -------------------------- | --------------------------------------------------------------------------------------------- |
-| `GET /api/status`          | Each sub-account: equity, open position, pending entry, halted, last bar; the rotation's book |
-| `GET /api/trades?limit=50` | The most recent closed paper trades                                                           |
-| `GET /api/events?limit=50` | Starts, entries, exits, halts and errors                                                      |
+| Endpoint                   | Returns                                                                                                                                                  |
+| -------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `GET /api/status`          | Each sub-account: equity, open position with its mark price and open P&L, pending entry, halted, last bar, trades, wins and net P&L; the rotation's book |
+| `GET /api/equity`          | Each strategy's paper P&L at the start, at every UTC day close since, and now                                                                            |
+| `GET /api/trades?limit=50` | The most recent closed paper trades                                                                                                                      |
+| `GET /api/events?limit=50` | Starts, entries, exits, halts and errors                                                                                                                 |
 
 ## How it stays correct across restarts
 

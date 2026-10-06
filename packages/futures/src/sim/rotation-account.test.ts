@@ -95,6 +95,16 @@ describe('RotationAccount', () => {
     expect(account.daily.at(-1)!.equity).toBeCloseTo(10_000 - fees - funding + moves, 6);
   });
 
+  it('reports the last close each holding is marked at', () => {
+    const days = history(start, 31);
+    const account = new RotationAccount({ costs: COSTS, initialEquity: 10_000, tradeFrom: T0 });
+    feed(account, days);
+    const monday = days.get(T0)!;
+    for (const p of account.positions)
+      expect(account.priceOf(p.productId)).toBe(monday.get(p.productId)!.c);
+    expect(account.priceOf('NOT-A-COIN')).toBeUndefined();
+  });
+
   it('resizes a position that stays in its leg, paying only on the change', () => {
     const days = history(start, 38);
     const account = new RotationAccount({ costs: COSTS, initialEquity: 10_000, tradeFrom: T0 });
