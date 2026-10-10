@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   D,
   Decimal,
@@ -52,6 +53,13 @@ export class PaperAdapter implements ExchangeAdapter {
   private readonly byClientOrderId = new Map<string, string>();
   private readonly takerBps: number;
   private readonly slippageBps: number;
+  /**
+   * Different on every start. Order ids are stored with a unique key, and a
+   * plain counter restarted at paper-1 after every restart: the next order then
+   * collided with one from before the restart and could not be recorded, so
+   * the exit it belonged to failed on every attempt.
+   */
+  private readonly runId = randomUUID().replace(/-/g, '').slice(0, 12);
   private sequence = 0;
 
   constructor(private readonly options: PaperAdapterOptions) {
@@ -146,7 +154,7 @@ export class PaperAdapter implements ExchangeAdapter {
     }
 
     const order: OrderResult = {
-      orderId: `paper-${++this.sequence}`,
+      orderId: `paper-${this.runId}-${++this.sequence}`,
       clientOrderId: request.clientOrderId,
       productId: request.productId,
       side: request.side,
@@ -178,7 +186,7 @@ export class PaperAdapter implements ExchangeAdapter {
   /** Accepted and recorded, but never triggered — the engine enforces stops in paper mode. */
   async submitProtectiveStop(request: ProtectiveStopRequest): Promise<OrderResult> {
     const order: OrderResult = {
-      orderId: `paper-stop-${++this.sequence}`,
+      orderId: `paper-stop-${this.runId}-${++this.sequence}`,
       clientOrderId: request.clientOrderId,
       productId: request.productId,
       side: 'SELL',

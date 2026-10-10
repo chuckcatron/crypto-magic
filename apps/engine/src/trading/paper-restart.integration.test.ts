@@ -131,6 +131,25 @@ describe('paper account across a restart (integration)', () => {
     expect(await usd(second)).toBeCloseTo(cashBefore, 8);
   });
 
+  it('can still exit after a restart: no order id from before it is reused', async () => {
+    const first = await boot({ persistPaper: true });
+    await first.get(TradingEngineService).tick();
+    expect(first.get(PositionRepository).findAll()).toHaveLength(1);
+    await shutdown(first);
+
+    const second = await boot({ persistPaper: true });
+    await second.get(ReconciliationService).reconcile();
+    market.price = market.price * 0.5; // far through the stop
+    await second.get(TradingEngineService).tick();
+
+    // It used to fail here: the exit's order id repeated the entry's, the order
+    // could not be recorded, and the position never closed.
+    expect(second.get(PositionRepository).findAll()).toHaveLength(0);
+    const trades = second.get(TradeRepository).all();
+    expect(trades).toHaveLength(1);
+    expect(trades[0]!.exitReason).toBe('stop_loss');
+  });
+
   it('(the old behaviour, for contrast) loses the position and resets the cash without it', async () => {
     const first = await boot({ persistPaper: false });
     await first.get(TradingEngineService).tick();
