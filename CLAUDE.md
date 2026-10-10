@@ -1,7 +1,7 @@
 # Notes for Claude sessions
 
 Handoff notes, so a new session can pick up without the old transcript. Last
-updated 2026-10-06. The README and `docs/` are the real documentation. This
+updated 2026-10-10. The README and `docs/` are the real documentation. This
 file covers working rules and where things stand.
 
 ## Working rules (from the owner)
@@ -76,6 +76,8 @@ file covers working rules and where things stand.
   | 007 | Faster exit line               | Neither variant passed. Exit unchanged               |
   | 008 | Fast long/short on US perps    | All four failed. No edge before costs                |
   | 009 | "Trade any crypto" bots        | All six failed. All lost money in 2023–2026          |
+  | 010 | Volatility-targeted sizing     | Lost window 1 by 0.63 points. Sizing unchanged       |
+  | 011 | Maker limit orders             | Passed all six cells, about 23 bps a fill. Not built |
 
 - **Fee sensitivity**, run 2026-10-02 and not committed as an experiment.
   Regime strategy, full exposure. Each cell is annualized return / max
@@ -134,9 +136,53 @@ file covers working rules and where things stand.
   - The BTC 200-day filter nearly tied its yardstick in that holdout (+22.0%
     against +23.0%).
   - The simulation is `packages/futures/src/portfolio`.
+- **Popular GitHub bots (2026-10-10).** The owner asked which trending crypto
+  trading project looks most promising. Read, not run: TradingAgents,
+  ai-hedge-fund, freqtrade, nautilus_trader, hummingbot, NoFx, vibe-trading and
+  ai-trading-agent.
+  - None shows a verified edge.
+  - Nautilus Trader is the best fit for Coinbase's US perpetuals: its Coinbase
+    adapter is marked stable and covers spot and CFM futures.
+  - Hummingbot's market making suits a high-trade-count style like Muggli's,
+    but retail fees work against it.
+  - NoFx has red flags: a `curl | bash` installer, a fee wallet for its AI,
+    non-US exchanges, and AGPL.
+- **Freqtrade (2026-10-10).** The owner asked "can we run freqtrade". Yes, in
+  paper mode ("dry-run") with no key. Freqtrade 2026.9 was tested in the
+  sandbox:
+  - It reaches Coinbase only through ccxt ("Coinbase Advanced"), which
+    freqtrade does not officially support, and logs a warning saying so.
+  - It downloaded hourly candles and backtested. It ran a live dry-run for
+    five minutes, with its API and login working.
+  - Coinbase needs `"use_order_book": false` in `entry_pricing` and
+    `exit_pricing`. ccxt's Coinbase has no `fetchL2OrderBook`, so the
+    order-book setting stops freqtrade at startup.
+  - Its demo `SampleStrategy` was backtested on BTC, ETH and SOL hourly from
+    2025-10-15 to 2026-10-10, with $1,000 and 3 slots. Results by fee per side:
+    −55% at 0.6%, −49% at 0.4%, −29% at zero. Holding the three lost 38%;
+    BTC alone lost 27%. It won 75% of its trades, but its −11% stop-loss
+    exits outweighed the many +1% wins.
+  - Its docs say Apple-silicon Macs should run it in Docker. The owner was
+    given steps for the Mac Studio, not yet confirmed running there:
+    - `~/freqtrade`, outside this repo;
+    - the official `docker-compose.yml`;
+    - a Coinbase dry-run config with no key;
+    - FreqUI at <http://127.0.0.1:8080>.
+  - A freqtrade strategy that might trade real money goes through a
+    pre-registered experiment, like any other.
 
 ## Open threads
 
+- **Coinbase's real fee rate.** The soak and backtests charge 60 bps taker.
+  ccxt's Coinbase fallback, copied from a Coinbase API response, puts the tier
+  under $1K of 30-day volume at 1.2% taker and 0.6% maker. 2026 fee guides
+  disagree with each other. Nothing on the going-live path checks the rate.
+  - EXPERIMENT-011 also assumed 60 bps taker and 40 bps maker. At 1.2% and
+    0.6%, the gap a filled maker order saves is 65 bps, not 25.
+  - A task was suggested to the owner: have the live preflight read the
+    account's `transaction_summary` fee tier and warn when the taker rate is
+    above 60 bps.
+  - Don't change the soak's fee while it runs.
 - **Alpaca (alpaca.markets).** The owner asked whether moving to a "proven
   platform" would do better.
   - Answer so far, based on web search: not yet. The fee saving is small, and
@@ -161,8 +207,10 @@ file covers working rules and where things stand.
     to Node 24. It is a major version, so read its breaking changes first.
   - A pre-registered experiment running the regime filter on SPY. Alpaca's
     real advantage is commission-free stocks and ETFs.
-  - Using Coinbase maker limit orders (about 40 bps) instead of market orders,
-    as a cheaper fee improvement.
+  - Building maker limit orders into the engine, which EXPERIMENT-011
+    supports. Its doc says: a separate, reviewed change, tested on paper first.
+  - A pre-registered, forward-only paper test of TradingAgents. It would need
+    the owner's own AI API key.
 
 ## Useful commands
 
