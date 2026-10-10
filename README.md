@@ -128,12 +128,15 @@ more than anything else in it:
     Versus average winner   47% of +$0.70
 ```
 
-At Coinbase's retail taker tier every trade starts 1.2% behind, before slippage.
-With a $25 position cap that is $0.33 a round trip against an average winner of
-well under a dollar. Set `--taker-bps 0 --slippage-bps 0` to see how much of a
-result is the strategy and how much is just the cost of trading — if the gap is
-large, the fee tier and position size are worth more attention than any
-indicator parameter.
+The backtests charge a 0.60% taker fee by default, so every round trip starts
+1.2% behind, before slippage. With a $25 position cap that is $0.33 a round trip
+against an average winner of well under a dollar. Set
+`--taker-bps 0 --slippage-bps 0` to see how much of a result is the strategy and
+how much is just the cost of trading — if the gap is large, the fee tier and
+position size are worth more attention than any indicator parameter.
+
+Coinbase sets the real fee per account, and it may be higher than 0.60%:
+`pnpm preflight` shows yours, and `--taker-bps` models it.
 
 ## Going live
 
@@ -361,7 +364,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 527 tests
+pnpm test        # 536 tests
 pnpm typecheck
 ```
 

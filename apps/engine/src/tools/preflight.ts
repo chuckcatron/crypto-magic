@@ -1,5 +1,5 @@
-import { D, Decimal, ALLOCATION_FEE_RESERVE_PCT } from '@crypto-magic/core';
-import type { KeyPermissions } from '@crypto-magic/exchange';
+import { D, Decimal, ALLOCATION_FEE_RESERVE_PCT, DEFAULT_FEE_MODEL } from '@crypto-magic/core';
+import type { FeeTier, KeyPermissions } from '@crypto-magic/exchange';
 import type { AppConfig } from '../config/config.schema';
 
 /**
@@ -44,6 +44,8 @@ export interface PreflightInput {
   readonly permissions: KeyPermissions | { error: string } | null;
   readonly balances:
     readonly { currency: string; available: Decimal; hold: Decimal }[] | { error: string } | null;
+  /** The account's spot fee tier, the error that stopped us reading it, or null if not read. */
+  readonly feeTier: FeeTier | { error: string } | null;
   /** Base currency per traded product, e.g. BTC-USD → BTC. */
   readonly baseCurrencies: Readonly<Record<string, string>>;
   readonly databaseExists: boolean;
@@ -168,6 +170,35 @@ export function evaluatePreflight(input: PreflightInput): Check[] {
         `The key can see ${usd(cash)} but the bot is capped at ${usd(config.MAX_TOTAL_NOTIONAL)}. The caps hold, but a portfolio holding only the bot's money makes that true by construction.`,
       );
     }
+  }
+
+  // --- Trading fees --------------------------------------------------------------
+  // Coinbase sets the fee per account. Every backtest and the paper soak charged
+  // DEFAULT_FEE_MODEL, so a higher real fee is a cost they never saw.
+  const testedTaker = D(DEFAULT_FEE_MODEL.takerBps).div(10_000);
+  const roundTrip = (taker: Decimal) =>
+    taker.plus(D(DEFAULT_FEE_MODEL.slippageBps).div(10_000)).mul(2);
+  const pct = (fraction: Decimal) => `${fraction.mul(100).toFixed(2)}%`;
+  if (failed(input.feeTier)) {
+    add(
+      'WARN',
+      'Trading fees',
+      `Could not read the account's fee tier (${input.feeTier.error}). Look it up in Coinbase before going live: the backtests and the paper soak charged ${pct(testedTaker)} per market order.`,
+    );
+  } else if (input.feeTier !== null) {
+    const fee = input.feeTier;
+    const tier =
+      `(${fee.pricingTier ? `tier ${fee.pricingTier}, ` : ''}` +
+      `${usd(fee.volume30dUsd)} traded in the last 30 days)`;
+    add(
+      fee.takerFeeRate.lte(testedTaker) ? 'PASS' : 'WARN',
+      'Trading fees',
+      fee.takerFeeRate.lte(testedTaker)
+        ? `Coinbase charges this account ${pct(fee.takerFeeRate)} per market order ${tier}, no more than the ${pct(testedTaker)} the backtests and the paper soak charged.`
+        : `Coinbase charges this account ${pct(fee.takerFeeRate)} per market order and ${pct(fee.makerFeeRate)} per limit order that waits on the book ${tier}. ` +
+            `The backtests and the paper soak charged ${pct(testedTaker)}, so a round trip costs about ${pct(roundTrip(fee.takerFeeRate))} instead of ${pct(roundTrip(testedTaker))} with slippage, ` +
+            'and live results will trail paper by the difference on every trade.',
+    );
   }
 
   // --- Local state ------------------------------------------------------------

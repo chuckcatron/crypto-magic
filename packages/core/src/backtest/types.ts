@@ -2,7 +2,10 @@ import type { Decimal } from '../money';
 import type { ExitReason } from '../types/trading';
 
 export interface FeeModel {
-  /** Taker fee in basis points. Coinbase Advanced starts at 60bps at low volume. */
+  /**
+   * Taker fee in basis points. Coinbase sets the real rate per account and has
+   * changed its schedule several times; `pnpm preflight` reports the account's.
+   */
   readonly takerBps: number;
   /** Adverse price move assumed on every fill, in basis points. */
   readonly slippageBps: number;

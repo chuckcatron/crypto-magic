@@ -6,6 +6,7 @@ import {
   roundPrice,
   toApiString,
   type Candle,
+  type Decimal,
   type Granularity,
   type ProductSpec,
   type Ticker,
@@ -74,6 +75,21 @@ export interface KeyPermissions {
   /** Coinbase scopes each key to one portfolio; balances are that portfolio's. */
   readonly portfolioUuid: string;
   readonly portfolioType: string;
+}
+
+/**
+ * The spot fee tier Coinbase applies to the key's account. A snapshot: Coinbase
+ * re-tiers accounts as their trading volume changes.
+ */
+export interface FeeTier {
+  /** Coinbase's name for the tier. */
+  readonly pricingTier: string;
+  /** Fractions, not percent: 0.006 is 0.6%. Paid by market orders. */
+  readonly takerFeeRate: Decimal;
+  /** Paid by limit orders that rest on the book before they fill. */
+  readonly makerFeeRate: Decimal;
+  /** The trailing 30-day volume, in USD, that Coinbase counted. */
+  readonly volume30dUsd: Decimal;
 }
 
 export class CoinbaseAdapter implements ExchangeAdapter {
@@ -217,6 +233,30 @@ export class CoinbaseAdapter implements ExchangeAdapter {
       canTransfer: raw.can_transfer,
       portfolioUuid: raw.portfolio_uuid,
       portfolioType: raw.portfolio_type,
+    };
+  }
+
+  /**
+   * The fee tier Coinbase applies to this key's account, for spot trades.
+   * Read-only.
+   *
+   * Not part of ExchangeAdapter either. Coinbase sets fees per account, and the
+   * live preflight compares this with the fee the backtests and the paper soak
+   * charged.
+   */
+  async getFeeTier(): Promise<FeeTier> {
+    this.requireCredentials('reading the fee tier');
+    const raw: RawTransactionSummary = await this.call(() =>
+      this.client.getTransactionSummary({ product_type: 'SPOT' }),
+    );
+    const tier = raw.fee_tier;
+    if (!tier) throw new ExchangeError('Coinbase returned a transaction summary with no fee tier');
+    const volume = Number(raw.total_volume);
+    return {
+      pricingTier: tier.pricing_tier ?? '',
+      takerFeeRate: feeRate(tier.taker_fee_rate, 'taker'),
+      makerFeeRate: feeRate(tier.maker_fee_rate, 'maker'),
+      volume30dUsd: D(Number.isFinite(volume) ? volume : 0),
     };
   }
 
@@ -455,6 +495,24 @@ interface RawProduct {
   cancel_only?: boolean;
   limit_only?: boolean;
   status?: string;
+}
+
+/** The fields of a transaction summary this adapter reads. Checked, not trusted. */
+interface RawTransactionSummary {
+  total_volume?: number | string;
+  fee_tier?: { pricing_tier?: string; taker_fee_rate?: string; maker_fee_rate?: string };
+}
+
+/**
+ * A fee rate from Coinbase, a decimal string such as "0.006", checked to be one.
+ * Negative is allowed: some tiers pay makers a rebate.
+ */
+function feeRate(value: unknown, side: 'taker' | 'maker'): Decimal {
+  const rate = typeof value === 'string' && value.trim() !== '' ? Number(value) : Number.NaN;
+  if (!Number.isFinite(rate) || Math.abs(rate) >= 1) {
+    throw new ExchangeError(`Coinbase returned an unusable ${side} fee rate: ${String(value)}`);
+  }
+  return D(value as string);
 }
 
 function withPrefix(clientOrderId: string): string {

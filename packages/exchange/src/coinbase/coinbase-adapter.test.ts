@@ -237,3 +237,66 @@ describe('CoinbaseAdapter key permissions', () => {
     );
   });
 });
+
+describe('CoinbaseAdapter fee tier', () => {
+  // Coinbase sends the volume as a string, though the SDK's type says number.
+  const summary = (feeTier: Record<string, unknown> | undefined) => ({
+    total_volume: '1234.5',
+    total_fees: '0',
+    fee_tier: feeTier,
+    advanced_trade_only_volume: 0,
+    advanced_trade_only_fees: 0,
+    total_balance: '1000',
+  });
+  const INTRO = {
+    pricing_tier: 'Intro 1',
+    usd_from: '0',
+    usd_to: '10000',
+    taker_fee_rate: '0.009',
+    maker_fee_rate: '0.005',
+  };
+
+  it('reads the spot tier from the transaction summary', async () => {
+    const requests: unknown[] = [];
+    const adapter = adapterWith({
+      getTransactionSummary: async (params: unknown) => {
+        requests.push(params);
+        return summary(INTRO);
+      },
+    });
+
+    const tier = await adapter.getFeeTier();
+
+    expect(requests).toEqual([{ product_type: 'SPOT' }]);
+    expect(tier.pricingTier).toBe('Intro 1');
+    expect(tier.takerFeeRate.toString()).toBe('0.009');
+    expect(tier.makerFeeRate.toString()).toBe('0.005');
+    expect(tier.volume30dUsd.toNumber()).toBe(1234.5);
+  });
+
+  it('refuses a summary with no fee tier, or a rate that is not one', async () => {
+    await expect(
+      adapterWith({ getTransactionSummary: async () => summary(undefined) }).getFeeTier(),
+    ).rejects.toThrow(/no fee tier/);
+    for (const bad of ['', 'abc', '1.5', '-2']) {
+      const adapter = adapterWith({
+        getTransactionSummary: async () => summary({ ...INTRO, taker_fee_rate: bad }),
+      });
+      await expect(adapter.getFeeTier()).rejects.toThrow(/unusable taker fee rate/);
+    }
+  });
+
+  it('accepts a maker rebate, which Coinbase reports as a negative rate', async () => {
+    const adapter = adapterWith({
+      getTransactionSummary: async () => summary({ ...INTRO, maker_fee_rate: '-0.00004' }),
+    });
+    await expect(adapter.getFeeTier()).resolves.toMatchObject({ pricingTier: 'Intro 1' });
+    expect((await adapter.getFeeTier()).makerFeeRate.toString()).toBe('-0.00004');
+  });
+
+  it('needs credentials', async () => {
+    await expect(new CoinbaseAdapter({}).getFeeTier()).rejects.toThrow(
+      /requires Coinbase API credentials/,
+    );
+  });
+});

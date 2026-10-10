@@ -129,12 +129,19 @@ It reads, and never orders or changes anything:
 - the key's permissions (it must not be able to transfer);
 - the portfolio's balances (no BTC, enough USD);
 - what the first buy would spend;
+- the fee Coinbase charges this account;
 - that the database is fresh;
 - that the losing-streak limit is above 9 and an alert channel is set;
 - that `.env` is private and git-ignored.
 
 - [ ] Every line is PASS, or a WARN you have read and accepted.
 - [ ] The **First buy** line shows the amount you expect. If not, fix the caps.
+- [ ] The **Trading fees** line. Every backtest and the paper soak charged
+      0.60% per market order. Coinbase sets the real rate per account and
+      changes its schedule; after its 2026-09-16 change, reports put the US
+      entry rate at 0.90%. If the line warns, live results will trail paper by
+      the extra cost on every trade. Decide whether that is acceptable before
+      arming live.
 
 ## 7. Arm live and watch the first trade
 

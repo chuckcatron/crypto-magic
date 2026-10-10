@@ -173,15 +173,29 @@ file covers working rules and where things stand.
 
 ## Open threads
 
-- **Coinbase's real fee rate.** The soak and backtests charge 60 bps taker.
-  ccxt's Coinbase fallback, copied from a Coinbase API response, puts the tier
-  under $1K of 30-day volume at 1.2% taker and 0.6% maker. 2026 fee guides
-  disagree with each other. Nothing on the going-live path checks the rate.
-  - EXPERIMENT-011 also assumed 60 bps taker and 40 bps maker. At 1.2% and
-    0.6%, the gap a filled maker order saves is 65 bps, not 25.
-  - A task was suggested to the owner: have the live preflight read the
-    account's `transaction_summary` fee tier and warn when the taker rate is
-    above 60 bps.
+- **Coinbase's real fee rate (checked 2026-10-10).** The soak and every
+  backtest charge 60 bps taker (`DEFAULT_FEE_MODEL`).
+  - Coinbase changed its Advanced fees on 2026-09-16. Reports of the
+    announcement put the US entry rate at **0.90% taker, 0.50% maker**. Coinbase's
+    own pages are blocked from the sandbox, so this comes from search results
+    and news coverage.
+  - Older figures came from earlier schedules: 1.2%/0.6% and 0.8%/0.6% in ccxt
+    samples, and 0.6%/0.4% in some guides.
+  - `pnpm preflight` now reads the account's own spot tier
+    (`transaction_summary`, `product_type=SPOT`). It warns, with the
+    round-trip cost, when the taker rate is above 60 bps. Only the owner's key
+    can run it, so the account's actual rate is still unknown.
+  - At 90 bps, regime backtests on `data/coinbase-daily/BTC-USD.csv`, full
+    exposure, annualized:
+    - 2022–2024: +47.86% → +45.66%, max drawdown −29.51% → −31.52%;
+    - 2025-01-01 → 2026-09-30: −6.51% → −9.51% (buy-and-hold −7.17%), max
+      drawdown −35.37% → −37.28%.
+
+    Those 60 bps figures differ from the fee-sensitivity table above, which
+    used a different CSV.
+
+  - EXPERIMENT-011 assumed 60 bps taker and 40 bps maker. At 0.90% and 0.50%,
+    the gap a filled maker order saves is 45 bps, not 25.
   - Don't change the soak's fee while it runs.
 - **Alpaca (alpaca.markets).** The owner asked whether moving to a "proven
   platform" would do better.
