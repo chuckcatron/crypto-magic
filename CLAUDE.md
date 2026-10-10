@@ -65,19 +65,19 @@ file covers working rules and where things stand.
   reporting READY. The owner creates and installs the keys, never Claude.
 - **Experiments** (details in `docs/`):
 
-  | No. | Question                       | Result                                               |
-  | --- | ------------------------------ | ---------------------------------------------------- |
-  | 001 | 200-day regime filter on BTC   | Passed, provisionally. This is the live strategy     |
-  | 002 | Funding-rate carry             | Real income, but not steady. Not adopted             |
-  | 003 | Regime filter on ETH and SOL   | ETH failed. SOL passed only its one window           |
-  | 004 | Better disaster stops          | No variant passed. Stop unchanged                    |
-  | 005 | Close-only stop on other coins | Inconclusive. The filter failed on 26 of 27 altcoins |
-  | 006 | Three coins or BTC alone       | BTC alone, but the result is fragile                 |
-  | 007 | Faster exit line               | Neither variant passed. Exit unchanged               |
-  | 008 | Fast long/short on US perps    | All four failed. No edge before costs                |
-  | 009 | "Trade any crypto" bots        | All six failed. All lost money in 2023–2026          |
-  | 010 | Volatility-targeted sizing     | Lost window 1 by 0.63 points. Sizing unchanged       |
-  | 011 | Maker limit orders             | Passed all six cells, about 23 bps a fill. Not built |
+  | No. | Question                       | Result                                                |
+  | --- | ------------------------------ | ----------------------------------------------------- |
+  | 001 | 200-day regime filter on BTC   | Passed, provisionally. This is the live strategy      |
+  | 002 | Funding-rate carry             | Real income, but not steady. Not adopted              |
+  | 003 | Regime filter on ETH and SOL   | ETH failed. SOL passed only its one window            |
+  | 004 | Better disaster stops          | No variant passed. Stop unchanged                     |
+  | 005 | Close-only stop on other coins | Inconclusive. The filter failed on 26 of 27 altcoins  |
+  | 006 | Three coins or BTC alone       | BTC alone, but the result is fragile                  |
+  | 007 | Faster exit line               | Neither variant passed. Exit unchanged                |
+  | 008 | Fast long/short on US perps    | All four failed. No edge before costs                 |
+  | 009 | "Trade any crypto" bots        | All six failed. All lost money in 2023–2026           |
+  | 010 | Volatility-targeted sizing     | Lost window 1 by 0.63 points. Sizing unchanged        |
+  | 011 | Maker limit orders             | Passed all six cells, about 23 bps a fill. Built, off |
 
 - **Fee sensitivity**, run 2026-10-02 and not committed as an experiment.
   Regime strategy, full exposure. Each cell is annualized return / max
@@ -170,6 +170,41 @@ file covers working rules and where things stand.
     - FreqUI at <http://127.0.0.1:8080>.
   - A freqtrade strategy that might trade real money goes through a
     pre-registered experiment, like any other.
+- **Paper order ids repeated after a restart (fixed 2026-10-10, `4483f6a`).**
+  The paper adapter numbered orders from 1 on every start, and the orders table
+  keys on the id. So after any restart the next paper order collided with one
+  from before it ("UNIQUE constraint failed: orders.order_id"). The paper money
+  moved, but the order could not be recorded, so that exit failed, and every
+  retry failed for want of the coins.
+  - The MacBook soak runs the old code. If its engine restarted after the
+    2026-09-27 buy, its next exit hits this. The fix needs a pull, a build and an
+    engine restart there; the owner decides, mid-soak.
+  - If that exit has already failed, reconciliation after the fix removes the
+    position ("closed outside the bot"), and the trade is missing from the
+    history.
+- **Maker orders (built 2026-10-10, off by default).** The owner said "do it"
+  to building EXPERIMENT-011's policy. `MAKER_ORDERS=true` (daily bars only)
+  puts the strategy's own entries and signal exits on the book as post-only GTD
+  limits at the best bid or ask. Coinbase expires them after an hour, and the
+  rest then goes at market. Not yet tried in paper.
+  - `MakerOrderService` with a `working_orders` table (migration 003). The row
+    is written before the order is sent, with both the maker and the market
+    leg's client ids fixed. The fills are booked, and the row retired, in one
+    transaction.
+  - Never goes to market until the exchange confirms the maker order stopped. A
+    live order the exchange cannot find, or an ambiguous placement, engages the
+    kill switch.
+  - Stops and **Flatten all** cancel a resting order first. The kill switch
+    cancels a resting entry. Reconciliation skips a product with an order in
+    flight.
+  - Portfolio `cash` now includes held quote (equity no longer dips while a buy
+    rests). Sizing and risk use `availableCash`.
+  - Paper fills a resting order only when a closed one-minute bar trades
+    through the limit, in full, at a 40 bps maker fee. It forgets resting
+    orders on a restart.
+  - Found while building it: the engine fetches bars before skipping a product
+    with an order in flight, and finishes working orders after the bars. Without
+    that, after a restart the market leg was refused for stale data.
 
 ## Open threads
 
@@ -221,8 +256,7 @@ file covers working rules and where things stand.
     to Node 24. It is a major version, so read its breaking changes first.
   - A pre-registered experiment running the regime filter on SPY. Alpaca's
     real advantage is commission-free stocks and ETFs.
-  - Building maker limit orders into the engine, which EXPERIMENT-011
-    supports. Its doc says: a separate, reviewed change, tested on paper first.
+  - A paper run with `MAKER_ORDERS=true` after the soak, before any live use.
   - A pre-registered, forward-only paper test of TradingAgents. It would need
     the owner's own AI API key.
 

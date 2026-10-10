@@ -120,4 +120,33 @@ export const MIGRATIONS: { id: string; sql: string }[] = [
       );
     `,
   },
+  {
+    id: '003-working-orders',
+    sql: `
+      -- A maker order waiting on the book (MAKER_ORDERS), with everything needed
+      -- to finish it after a restart: cross the rest at market, then open or
+      -- close the position. Written before the order is sent. At most one per
+      -- product.
+      CREATE TABLE working_orders (
+        product_id            TEXT PRIMARY KEY,
+        purpose               TEXT NOT NULL,
+        side                  TEXT NOT NULL,
+        base_size             TEXT NOT NULL,
+        reference_price       TEXT NOT NULL,
+        limit_price           TEXT NOT NULL,
+        maker_order_id        TEXT NOT NULL,
+        maker_client_order_id TEXT NOT NULL,
+        cross_client_order_id TEXT NOT NULL,
+        expires_at            INTEGER NOT NULL,
+        reason                TEXT NOT NULL,
+        exit_reason           TEXT,
+        entry_atr             TEXT,
+        bar_open_time         INTEGER NOT NULL,
+        entry_reasons         TEXT NOT NULL DEFAULT '[]',
+        confidence            REAL NOT NULL DEFAULT 0,
+        mode                  TEXT NOT NULL,
+        created_at            INTEGER NOT NULL
+      );
+    `,
+  },
 ];

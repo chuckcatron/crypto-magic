@@ -17,6 +17,7 @@ import { OrderRepository } from '../persistence/repositories/order.repository';
 import { PositionRepository } from '../persistence/repositories/position.repository';
 import { StateRepository } from '../persistence/repositories/state.repository';
 import { TradeRepository } from '../persistence/repositories/trade.repository';
+import { WorkingOrderRepository } from '../persistence/repositories/working-order.repository';
 import {
   FakeMarketData,
   candlesEndingNow,
@@ -25,6 +26,7 @@ import {
 import { TradingEngineService } from './engine.service';
 import { ExecutorService } from './executor.service';
 import { KillSwitchService } from './kill-switch.service';
+import { MakerOrderService } from './maker-order.service';
 import { PortfolioService } from './portfolio.service';
 import { ReconciliationService } from './reconciliation.service';
 import { RiskService } from './risk.service';
@@ -88,11 +90,13 @@ describe('paper account across a restart (integration)', () => {
         TradeRepository,
         EventRepository,
         StateRepository,
+        WorkingOrderRepository,
         MarketDataService,
         KillSwitchService,
         PortfolioService,
         RiskService,
         ExecutorService,
+        MakerOrderService,
         ReconciliationService,
         TradingEngineService,
       ],

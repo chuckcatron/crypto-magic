@@ -17,6 +17,7 @@ import { OrderRepository } from '../persistence/repositories/order.repository';
 import { PositionRepository } from '../persistence/repositories/position.repository';
 import { StateRepository } from '../persistence/repositories/state.repository';
 import { TradeRepository, type StoredTrade } from '../persistence/repositories/trade.repository';
+import { WorkingOrderRepository } from '../persistence/repositories/working-order.repository';
 import { NullNewsProvider } from '@crypto-magic/insight';
 import { AlertPolicy, FanoutNotifier } from '@crypto-magic/notify';
 import { AlertService } from '../alerts/alert.service';
@@ -33,6 +34,7 @@ import {
 import { TradingEngineService } from './engine.service';
 import { ExecutorService } from './executor.service';
 import { KillSwitchService } from './kill-switch.service';
+import { MakerOrderService } from './maker-order.service';
 import { PortfolioService } from './portfolio.service';
 import { ReconciliationService } from './reconciliation.service';
 import { RiskService } from './risk.service';
@@ -93,6 +95,7 @@ describe('TradingEngineService (integration)', () => {
         TradeAnalysisRepository,
         EventRepository,
         StateRepository,
+        WorkingOrderRepository,
         // No local model configured. The engine must trade exactly the same.
         { provide: LLM_CLIENT, useValue: null },
         { provide: NEWS_PROVIDER, useValue: new NullNewsProvider() },
@@ -107,6 +110,7 @@ describe('TradingEngineService (integration)', () => {
         PortfolioService,
         RiskService,
         ExecutorService,
+        MakerOrderService,
         ReconciliationService,
         TradingEngineService,
       ],

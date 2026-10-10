@@ -21,11 +21,13 @@ import {
   type StopConfig,
   type Strategy,
 } from '@crypto-magic/core';
-import type { ExchangeAdapter } from '@crypto-magic/exchange';
+import type { ExchangeAdapter, OrderResult } from '@crypto-magic/exchange';
 import { APP_CONFIG, STOP_CONFIG, STRATEGY } from '../config/tokens';
 import type { AppConfig } from '../config/config.schema';
 import { EXCHANGE } from '../exchange/tokens';
 import { MarketDataService } from '../market-data/market-data.service';
+import type { Db } from '../persistence/database';
+import { DATABASE } from '../persistence/tokens';
 import { EventRepository } from '../persistence/repositories/event.repository';
 import {
   PositionRepository,
@@ -36,9 +38,27 @@ import { TradeRepository } from '../persistence/repositories/trade.repository';
 import { childLogger } from '../common/logger';
 import { ExecutorService } from './executor.service';
 import { KillSwitchService } from './kill-switch.service';
+import { MakerOrderService, type WorkingOutcome } from './maker-order.service';
 import { PortfolioService } from './portfolio.service';
 import { ReconciliationService } from './reconciliation.service';
 import { RiskService } from './risk.service';
+
+/** What one or more orders filled, together. */
+interface FillTotal {
+  readonly size: Decimal;
+  readonly price: Decimal;
+  readonly fee: Decimal;
+}
+
+/** Add up fills: total size, size-weighted price, total fee. Null if nothing filled. */
+function combineFills(orders: readonly OrderResult[]): FillTotal | null {
+  const filled = orders.filter((o) => o.filledSize.gt(0));
+  if (filled.length === 0) return null;
+  const size = filled.reduce((sum, o) => sum.plus(o.filledSize), D(0));
+  const cost = filled.reduce((sum, o) => sum.plus(o.filledSize.mul(o.averageFillPrice)), D(0));
+  const fee = filled.reduce((sum, o) => sum.plus(o.fee), D(0));
+  return { size, price: cost.div(size), fee };
+}
 
 const TICK_INTERVAL_NAME = 'trading-tick';
 /**
@@ -98,6 +118,8 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     private readonly killSwitch: KillSwitchService,
     private readonly reconciliation: ReconciliationService,
     private readonly scheduler: SchedulerRegistry,
+    private readonly maker: MakerOrderService,
+    @Inject(DATABASE) private readonly db: Db,
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
@@ -207,6 +229,15 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
         : null,
       warmupBars: this.strategy.warmupBars,
       lastTickCompletedAt: this.lastTickCompletedAt,
+      makerOrders: this.maker.enabled,
+      workingOrders: this.maker.list().map((w) => ({
+        productId: w.productId,
+        purpose: w.purpose,
+        side: w.side,
+        baseSize: w.baseSize,
+        limitPrice: w.limitPrice,
+        expiresAt: w.expiresAt,
+      })),
     };
   }
 
@@ -225,6 +256,9 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     try {
       await this.monitorStops();
       await this.processClosedBars();
+      // After the bars: a market order for what a maker order left needs fresh
+      // market data, and after a restart nothing has been fetched before this.
+      await this.progressWorkingOrders();
       await this.portfolio.recordEquitySnapshot();
       this.lastTickCompletedAt = Date.now();
     } catch (error) {
@@ -237,6 +271,75 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     } finally {
       this.ticking = false;
     }
+  }
+
+  /** Move each maker order along, and book those that finished (MakerOrderService). */
+  private async progressWorkingOrders(): Promise<void> {
+    for (const working of this.maker.list()) {
+      try {
+        const outcome = await this.maker.advance(working);
+        if (outcome) await this.complete(outcome);
+      } catch (error) {
+        this.log.error(
+          { productId: working.productId, err: String(error) },
+          'failed to advance a maker order',
+        );
+        this.events.append({
+          level: 'error',
+          kind: 'error',
+          message: `failed to advance the maker order for ${working.productId}: ${String(error)}`,
+        });
+      }
+    }
+  }
+
+  /**
+   * Book a finished maker order: open the position its entry bought, or record
+   * the trade its exit sold. That and retiring the working order are one
+   * transaction, so a crash can neither lose the fills nor book them twice.
+   */
+  private async complete({ working, fills }: WorkingOutcome): Promise<void> {
+    const fill = combineFills(fills);
+    const opened = this.db.transaction((): StoredPosition | null => {
+      this.maker.retire(working.productId);
+      if (!fill) return null;
+      if (working.purpose === 'exit') {
+        const position = this.positions.find(working.productId);
+        if (position) this.bookExit(position, working.exitReason ?? 'signal', fill);
+        else
+          this.log.error(
+            { productId: working.productId },
+            'maker exit filled with no position to book it against',
+          );
+        return null;
+      }
+      if (this.positions.find(working.productId)) {
+        this.log.error(
+          { productId: working.productId },
+          'maker entry filled while a position was already open; not overwriting it',
+        );
+        return null;
+      }
+      return this.openFromFills({
+        productId: working.productId,
+        fill,
+        atr: working.entryAtr ?? D(0),
+        openedAt: working.barOpenTime,
+        reasons: working.entryReasons,
+        confidence: working.confidence,
+      });
+    })();
+
+    if (!fill) {
+      this.events.append({
+        level: 'info',
+        kind: 'order_submitted',
+        message: `the ${working.purpose} for ${working.productId} ended with nothing filled`,
+      });
+      return;
+    }
+    if (opened) await this.placeProtectiveStop(opened);
+    if (working.purpose === 'exit') await this.announceHalts();
   }
 
   /**
@@ -313,6 +416,9 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     // Fetch the full lookback, not just warmup: the backtester evaluates every bar
     // on exactly this window, so live and backtest compute the same indicators.
     const fetched = await this.marketData.getRecentCandles(productId, this.strategy.lookbackBars);
+    // A maker order in flight for it: the next bar waits until that has finished.
+    // Fetched first all the same, so the market data never goes stale meanwhile.
+    if (this.maker.find(productId)) return;
     if (fetched.length < this.strategy.warmupBars) return;
     const candles = fetched.slice(-this.strategy.lookbackBars);
 
@@ -353,7 +459,12 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     });
 
     if (signal.action === 'EXIT_LONG' && position) {
-      await this.closePosition(position, signal.exitReason ?? 'signal', D(newest.close));
+      const reason = signal.exitReason ?? 'signal';
+      // Only the strategy's own signal exit waits as a maker order. Stops never do.
+      if (reason === 'signal' && this.maker.enabled) {
+        if (await this.postMakerExit(position, D(newest.close))) return;
+      }
+      await this.closePosition(position, reason, D(newest.close));
       return;
     }
     if (signal.action === 'ENTER_LONG' && !position) {
@@ -396,7 +507,7 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
 
     const sizing = sizePosition({
       equity: snapshot.equity,
-      availableQuote: snapshot.cash,
+      availableQuote: snapshot.availableCash,
       entryPrice: referencePrice,
       stopPrice: provisional.stopPrice,
       openNotional,
@@ -448,29 +559,66 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     }
     for (const warning of decision.warnings) this.log.warn({ productId }, warning);
 
-    const result = await this.executor.execute({
+    const approved: OrderIntent = {
       ...intent,
       ...(decision.adjustedBaseSize ? { baseSize: decision.adjustedBaseSize } : {}),
-    });
+    };
+    if (this.maker.enabled) {
+      const posted = await this.maker.post({
+        purpose: 'entry',
+        intent: approved,
+        entry: {
+          atr: D(atrValue),
+          barOpenTime: bar.openTime,
+          reasons: signal.reasons,
+          confidence: signal.confidence,
+        },
+      });
+      // Resting, or blocked for a human: either way, nothing more now.
+      if (posted !== 'refused') return;
+    }
+
+    const result = await this.executor.execute(approved);
     const order = result.order;
     if (!order || order.status !== 'FILLED' || order.filledSize.lte(0)) return;
 
+    const stored = this.openFromFills({
+      productId,
+      fill: { size: order.filledSize, price: order.averageFillPrice, fee: order.fee },
+      atr: atrValue,
+      openedAt: bar.openTime,
+      reasons: signal.reasons,
+      confidence: signal.confidence,
+    });
+    await this.placeProtectiveStop(stored);
+  }
+
+  /** Record a new position from what an entry filled. Synchronous, to share a transaction. */
+  private openFromFills(args: {
+    productId: string;
+    fill: FillTotal;
+    atr: Decimal | number;
+    openedAt: number;
+    reasons: string[];
+    confidence: number;
+  }): StoredPosition {
+    const { productId, fill } = args;
     const entry = openPosition({
       productId,
-      baseSize: order.filledSize,
-      entryPrice: order.averageFillPrice,
-      atrValue,
-      openedAt: bar.openTime,
+      baseSize: fill.size,
+      entryPrice: fill.price,
+      atrValue: args.atr,
+      openedAt: args.openedAt,
       config: this.stopConfig,
     });
 
     const stored: StoredPosition = {
       ...entry,
       barsHeld: 0,
-      entryFee: order.fee,
+      entryFee: fill.fee,
       protectiveStopOrderId: null,
-      entryReasons: signal.reasons,
-      confidence: signal.confidence,
+      entryReasons: args.reasons,
+      confidence: args.confidence,
       mode: this.config.TRADING_MODE,
     };
     this.positions.upsert(stored);
@@ -478,8 +626,8 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     this.log.info(
       {
         productId,
-        size: order.filledSize.toFixed(),
-        entry: order.averageFillPrice.toFixed(),
+        size: fill.size.toFixed(),
+        entry: fill.price.toFixed(),
         stop: entry.stopPrice.toFixed(),
         target: entry.takeProfitPrice?.toFixed() ?? null,
       },
@@ -488,11 +636,10 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     this.events.append({
       level: 'info',
       kind: 'position_opened',
-      message: `opened ${productId} ${order.filledSize.toFixed()} @ ${order.averageFillPrice.toFixed()}`,
-      data: { stop: entry.stopPrice.toFixed(), reasons: signal.reasons },
+      message: `opened ${productId} ${fill.size.toFixed()} @ ${fill.price.toFixed()}`,
+      data: { stop: entry.stopPrice.toFixed(), reasons: args.reasons },
     });
-
-    await this.placeProtectiveStop(stored);
+    return stored;
   }
 
   /**
@@ -550,23 +697,86 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
     }
   }
 
+  /**
+   * Post a signal exit as a maker order (MAKER_ORDERS). True when nothing more
+   * should happen now: it rests, or it is blocked for a human. False when it
+   * was refused, and the caller exits at market instead.
+   */
+  private async postMakerExit(position: StoredPosition, referencePrice: Decimal): Promise<boolean> {
+    // The exchange-side stop holds the coins, so it has to go before a sell can rest.
+    const current = await this.cancelProtectiveStop(position);
+    const intent: OrderIntent = {
+      productId: current.productId,
+      side: 'SELL',
+      baseSize: current.baseSize,
+      referencePrice,
+      reason: 'exit: signal',
+      exitReason: 'signal',
+      idempotencyKey: ExecutorService.idempotencyKey({
+        mode: this.config.TRADING_MODE,
+        productId: current.productId,
+        side: 'SELL',
+        bar: Math.floor(Date.now() / 60_000),
+        purpose: 'signal',
+      }),
+    };
+    const { decision } = await this.risk.assess(intent);
+    if (!decision.approved) return false;
+    const posted = await this.maker.post({
+      purpose: 'exit',
+      intent: { ...intent, baseSize: decision.adjustedBaseSize ?? intent.baseSize },
+      exitReason: 'signal',
+    });
+    return posted !== 'refused';
+  }
+
+  /**
+   * Cancel the exchange-side stop, and forget it once cancelled, so a later
+   * exit does not try again. On failure it is kept, and the exit carries on.
+   */
+  private async cancelProtectiveStop(position: StoredPosition): Promise<StoredPosition> {
+    if (!position.protectiveStopOrderId) return position;
+    try {
+      await this.exchange.cancelOrders([position.protectiveStopOrderId]);
+    } catch (error) {
+      this.log.warn(
+        { productId: position.productId, err: String(error) },
+        'could not cancel the protective stop before exiting',
+      );
+      return position;
+    }
+    const cleared: StoredPosition = { ...position, protectiveStopOrderId: null };
+    this.positions.upsert(cleared);
+    return cleared;
+  }
+
   private async closePosition(
-    position: StoredPosition,
+    open: StoredPosition,
     reason: ExitReason,
     referencePrice: Decimal,
   ): Promise<void> {
+    let position = open;
+    // A maker exit still resting for it is ended first, and its fills booked:
+    // selling at market while it rests could sell the same coins twice.
+    const working = this.maker.find(position.productId);
+    if (working) {
+      const outcome = await this.maker.abort(working);
+      if (!outcome) {
+        this.log.warn(
+          { productId: position.productId, reason },
+          'the maker order is not confirmed cancelled yet; exiting on the next pass',
+        );
+        return;
+      }
+      await this.complete(outcome);
+      const left = this.positions.find(position.productId);
+      if (!left) return;
+      position = left;
+    }
+
     // Cancel the exchange-side stop FIRST. Selling while it rests would leave a
     // stop order against coins we no longer hold.
-    if (position.protectiveStopOrderId) {
-      try {
-        await this.exchange.cancelOrders([position.protectiveStopOrderId]);
-      } catch (error) {
-        this.log.warn(
-          { productId: position.productId, err: String(error) },
-          'could not cancel the protective stop before exiting',
-        );
-      }
-    }
+    position = await this.cancelProtectiveStop(position);
 
     const intent: OrderIntent = {
       productId: position.productId,
@@ -606,12 +816,29 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       return;
     }
 
-    const proceeds = order.filledSize.mul(order.averageFillPrice);
-    const costBasis = order.filledSize.mul(position.averageEntryPrice);
+    const sold = position;
+    this.db.transaction(() =>
+      this.bookExit(sold, reason, {
+        size: order.filledSize,
+        price: order.averageFillPrice,
+        fee: order.fee,
+      }),
+    )();
+
+    // A losing streak or the daily loss limit can only begin here. Without this,
+    // those halts blocked every later entry silently: the only trace was a
+    // risk_rejected event, which by design never alerts.
+    await this.announceHalts();
+  }
+
+  /** Record an exit's trade and what is left of the position. Synchronous, to share a transaction. */
+  private bookExit(position: StoredPosition, reason: ExitReason, fill: FillTotal): void {
+    const proceeds = fill.size.mul(fill.price);
+    const costBasis = fill.size.mul(position.averageEntryPrice);
     // Apportion the entry fee to the fraction actually sold, so a partial exit
     // does not charge the whole entry cost against it.
-    const soldFraction = position.baseSize.gt(0) ? order.filledSize.div(position.baseSize) : D(1);
-    const fees = position.entryFee.mul(soldFraction).plus(order.fee);
+    const soldFraction = position.baseSize.gt(0) ? fill.size.div(position.baseSize) : D(1);
+    const fees = position.entryFee.mul(soldFraction).plus(fill.fee);
     const pnl = proceeds.minus(costBasis).minus(fees);
 
     this.trades.insert({
@@ -619,8 +846,8 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       entryTime: position.openedAt * 1000,
       exitTime: Date.now(),
       entryPrice: position.averageEntryPrice,
-      exitPrice: order.averageFillPrice,
-      baseSize: order.filledSize,
+      exitPrice: fill.price,
+      baseSize: fill.size,
       fees,
       pnl,
       pnlPct: costBasis.gt(0) ? pnl.div(costBasis).mul(100).toNumber() : 0,
@@ -632,7 +859,7 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       takeProfitPrice: position.takeProfitPrice,
     });
 
-    const remaining = position.baseSize.minus(order.filledSize);
+    const remaining = position.baseSize.minus(fill.size);
     if (remaining.gt(0)) {
       this.log.warn(
         { productId: position.productId, remaining: remaining.toFixed() },
@@ -652,7 +879,7 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
         productId: position.productId,
         reason,
         pnl: pnl.toFixed(2),
-        exit: order.averageFillPrice.toFixed(),
+        exit: fill.price.toFixed(),
       },
       'position closed',
     );
@@ -663,14 +890,9 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
       data: {
         pnl: pnl.toFixed(),
         fees: fees.toFixed(),
-        exitPrice: order.averageFillPrice.toFixed(),
+        exitPrice: fill.price.toFixed(),
       },
     });
-
-    // A losing streak or the daily loss limit can only begin here. Without this,
-    // those halts blocked every later entry silently: the only trace was a
-    // risk_rejected event, which by design never alerts.
-    await this.announceHalts();
   }
 
   private async announceHalts(): Promise<void> {
@@ -684,6 +906,13 @@ export class TradingEngineService implements OnApplicationBootstrap, OnModuleDes
 
   /** Flatten everything at market. Used by the dashboard's panic button. */
   async flattenAll(reason: ExitReason = 'manual'): Promise<number> {
+    // Maker orders first. An entry still resting is cancelled, and whatever it
+    // bought becomes a position, flattened below with the rest.
+    for (const working of this.maker.list()) {
+      const outcome = await this.maker.abort(working);
+      if (outcome) await this.complete(outcome);
+    }
+
     const open = this.positions.findAll();
     let closed = 0;
     for (const position of open) {

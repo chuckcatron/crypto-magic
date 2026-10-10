@@ -6,6 +6,7 @@ import type { AppConfig } from '../config/config.schema';
 import { EXCHANGE } from '../exchange/tokens';
 import { EventRepository } from '../persistence/repositories/event.repository';
 import { PositionRepository } from '../persistence/repositories/position.repository';
+import { WorkingOrderRepository } from '../persistence/repositories/working-order.repository';
 import { childLogger } from '../common/logger';
 import { KillSwitchService } from './kill-switch.service';
 
@@ -17,6 +18,8 @@ export interface ReconciliationReport {
   readonly corrected: string[];
   readonly removed: string[];
   readonly unmanagedBalances: string[];
+  /** Products with a maker order in flight, left for the engine to finish and book. */
+  readonly working: string[];
   readonly halted: boolean;
 }
 
@@ -39,9 +42,14 @@ export class ReconciliationService {
     private readonly positions: PositionRepository,
     private readonly events: EventRepository,
     private readonly killSwitch: KillSwitchService,
+    private readonly workingOrders: WorkingOrderRepository,
   ) {}
 
   async reconcile(): Promise<ReconciliationReport> {
+    // A product with a maker order in flight has fills not booked yet, so its
+    // balance and its record are expected to differ. The engine finishes the
+    // order on its first pass and books them; the next start checks it.
+    const working = new Set(this.workingOrders.findAll().map((w) => w.productId));
     const balances = await this.exchange.getBalances();
     const byCurrency = new Map(balances.map((b) => [b.currency.toUpperCase(), b]));
     // Everything we own of a currency, including what open orders have on hold.
@@ -59,6 +67,7 @@ export class ReconciliationService {
     let halted = false;
 
     for (const position of stored) {
+      if (working.has(position.productId)) continue;
       const product = await this.exchange.getProduct(position.productId);
       const held = owned(product.baseCurrency);
 
@@ -94,7 +103,7 @@ export class ReconciliationService {
     // a long-term holding the operator never wanted the bot to touch.
     const unmanagedBalances: string[] = [];
     for (const productId of this.config.PRODUCTS) {
-      if (stored.some((p) => p.productId === productId)) continue;
+      if (stored.some((p) => p.productId === productId) || working.has(productId)) continue;
       const product = await this.exchange.getProduct(productId);
       const held = owned(product.baseCurrency);
       if (held.gt(0)) {
@@ -119,6 +128,7 @@ export class ReconciliationService {
       corrected,
       removed,
       unmanagedBalances,
+      working: [...working],
       halted,
     };
 
@@ -134,10 +144,13 @@ export class ReconciliationService {
         (id) => `holding ${id} with no position record; the bot will not manage or sell it`,
       ),
     ];
+    const inFlight = [...working].map(
+      (id) => `${id} has a maker order in flight; it is finished and booked on the first pass`,
+    );
     this.events.append({
       level: halted ? 'error' : notes.length > 0 ? 'warn' : 'info',
       kind: 'reconciliation',
-      message: [`reconciled ${stored.length} position(s)`, ...notes].join('. '),
+      message: [`reconciled ${stored.length} position(s)`, ...notes, ...inFlight].join('. '),
       data: report,
     });
     this.log.info(report, 'reconciliation complete');

@@ -13,7 +13,10 @@ import { StateRepository } from '../persistence/repositories/state.repository';
 import { childLogger } from '../common/logger';
 
 export interface PortfolioSnapshot {
+  /** All the quote currency, including what open orders hold, such as a resting maker buy. */
   readonly cash: Decimal;
+  /** The part of `cash` free to spend. What sizing and the risk checks use. */
+  readonly availableCash: Decimal;
   readonly positionValue: Decimal;
   readonly equity: Decimal;
   readonly positions: StoredPosition[];
@@ -37,9 +40,13 @@ export class PortfolioService {
   }
 
   async availableQuote(): Promise<Decimal> {
+    return (await this.quote()).available;
+  }
+
+  private async quote(): Promise<{ available: Decimal; hold: Decimal }> {
     const balances = await this.exchange.getBalances();
     const quote = balances.find((b) => b.currency === this.config.QUOTE_CURRENCY);
-    return quote?.available ?? D(0);
+    return { available: quote?.available ?? D(0), hold: quote?.hold ?? D(0) };
   }
 
   /**
@@ -47,10 +54,12 @@ export class PortfolioService {
    *
    * Position value uses the live ticker, not the entry price: equity has to
    * reflect what the book is worth now, or the daily-loss breaker is measuring
-   * the wrong thing.
+   * the wrong thing. Cash counts what open orders hold: a resting maker buy
+   * reserves nearly all of it for up to an hour, and it is still ours.
    */
   async snapshot(): Promise<PortfolioSnapshot> {
-    const cash = await this.availableQuote();
+    const { available, hold } = await this.quote();
+    const cash = available.plus(hold);
     const open = this.positions.findAll();
 
     let positionValue = D(0);
@@ -71,6 +80,7 @@ export class PortfolioService {
 
     return {
       cash,
+      availableCash: available,
       positionValue,
       equity: cash.plus(positionValue),
       positions: open,

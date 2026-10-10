@@ -136,7 +136,9 @@ how much is just the cost of trading — if the gap is large, the fee tier and
 position size are worth more attention than any indicator parameter.
 
 Coinbase sets the real fee per account, and it may be higher than 0.60%:
-`pnpm preflight` shows yours, and `--taker-bps` models it.
+`pnpm preflight` shows yours, and `--taker-bps` models it. `MAKER_ORDERS`, off
+by default, lets the strategy's own orders wait up to an hour for the lower
+maker fee (EXPERIMENT-011; see the RUNBOOK).
 
 ## Going live
 
@@ -364,7 +366,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 536 tests
+pnpm test        # 579 tests
 pnpm typecheck
 ```
 

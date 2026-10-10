@@ -300,3 +300,159 @@ describe('CoinbaseAdapter fee tier', () => {
     );
   });
 });
+
+describe('CoinbaseAdapter maker orders', () => {
+  const request = {
+    productId: 'BTC-USD',
+    side: 'BUY' as const,
+    baseSize: D('0.012345678'),
+    limitPrice: D('60000.017'),
+    expiresAt: Date.parse('2026-10-11T01:00:00.123Z'),
+    clientOrderId: 'LB-BTCUSD-1-entry-maker',
+  };
+  const accepted = { success: true, success_response: { order_id: 'ord-1' } };
+  const openOrder = {
+    order: {
+      order_id: 'ord-1',
+      client_order_id: 'cbnodeLB-BTCUSD-1-entry-maker',
+      product_id: 'BTC-USD',
+      side: 'BUY',
+      status: 'OPEN',
+      filled_size: '0',
+      average_filled_price: '0',
+      total_fees: '0',
+      created_time: '2026-10-11T00:00:01Z',
+    },
+  };
+
+  it('sends a post-only GTD limit that Coinbase itself expires, rounded onto its own side', async () => {
+    const sent: unknown[] = [];
+    const adapter = adapterWith({
+      getProduct: async () => PRODUCT,
+      submitOrder: async (body: unknown) => {
+        sent.push(body);
+        return accepted;
+      },
+      getOrder: async () => openOrder,
+    });
+
+    const order = await adapter.submitMakerOrder(request);
+
+    expect(sent).toEqual([
+      {
+        client_order_id: 'cbnodeLB-BTCUSD-1-entry-maker',
+        product_id: 'BTC-USD',
+        side: 'BUY',
+        order_configuration: {
+          limit_limit_gtd: {
+            base_size: '0.01234567',
+            // A buy rounds down, away from the ask.
+            limit_price: '60000.01',
+            end_time: '2026-10-11T01:00:00Z',
+            post_only: true,
+          },
+        },
+      },
+    ]);
+    expect(order.status).toBe('OPEN');
+  });
+
+  it('rounds a sell up, away from the bid', async () => {
+    const sent: { order_configuration: { limit_limit_gtd: { limit_price: string } } }[] = [];
+    const adapter = adapterWith({
+      getProduct: async () => PRODUCT,
+      submitOrder: async (body: unknown) => {
+        sent.push(body as (typeof sent)[number]);
+        return accepted;
+      },
+      getOrder: async () => openOrder,
+    });
+    await adapter.submitMakerOrder({ ...request, side: 'SELL' });
+    expect(sent[0]!.order_configuration.limit_limit_gtd.limit_price).toBe('60000.02');
+  });
+
+  it('NEVER retries the placement, and marks a network failure ambiguous', async () => {
+    let submits = 0;
+    const adapter = adapterWith({
+      getProduct: async () => PRODUCT,
+      submitOrder: async () => {
+        submits++;
+        throw networkError('ECONNRESET');
+      },
+    });
+    const error = await adapter.submitMakerOrder(request).catch((e: unknown) => e);
+    expect(submits).toBe(1);
+    expect((error as ExchangeError).retryable).toBe(true);
+  });
+
+  it('turns a refusal, such as post-only crossing, into a definite failure', async () => {
+    const adapter = adapterWith({
+      getProduct: async () => PRODUCT,
+      submitOrder: async () => ({
+        success: false,
+        error_response: {
+          new_order_failure_reason: 'INVALID_LIMIT_PRICE_POST_ONLY',
+          message: 'Invalid limit price post only',
+        },
+      }),
+    });
+    const error = await adapter.submitMakerOrder(request).catch((e: unknown) => e);
+    expect(error).toBeInstanceOf(ExchangeError);
+    expect((error as ExchangeError).retryable).toBe(false);
+    expect((error as Error).message).toMatch(/INVALID_LIMIT_PRICE_POST_ONLY/);
+  });
+
+  it('reports a placed order as open even when reading it back fails', async () => {
+    const adapter = adapterWith(
+      {
+        getProduct: async () => PRODUCT,
+        submitOrder: async () => accepted,
+        getOrder: async () => {
+          throw Object.assign(new Error('bad gateway'), { status: 502 });
+        },
+      },
+      0,
+    );
+    const order = await adapter.submitMakerOrder(request);
+    expect(order.orderId).toBe('ord-1');
+    expect(order.status).toBe('OPEN');
+  });
+
+  it('needs credentials', async () => {
+    await expect(new CoinbaseAdapter({}).submitMakerOrder(request)).rejects.toThrow(
+      /requires Coinbase API credentials/,
+    );
+  });
+});
+
+describe('CoinbaseAdapter best bid and ask', () => {
+  const book = (bids: { price: string }[], asks: { price: string }[]) => ({
+    pricebook: { product_id: 'BTC-USD', bids, asks, time: '2026-10-11T00:00:00Z' },
+  });
+
+  it('reads the top of the book', async () => {
+    const adapter = adapterWith({
+      getProductBook: async () => book([{ price: '60000.01' }], [{ price: '60000.02' }]),
+    });
+    const top = await adapter.getBestBidAsk('BTC-USD');
+    expect(top.bid.toString()).toBe('60000.01');
+    expect(top.ask.toString()).toBe('60000.02');
+  });
+
+  it('uses the public book without credentials', async () => {
+    const adapter = new CoinbaseAdapter({});
+    (adapter as unknown as { client: unknown }).client = {
+      getPublicProductBook: async () => book([{ price: '1.5' }], [{ price: '1.6' }]),
+    };
+    expect((await adapter.getBestBidAsk('BTC-USD')).bid.toString()).toBe('1.5');
+  });
+
+  it('refuses an empty or crossed book rather than pricing an order off it', async () => {
+    const empty = adapterWith({ getProductBook: async () => book([], [{ price: '1' }]) });
+    await expect(empty.getBestBidAsk('BTC-USD')).rejects.toThrow(/no usable best bid/);
+    const crossed = adapterWith({
+      getProductBook: async () => book([{ price: '2' }], [{ price: '1' }]),
+    });
+    await expect(crossed.getBestBidAsk('BTC-USD')).rejects.toThrow(/crossed book/);
+  });
+});

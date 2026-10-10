@@ -7,7 +7,7 @@ import {
   type Ticker,
 } from '@crypto-magic/core';
 import { crossedAbove, ema } from '@crypto-magic/core';
-import type { Balance, ExchangeAdapter, OrderResult } from '@crypto-magic/exchange';
+import type { Balance, BestBidAsk, ExchangeAdapter, OrderResult } from '@crypto-magic/exchange';
 
 export const FAKE_PRODUCT: ProductSpec = {
   productId: 'BTC-USD',
@@ -29,16 +29,23 @@ export class FakeMarketData implements ExchangeAdapter {
   readonly isLive = false;
 
   candles: Candle[] = [];
+  /** Served for one-minute requests: what a resting paper maker order is filled against. */
+  minuteBars: Candle[] = [];
   price = 100;
+  /** The book, a cent either side of the ticker unless a test sets it. */
+  book: BestBidAsk | null = null;
 
   async getProduct(): Promise<ProductSpec> {
     return FAKE_PRODUCT;
   }
-  async getCandles(): Promise<Candle[]> {
-    return this.candles;
+  async getCandles(args?: { granularity?: Granularity }): Promise<Candle[]> {
+    return args?.granularity === 'ONE_MINUTE' ? this.minuteBars : this.candles;
   }
   async getTicker(productId: string): Promise<Ticker> {
     return { productId, price: this.price, timestamp: Date.now() };
+  }
+  async getBestBidAsk(): Promise<BestBidAsk> {
+    return this.book ?? { bid: D(this.price).minus(0.01), ask: D(this.price).plus(0.01) };
   }
   async getBalances(): Promise<Balance[]> {
     return [];
@@ -86,6 +93,21 @@ export function candlesEndingNow(
 }
 
 export const asDecimal = D;
+
+/** A closed one-minute bar opening at `openMs` (rounded down to the minute). */
+export function minuteBar(openMs: number, low: number, high: number): Candle {
+  const openTime = Math.floor(openMs / 60_000) * 60;
+  return {
+    productId: 'BTC-USD',
+    granularity: 'ONE_MINUTE',
+    openTime,
+    open: (low + high) / 2,
+    high,
+    low,
+    close: (low + high) / 2,
+    volume: 1,
+  };
+}
 
 /**
  * A quiet leg followed by a rally just long enough that the fast/slow EMA cross

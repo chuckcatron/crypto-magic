@@ -10,6 +10,7 @@ import { PositionRepository } from './repositories/position.repository';
 import { StateRepository } from './repositories/state.repository';
 import { TradeAnalysisRepository } from './repositories/trade-analysis.repository';
 import { TradeRepository } from './repositories/trade.repository';
+import { WorkingOrderRepository } from './repositories/working-order.repository';
 
 @Injectable()
 class DatabaseLifecycle implements OnApplicationShutdown {
@@ -34,6 +35,7 @@ class DatabaseLifecycle implements OnApplicationShutdown {
     EventRepository,
     StateRepository,
     TradeAnalysisRepository,
+    WorkingOrderRepository,
   ],
   exports: [
     DATABASE,
@@ -43,6 +45,7 @@ class DatabaseLifecycle implements OnApplicationShutdown {
     TradeAnalysisRepository,
     EventRepository,
     StateRepository,
+    WorkingOrderRepository,
   ],
 })
 export class PersistenceModule {}

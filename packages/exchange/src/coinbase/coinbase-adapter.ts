@@ -14,7 +14,9 @@ import {
 import {
   ExchangeError,
   type Balance,
+  type BestBidAsk,
   type ExchangeAdapter,
+  type MakerOrderRequest,
   type MarketOrderRequest,
   type OrderResult,
   type ProtectiveStopRequest,
@@ -63,9 +65,10 @@ export interface CoinbaseAdapterOptions {
 /**
  * Coinbase Advanced Trade adapter.
  *
- * Only ever places market IOC orders and optional protective stop-limits. It
- * cannot short, cannot use margin, and cannot place anything that rests on the
- * book indefinitely.
+ * Only ever places market IOC orders, optional protective stop-limits, and,
+ * with MAKER_ORDERS on, post-only limits that Coinbase expires within the hour.
+ * It cannot short, cannot use margin, and cannot place anything that rests on
+ * the book indefinitely.
  */
 export interface KeyPermissions {
   readonly canView: boolean;
@@ -217,6 +220,25 @@ export class CoinbaseAdapter implements ExchangeAdapter {
     return { productId, price, timestamp: Date.now() };
   }
 
+  /** The best bid and ask, from whichever book endpoint this adapter may use. */
+  async getBestBidAsk(productId: string): Promise<BestBidAsk> {
+    const params = { product_id: productId, limit: 1 };
+    const response = await this.call(() =>
+      this.authenticated
+        ? this.client.getProductBook(params)
+        : this.client.getPublicProductBook(params),
+    );
+    const book = (response as { pricebook?: RawPricebook }).pricebook;
+    const bid = topOfBook(book?.bids, 'bid', productId);
+    const ask = topOfBook(book?.asks, 'ask', productId);
+    if (ask.lt(bid)) {
+      throw new ExchangeError(
+        `Coinbase returned a crossed book for ${productId}: bid ${bid.toFixed()} above ask ${ask.toFixed()}`,
+      );
+    }
+    return { bid, ask };
+  }
+
   /**
    * What this API key may do, and which portfolio it belongs to. Read-only.
    *
@@ -361,6 +383,78 @@ export class CoinbaseAdapter implements ExchangeAdapter {
     );
   }
 
+  /**
+   * Place a post-only limit that Coinbase cancels at `expiresAt` (GTD).
+   *
+   * Post-only, so it can only rest and pay the maker fee: if it would match on
+   * arrival, Coinbase refuses it and the caller goes to market instead. Never
+   * retried, like every order placement (see call()).
+   */
+  async submitMakerOrder(request: MakerOrderRequest): Promise<OrderResult> {
+    this.requireCredentials('placing a maker order');
+    const product = await this.getProduct(request.productId);
+    if (product.tradingDisabled) {
+      throw new ExchangeError(`trading is disabled for ${request.productId}`);
+    }
+    const baseSize = floorToIncrement(request.baseSize, product.baseIncrement);
+    if (baseSize.lte(0)) {
+      throw new ExchangeError(`maker order size rounds to zero for ${request.productId}`);
+    }
+    // A buy rounds down and a sell up, so rounding never pushes it across the book.
+    const limitPrice = roundPrice(
+      request.limitPrice,
+      product.quoteIncrement,
+      request.side === 'BUY' ? 'down' : 'up',
+    );
+    const clientOrderId = withPrefix(request.clientOrderId);
+
+    const response = await this.call(
+      () =>
+        this.client.submitOrder({
+          client_order_id: clientOrderId,
+          product_id: request.productId,
+          side: request.side,
+          order_configuration: {
+            limit_limit_gtd: {
+              base_size: toApiString(baseSize, product.baseIncrement),
+              limit_price: toApiString(limitPrice, product.quoteIncrement),
+              end_time: rfc3339(request.expiresAt),
+              post_only: true,
+            },
+          },
+        }),
+      { retry: false },
+    );
+
+    if (!response.success || !response.success_response) {
+      const error = response.error_response;
+      throw new ExchangeError(
+        `Coinbase rejected the ${request.side} maker order for ${request.productId}: ` +
+          `${error?.new_order_failure_reason ?? 'unknown'} ${error?.message ?? ''}`.trim(),
+      );
+    }
+
+    const { order_id: orderId } = response.success_response;
+    const placed: OrderResult = {
+      orderId,
+      clientOrderId,
+      productId: request.productId,
+      side: request.side,
+      status: 'OPEN',
+      filledSize: D(0),
+      averageFillPrice: D(0),
+      fee: D(0),
+      createdAt: Date.now(),
+    };
+    try {
+      return (await this.getOrder(orderId)) ?? placed;
+    } catch {
+      // The order is on the book; a failed read-back must not look like a failed
+      // placement. Its state is read again on the next poll.
+      return placed;
+    }
+  }
+
   async getOrder(orderId: string): Promise<OrderResult | null> {
     this.requireCredentials('reading an order');
     try {
@@ -495,6 +589,30 @@ interface RawProduct {
   cancel_only?: boolean;
   limit_only?: boolean;
   status?: string;
+}
+
+/** One side of a Coinbase order book, best price first. */
+interface RawPricebook {
+  bids?: { price?: string }[];
+  asks?: { price?: string }[];
+}
+
+function topOfBook(
+  levels: { price?: string }[] | undefined,
+  side: 'bid' | 'ask',
+  productId: string,
+): Decimal {
+  const raw = levels?.[0]?.price ?? '';
+  const price = raw.trim() === '' ? Number.NaN : Number(raw);
+  if (!Number.isFinite(price) || price <= 0) {
+    throw new ExchangeError(`Coinbase returned no usable best ${side} for ${productId}`);
+  }
+  return D(raw);
+}
+
+/** RFC 3339 to the second, as Coinbase's end_time expects. */
+function rfc3339(ms: number): string {
+  return new Date(ms).toISOString().replace(/\.\d{3}Z$/, 'Z');
 }
 
 /** The fields of a transaction summary this adapter reads. Checked, not trusted. */

@@ -5,6 +5,7 @@ import type { StoredPosition } from './repositories/position.repository';
 import type { EquitySnapshot } from './repositories/state.repository';
 import type { StoredTradeAnalysis } from './repositories/trade-analysis.repository';
 import type { StoredTrade } from './repositories/trade.repository';
+import type { WorkingOrder } from './repositories/working-order.repository';
 
 /**
  * The storage contract.
@@ -40,6 +41,14 @@ export interface OrderStore {
   save(order: StoredOrder): void;
   countSince(sinceMs: number): number;
   recent(limit?: number): StoredOrder[];
+}
+
+/** Maker orders waiting on the book, at most one per product. */
+export interface WorkingOrderStore {
+  findAll(): WorkingOrder[];
+  find(productId: string): WorkingOrder | null;
+  save(order: WorkingOrder): void;
+  remove(productId: string): void;
 }
 
 export interface TradeStore {

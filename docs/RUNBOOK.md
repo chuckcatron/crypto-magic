@@ -277,6 +277,41 @@ let the engine re-enter at the next daily close, or start a fresh paper account.
 To see a coin's price without trading it, add it to `WATCH_PRODUCTS` instead.
 Its dashboard tile says "watching, not traded".
 
+## Maker orders (`MAKER_ORDERS`)
+
+Off by default. EXPERIMENT-011 found that a limit order left for up to an hour
+cost less than a market order, mostly because a filled limit order pays the
+lower maker fee. With `MAKER_ORDERS=true`:
+
+- The strategy's own buy, and its own signal sell, rest on Coinbase as a
+  post-only limit at the best bid (to buy) or ask (to sell). Coinbase cancels it
+  after an hour by itself.
+- Whatever has not filled by then goes at market, as it would have before.
+- Stops, the kill switch and **Flatten all** never wait. A stop or a flatten
+  cancels the resting order first; the kill switch cancels a resting buy.
+- It needs `GRANULARITY=ONE_DAY`: the hour has to fit inside a bar, and the
+  daily close is what was tested.
+
+Run it in paper before live. Paper fills a resting order only once a closed
+one-minute bar trades through its limit, which is the experiment's strict rule.
+It always fills in full, at a 0.40% maker fee. Paper also forgets a resting
+order when the engine restarts, so that one goes at market straight away.
+
+To turn it on, add it to `.env`, then restart the engine:
+
+```bash
+MAKER_ORDERS=true
+```
+
+```bash
+launchctl kickstart -k gui/$(id -u)/com.cryptomagic.engine
+```
+
+While an order rests, `cm events` shows `maker BUY ... until ...`. Then it
+shows `maker filled ...`, a market `BUY` for the rest, or both. `GET
+/api/status` lists it under `workingOrders`. Turning the setting off again
+stops new maker orders; one already resting is still followed to the end.
+
 ## Going live
 
 Follow [`GOING-LIVE.md`](GOING-LIVE.md). It starts from a fresh database (below)

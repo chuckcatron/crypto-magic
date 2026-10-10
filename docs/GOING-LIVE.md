@@ -97,7 +97,11 @@ MAX_TOTAL_NOTIONAL=<the same amount>
 MAX_CONSECUTIVE_LOSSES=12
 PROTECTIVE_STOP_ENABLED=true
 HEARTBEAT_ENABLED=true
+MAKER_ORDERS=false
 ```
+
+Set `MAKER_ORDERS=true` only after it has run in paper (RUNBOOK, "Maker
+orders").
 
 - [ ] At least one alert channel (`NTFY_TOPIC`, Discord or Telegram) is set.
 - [ ] A dead man's switch (`DEADMAN_PING_URL`) is set: it is the only thing
