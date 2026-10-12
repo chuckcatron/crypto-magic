@@ -366,7 +366,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 579 tests
+pnpm test        # 585 tests
 pnpm typecheck
 ```
 
