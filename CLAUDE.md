@@ -1,7 +1,7 @@
 # Notes for Claude sessions
 
 Handoff notes, so a new session can pick up without the old transcript. Last
-updated 2026-10-10. The README and `docs/` are the real documentation. This
+updated 2026-10-12. The README and `docs/` are the real documentation. This
 file covers working rules and where things stand.
 
 ## Working rules (from the owner)
@@ -41,14 +41,9 @@ file covers working rules and where things stand.
   - one position, 0.01184166 BTC bought 9 days earlier at $83,603.04;
   - equity $1,015.97 from $1,000.
 
-  The Mac Studio's `~/crypto-magic` has no regime bot. The doctor there showed
-  no `.env`, no build, no launchd service and nothing on port 4000.
-  better-sqlite3 would not build there on Node 24.21.0, so the owner switched
-  it to Node 22. The futures paper engine has run there since 2026-10-06 19:25
-  UTC, started by hand with `nohup` (PID in `data/futures-paper.pid`).
-  `scripts/install-launchd-futures.sh`, added the same day, moves it under
-  launchd as `com.cryptomagic.futures`. Until the owner confirms they ran it
-  there, assume a reboot stops the engine.
+  **The MacBook Pro is the only machine (2026-10-12).** The owner got rid of
+  the Mac Studio, so the futures paper engine no longer runs anywhere, and
+  Freqtrade never ran there. Notes below that mention the Studio are history.
 
 - **better-sqlite3 11.10.0**, used by both engines, ships ready-made Mac
   binaries for Node 20, 22 and 23 only.
@@ -106,9 +101,10 @@ file covers working rules and where things stand.
   - `packages/futures` holds the simulation. `apps/futures-engine` is a
     paper-only engine that runs the four forward on live public prices: port
     4100, its own `data/futures-paper.db`, no key, no order path. The owner
-    said "build it with futures in mind; you are free to paper trade". It runs
-    on the Mac Studio (see Machines). `scripts/install-launchd-futures.sh`
-    makes it a launchd agent, separate from the regime services. The engine
+    said "build it with futures in mind; you are free to paper trade". It ran
+    on the Mac Studio until the owner got rid of it (see Machines).
+    `scripts/install-launchd-futures.sh` makes it a launchd agent, separate
+    from the regime services. The engine
     claims its API port before trading, so a second copy exits before touching
     the database. See `docs/FUTURES-PAPER.md`.
   - Its dashboard is at <http://127.0.0.1:4100>. The owner asked for it to be
@@ -176,12 +172,31 @@ file covers working rules and where things stand.
   from before it ("UNIQUE constraint failed: orders.order_id"). The paper money
   moved, but the order could not be recorded, so that exit failed, and every
   retry failed for want of the coins.
-  - The MacBook soak runs the old code. If its engine restarted after the
-    2026-09-27 buy, its next exit hits this. The fix needs a pull, a build and an
-    engine restart there; the owner decides, mid-soak.
-  - If that exit has already failed, reconciliation after the fix removes the
-    position ("closed outside the bot"), and the trade is missing from the
-    history.
+  - **It hit the MacBook soak.** The owner's review on 2026-10-12 showed:
+    - the engine restarted on 2026-10-05;
+    - then two `SELL 0.01184166 BTC-USD` a minute apart (16:31 and 16:32
+      local). No `signal` event came before them, and a stop would retry every
+      30 seconds, so this was almost certainly **Flatten all** pressed twice;
+    - the first sold the paper BTC but could not be recorded; the second was
+      rejected ("paper account holds 0 BTC").
+
+    `grep -c "UNIQUE constraint failed" logs/engine.log` printed 0. The error
+    escaped through the HTTP handler, so it is probably in
+    `logs/engine.error.log`; that was not checked.
+
+    So the paper account holds about $986.88 cash and no BTC. The sale is about
+    a $13.12 loss: an implied price of about $83,498 against the $83,603.04
+    buy, after 0.60% fees each way. The bot still records the position, so the
+    dashboard counts the BTC twice and shows equity of about $1,964 (+96%).
+    That figure is false.
+
+  - The fix needs a merge, then RUNBOOK "Upgrading" on the MacBook. On restart,
+    reconciliation removes the position ("closed outside the bot"), and the
+    sale is missing from the trade history. GOING-LIVE step 1's "survived a
+    restart … positions intact" is not met. Recommended: after the fix, more
+    paper time, with a restart and a Flatten all, before any live step. The
+    owner decides.
+  - Live order ids come from Coinbase, so this collision was paper-only.
 - **Maker orders (built 2026-10-10, off by default).** The owner said "do it"
   to building EXPERIMENT-011's policy. `MAKER_ORDERS=true` (daily bars only)
   puts the strategy's own entries and signal exits on the book as post-only GTD
