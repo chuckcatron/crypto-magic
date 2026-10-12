@@ -141,7 +141,7 @@ export class RiskService {
     const snapshot = await this.portfolio.snapshot();
     return {
       equity: snapshot.equity,
-      availableQuote: snapshot.cash,
+      availableQuote: snapshot.availableCash,
       openPositions: snapshot.positions,
       realizedPnlToday: this.trades.realizedPnlSince(startOfUtcDay()),
       consecutiveLosses: this.lossStreak(),

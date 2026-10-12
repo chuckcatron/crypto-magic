@@ -1,7 +1,7 @@
 # Notes for Claude sessions
 
 Handoff notes, so a new session can pick up without the old transcript. Last
-updated 2026-10-02. The README and `docs/` are the real documentation. This
+updated 2026-10-12. The README and `docs/` are the real documentation. This
 file covers working rules and where things stand.
 
 ## Working rules (from the owner)
@@ -9,6 +9,10 @@ file covers working rules and where things stand.
 - **Never add Coinbase API keys. Never commit `.env` or `data/`.**
 - Be at least 90% sure before acting. Follow best practices. The owner works in
   Next.js and NestJS, and deploys to AWS with Amplify or CDK.
+- Give the owner shell commands with no `#` comments. Their zsh does not treat
+  `#` as a comment in pasted input, so a comment runs as part of the command,
+  and an apostrophe in one opens a quote that swallows the lines after it
+  (reproduced 2026-10-06).
 - Work only on branch `claude/eloquent-wright-ab93he`. The owner merges PRs.
   Open a PR only when asked. They usually just say "PR".
 - After a PR is merged, restart the branch from main:
@@ -26,26 +30,49 @@ file covers working rules and where things stand.
 
 ## Where things stand
 
-- **The bot** is paper-trading on the owner's Mac under launchd, using live
-  Coinbase public prices. Settings:
+- **The bot** is paper-trading on the owner's MacBook Pro under launchd, using
+  live Coinbase public prices. Settings:
   - `STRATEGY=regime`, `GRANULARITY=ONE_DAY`
   - BTC-USD only, `REGIME_ALLOCATION_PCT=99`
   - A 10-ATR disaster stop
+- **Machines.** The soak runs on the MacBook Pro. `node scripts/cm.mjs` there
+  on 2026-10-06 showed:
+  - the loop live and the dead-man pinging;
+  - one position, 0.01184166 BTC bought 9 days earlier at $83,603.04;
+  - equity $1,015.97 from $1,000.
+
+  **The MacBook Pro is the only machine (2026-10-12).** The owner got rid of
+  the Mac Studio, so the futures paper engine no longer runs anywhere, and
+  Freqtrade never ran there. Notes below that mention the Studio are history.
+
+- **better-sqlite3 11.10.0**, used by both engines, ships ready-made Mac
+  binaries for Node 20, 22 and 23 only.
+  - On Node 24 it has to compile from source. That worked in the Linux sandbox
+    but not on the Mac Studio. `pnpm install --reporter=append-only` shows a
+    compile's output.
+  - It cannot compile on Node 26: V8 removed APIs it uses.
+  - Keep the Macs on Node 22, which reaches end of life on 2027-04-30.
+  - 12.11.1 ships Mac binaries for Node 22, 24 and 26. Upgrading to it after
+    the soak is the way onto Node 24.
 - **The paper soak** is step 1 of `docs/GOING-LIVE.md`, which asks for at least
   two weeks. It runs to about **2026-10-13**. Going live after that means
   working through `docs/GOING-LIVE.md` in order, up to `pnpm preflight`
   reporting READY. The owner creates and installs the keys, never Claude.
 - **Experiments** (details in `docs/`):
 
-  | No. | Question                       | Result                                               |
-  | --- | ------------------------------ | ---------------------------------------------------- |
-  | 001 | 200-day regime filter on BTC   | Passed, provisionally. This is the live strategy     |
-  | 002 | Funding-rate carry             | Real income, but not steady. Not adopted             |
-  | 003 | Regime filter on ETH and SOL   | ETH failed. SOL passed only its one window           |
-  | 004 | Better disaster stops          | No variant passed. Stop unchanged                    |
-  | 005 | Close-only stop on other coins | Inconclusive. The filter failed on 26 of 27 altcoins |
-  | 006 | Three coins or BTC alone       | BTC alone, but the result is fragile                 |
-  | 007 | Faster exit line               | Neither variant passed. Exit unchanged               |
+  | No. | Question                       | Result                                                |
+  | --- | ------------------------------ | ----------------------------------------------------- |
+  | 001 | 200-day regime filter on BTC   | Passed, provisionally. This is the live strategy      |
+  | 002 | Funding-rate carry             | Real income, but not steady. Not adopted              |
+  | 003 | Regime filter on ETH and SOL   | ETH failed. SOL passed only its one window            |
+  | 004 | Better disaster stops          | No variant passed. Stop unchanged                     |
+  | 005 | Close-only stop on other coins | Inconclusive. The filter failed on 26 of 27 altcoins  |
+  | 006 | Three coins or BTC alone       | BTC alone, but the result is fragile                  |
+  | 007 | Faster exit line               | Neither variant passed. Exit unchanged                |
+  | 008 | Fast long/short on US perps    | All four failed. No edge before costs                 |
+  | 009 | "Trade any crypto" bots        | All six failed. All lost money in 2023–2026           |
+  | 010 | Volatility-targeted sizing     | Lost window 1 by 0.63 points. Sizing unchanged        |
+  | 011 | Maker limit orders             | Passed all six cells, about 23 bps a fill. Built, off |
 
 - **Fee sensitivity**, run 2026-10-02 and not committed as an experiment.
   Regime strategy, full exposure. Each cell is annualized return / max
@@ -60,8 +87,166 @@ file covers working rules and where things stand.
   Lower fees are worth about 3 points a year. They do not fix the 2025–2026
   loss.
 
+- **Fast trading on futures (2026-10-06).** The owner asked for an aggressive,
+  fast bot on Coinbase that trades any crypto, long and short.
+  - Measured first: at spot fees (1.3% a round trip), even perfect hindsight
+    beats the cost on only 0.6% of 15-minute BTC bars. Coinbase's US perpetual
+    futures (`BIP-20DEC30-CDE` etc.) cost about a tenth as much.
+  - EXPERIMENT-008 tested four strategies on futures costs: F1 flush catcher,
+    F2 squeeze breakout, F3 trend pullback, F4 weekly momentum across 23
+    coins. All four failed both windows. F1–F3 capture about zero per trade
+    before costs.
+  - F4 made +47% before costs in the holdout, but the both-sides funding
+    assumption took most of it. Noted in the doc, not acted on.
+  - `packages/futures` holds the simulation. `apps/futures-engine` is a
+    paper-only engine that runs the four forward on live public prices: port
+    4100, its own `data/futures-paper.db`, no key, no order path. The owner
+    said "build it with futures in mind; you are free to paper trade". It ran
+    on the Mac Studio until the owner got rid of it (see Machines).
+    `scripts/install-launchd-futures.sh` makes it a launchd agent, separate
+    from the regime services. The engine
+    claims its API port before trading, so a second copy exits before touching
+    the database. See `docs/FUTURES-PAPER.md`.
+  - Its dashboard is at <http://127.0.0.1:4100>. The owner asked for it to be
+    "super user friendly". The engine serves it from
+    `apps/futures-engine/public` (plain HTML, CSS and JS, no build step) under
+    a CSP that allows no inline code. It is read-only, like the API.
+  - Visual QA was done in the sandbox with Playwright's Chromium, against a
+    fixture server and against the real engine. The chart colors are
+    dataviz-validated categorical slots 1–4.
+- **Muggli.** The owner's friend Tom ("Muggli") reports +200% in 5 months, live
+  since about May 2026, with a bot that trades any crypto. He started from a
+  backtest and trades bitcoin he mined. Asked for, but not received: his trade
+  history CSV and his rules. Over 2026-05-06 → 2026-10-05, BTC held made +5%,
+  the median of the top 96 coins +15%, and 6 coins tripled.
+- **EXPERIMENT-009 (2026-10-06)** tested the archetypes Muggli could be
+  running, on a survivorship-free universe.
+  - The universe: every Binance USDT pair from the public archive, delisted
+    ones included (191 of 589). It was fetched with
+    `scripts/fetch-binance-daily.mjs` through the archive's S3 endpoint, which
+    the sandbox allows.
+  - All six failed. In the holdout, all lost money while BTC made +36% a year.
+  - The gated breakout (S2R) made +43% over Muggli's five months but lost
+    about 57% in each of 2024 and 2025. His number fits a hot streak of a
+    breakout-style bot.
+  - The BTC 200-day filter nearly tied its yardstick in that holdout (+22.0%
+    against +23.0%).
+  - The simulation is `packages/futures/src/portfolio`.
+- **Popular GitHub bots (2026-10-10).** The owner asked which trending crypto
+  trading project looks most promising. Read, not run: TradingAgents,
+  ai-hedge-fund, freqtrade, nautilus_trader, hummingbot, NoFx, vibe-trading and
+  ai-trading-agent.
+  - None shows a verified edge.
+  - Nautilus Trader is the best fit for Coinbase's US perpetuals: its Coinbase
+    adapter is marked stable and covers spot and CFM futures.
+  - Hummingbot's market making suits a high-trade-count style like Muggli's,
+    but retail fees work against it.
+  - NoFx has red flags: a `curl | bash` installer, a fee wallet for its AI,
+    non-US exchanges, and AGPL.
+- **Freqtrade (2026-10-10).** The owner asked "can we run freqtrade". Yes, in
+  paper mode ("dry-run") with no key. Freqtrade 2026.9 was tested in the
+  sandbox:
+  - It reaches Coinbase only through ccxt ("Coinbase Advanced"), which
+    freqtrade does not officially support, and logs a warning saying so.
+  - It downloaded hourly candles and backtested. It ran a live dry-run for
+    five minutes, with its API and login working.
+  - Coinbase needs `"use_order_book": false` in `entry_pricing` and
+    `exit_pricing`. ccxt's Coinbase has no `fetchL2OrderBook`, so the
+    order-book setting stops freqtrade at startup.
+  - Its demo `SampleStrategy` was backtested on BTC, ETH and SOL hourly from
+    2025-10-15 to 2026-10-10, with $1,000 and 3 slots. Results by fee per side:
+    −55% at 0.6%, −49% at 0.4%, −29% at zero. Holding the three lost 38%;
+    BTC alone lost 27%. It won 75% of its trades, but its −11% stop-loss
+    exits outweighed the many +1% wins.
+  - Its docs say Apple-silicon Macs should run it in Docker. The owner was
+    given steps for the Mac Studio, not yet confirmed running there:
+    - `~/freqtrade`, outside this repo;
+    - the official `docker-compose.yml`;
+    - a Coinbase dry-run config with no key;
+    - FreqUI at <http://127.0.0.1:8080>.
+  - A freqtrade strategy that might trade real money goes through a
+    pre-registered experiment, like any other.
+- **Paper order ids repeated after a restart (fixed 2026-10-10, `4483f6a`).**
+  The paper adapter numbered orders from 1 on every start, and the orders table
+  keys on the id. So after any restart the next paper order collided with one
+  from before it ("UNIQUE constraint failed: orders.order_id"). The paper money
+  moved, but the order could not be recorded, so that exit failed, and every
+  retry failed for want of the coins.
+  - **It hit the MacBook soak.** The owner's review on 2026-10-12 showed:
+    - the engine restarted on 2026-10-05;
+    - then two `SELL 0.01184166 BTC-USD` a minute apart (16:31 and 16:32
+      local). No `signal` event came before them, and a stop would retry every
+      30 seconds, so this was almost certainly **Flatten all** pressed twice;
+    - the first sold the paper BTC but could not be recorded; the second was
+      rejected ("paper account holds 0 BTC").
+
+    `grep -c "UNIQUE constraint failed" logs/engine.log` printed 0. The error
+    escaped through the HTTP handler, so it is probably in
+    `logs/engine.error.log`; that was not checked.
+
+    So the paper account holds about $986.88 cash and no BTC. The sale is about
+    a $13.12 loss: an implied price of about $83,498 against the $83,603.04
+    buy, after 0.60% fees each way. The bot still records the position, so the
+    dashboard counts the BTC twice and shows equity of about $1,964 (+96%).
+    That figure is false.
+
+  - The fix needs a merge, then RUNBOOK "Upgrading" on the MacBook. On restart,
+    reconciliation removes the position ("closed outside the bot"), and the
+    sale is missing from the trade history. GOING-LIVE step 1's "survived a
+    restart … positions intact" is not met. Recommended: after the fix, more
+    paper time, with a restart and a Flatten all, before any live step. The
+    owner decides.
+  - Live order ids come from Coinbase, so this collision was paper-only.
+- **Maker orders (built 2026-10-10, off by default).** The owner said "do it"
+  to building EXPERIMENT-011's policy. `MAKER_ORDERS=true` (daily bars only)
+  puts the strategy's own entries and signal exits on the book as post-only GTD
+  limits at the best bid or ask. Coinbase expires them after an hour, and the
+  rest then goes at market. Not yet tried in paper.
+  - `MakerOrderService` with a `working_orders` table (migration 003). The row
+    is written before the order is sent, with both the maker and the market
+    leg's client ids fixed. The fills are booked, and the row retired, in one
+    transaction.
+  - Never goes to market until the exchange confirms the maker order stopped. A
+    live order the exchange cannot find, or an ambiguous placement, engages the
+    kill switch.
+  - Stops and **Flatten all** cancel a resting order first. The kill switch
+    cancels a resting entry. Reconciliation skips a product with an order in
+    flight.
+  - Portfolio `cash` now includes held quote (equity no longer dips while a buy
+    rests). Sizing and risk use `availableCash`.
+  - Paper fills a resting order only when a closed one-minute bar trades
+    through the limit, in full, at a 40 bps maker fee. It forgets resting
+    orders on a restart.
+  - Found while building it: the engine fetches bars before skipping a product
+    with an order in flight, and finishes working orders after the bars. Without
+    that, after a restart the market leg was refused for stale data.
+
 ## Open threads
 
+- **Coinbase's real fee rate (checked 2026-10-10).** The soak and every
+  backtest charge 60 bps taker (`DEFAULT_FEE_MODEL`).
+  - Coinbase changed its Advanced fees on 2026-09-16. Reports of the
+    announcement put the US entry rate at **0.90% taker, 0.50% maker**. Coinbase's
+    own pages are blocked from the sandbox, so this comes from search results
+    and news coverage.
+  - Older figures came from earlier schedules: 1.2%/0.6% and 0.8%/0.6% in ccxt
+    samples, and 0.6%/0.4% in some guides.
+  - `pnpm preflight` now reads the account's own spot tier
+    (`transaction_summary`, `product_type=SPOT`). It warns, with the
+    round-trip cost, when the taker rate is above 60 bps. Only the owner's key
+    can run it, so the account's actual rate is still unknown.
+  - At 90 bps, regime backtests on `data/coinbase-daily/BTC-USD.csv`, full
+    exposure, annualized:
+    - 2022–2024: +47.86% → +45.66%, max drawdown −29.51% → −31.52%;
+    - 2025-01-01 → 2026-09-30: −6.51% → −9.51% (buy-and-hold −7.17%), max
+      drawdown −35.37% → −37.28%.
+
+    Those 60 bps figures differ from the fee-sensitivity table above, which
+    used a different CSV.
+
+  - EXPERIMENT-011 assumed 60 bps taker and 40 bps maker. At 0.90% and 0.50%,
+    the gap a filled maker order saves is 45 bps, not 25.
+  - Don't change the soak's fee while it runs.
 - **Alpaca (alpaca.markets).** The owner asked whether moving to a "proven
   platform" would do better.
   - Answer so far, based on web search: not yet. The fee saving is small, and
@@ -76,10 +261,19 @@ file covers working rules and where things stand.
     - `docs.alpaca.markets/docs/crypto-fees`
     - `docs.alpaca.markets/docs/crypto-orders`
 - **Offered, no answer yet. Don't start without a yes:**
+  - Auditing Muggli's trade history, if he shares it: real return after fees
+    and deposits, drawdown, what carried it, and against holding the same coins.
+  - A new pre-registered experiment on F4 with real funding history. It would
+    run on data EXPERIMENT-008 has already seen, so it starts as weaker
+    evidence. EXPERIMENT-009 already tested long-only gated rotation (S1R),
+    which failed.
+  - Upgrading better-sqlite3 to 12.11.1 after the soak, then moving both Macs
+    to Node 24. It is a major version, so read its breaking changes first.
   - A pre-registered experiment running the regime filter on SPY. Alpaca's
     real advantage is commission-free stocks and ETFs.
-  - Using Coinbase maker limit orders (about 40 bps) instead of market orders,
-    as a cheaper fee improvement.
+  - A paper run with `MAKER_ORDERS=true` after the soak, before any live use.
+  - A pre-registered, forward-only paper test of TradingAgents. It would need
+    the owner's own AI API key.
 
 ## Useful commands
 
@@ -94,5 +288,23 @@ npx tsx src/backtest/run-backtest.ts --granularity ONE_DAY --strategy regime \
   --taker-bps 60          # defaults: 60 taker + 5 slippage
 ```
 
+```bash
+# EXPERIMENT-008 (the data commands are in the doc's process notes)
+pnpm --filter @crypto-magic/futures validate-008
+pnpm --filter @crypto-magic/futures experiment-008 --window dev   # or holdout
+
+# EXPERIMENT-009 (data: scripts/fetch-binance-daily.mjs, fetch-coinbase-history.mjs)
+pnpm --filter @crypto-magic/futures inventory-009
+pnpm --filter @crypto-magic/futures experiment-009 --window dev   # or holdout
+
+# Futures paper engine (after pnpm build)
+pnpm futures:paper
+curl -s http://127.0.0.1:4100/api/status
+open http://127.0.0.1:4100              # the dashboard (macOS)
+./scripts/install-launchd-futures.sh   # macOS: as a launchd agent; --uninstall removes it
+```
+
 The CSVs live in `data/`, which is gitignored, so a fresh clone won't have
 them. `scripts/fetch-btc-history.mjs` rebuilds the BTC history.
+`scripts/fetch-coinbase-history.mjs` fetches any product at any granularity.
+In the cloud sandbox, Node's fetch needs `NODE_USE_ENV_PROXY=1`.

@@ -3,10 +3,10 @@
  *
  *   pnpm preflight
  *
- * Uses the Coinbase key in .env to read the key's permissions and the balances
- * the bot would see. It places no order and changes nothing, in Coinbase or on
- * disk. The adapter is held through a type that exposes only the two read
- * calls, so no code path here can reach an order method.
+ * Uses the Coinbase key in .env to read the key's permissions, the balances
+ * the bot would see, and the account's fee tier. It places no order and changes
+ * nothing, in Coinbase or on disk. The adapter is held through a type that
+ * exposes only read calls, so no code path here can reach an order method.
  *
  * Exits 1 if any check fails. See docs/GOING-LIVE.md.
  */
@@ -19,7 +19,10 @@ import { loadConfig } from '../config/config.schema';
 import { REPO_ROOT } from '../config/paths';
 import { evaluatePreflight, type PreflightInput } from './preflight';
 
-type ReadOnlyAccount = Pick<CoinbaseAdapter, 'getKeyPermissions' | 'getBalances' | 'getProduct'>;
+type ReadOnlyAccount = Pick<
+  CoinbaseAdapter,
+  'getKeyPermissions' | 'getBalances' | 'getProduct' | 'getFeeTier'
+>;
 
 const message = (error: unknown) => (error instanceof Error ? error.message : String(error));
 
@@ -30,6 +33,7 @@ async function main(): Promise<void> {
 
   let permissions: PreflightInput['permissions'] = null;
   let balances: PreflightInput['balances'] = null;
+  let feeTier: PreflightInput['feeTier'] = null;
   const baseCurrencies: Record<string, string> = {};
 
   if (config.COINBASE_API_KEY_NAME && config.COINBASE_API_PRIVATE_KEY) {
@@ -47,6 +51,11 @@ async function main(): Promise<void> {
         balances = await account.getBalances();
       } catch (error) {
         balances = { error: message(error) };
+      }
+      try {
+        feeTier = await account.getFeeTier();
+      } catch (error) {
+        feeTier = { error: message(error) };
       }
       for (const productId of config.PRODUCTS) {
         try {
@@ -72,6 +81,7 @@ async function main(): Promise<void> {
     config,
     permissions,
     balances,
+    feeTier,
     baseCurrencies,
     databaseExists: existsSync(config.DATABASE_PATH),
     databasePath: config.DATABASE_PATH,

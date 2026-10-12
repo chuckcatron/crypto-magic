@@ -38,6 +38,12 @@ const ready: PreflightInput = {
     { currency: 'USD', available: D(500), hold: D(0) },
     { currency: 'BTC', available: D(0), hold: D(0) },
   ],
+  feeTier: {
+    pricingTier: 'Advanced 1',
+    takerFeeRate: D('0.006'),
+    makerFeeRate: D('0.004'),
+    volume30dUsd: D(0),
+  },
   baseCurrencies: { 'BTC-USD': 'BTC' },
   databaseExists: false,
   databasePath: '/repo/data/crypto-magic.db',
@@ -150,6 +156,52 @@ describe('evaluatePreflight', () => {
       baseCurrencies: { 'BTC-USD': 'BTC', 'ETH-USD': 'ETH', 'SOL-USD': 'SOL' },
     };
     expect(statusOf(three, 'BTC only')).toBe('WARN');
+  });
+});
+
+describe('trading fees', () => {
+  const feeCheck = (feeTier: PreflightInput['feeTier']) =>
+    evaluatePreflight({ ...ready, feeTier }).find((c) => c.title === 'Trading fees');
+
+  it('passes a fee no higher than the one the backtests and the paper soak charged', () => {
+    expect(feeCheck(ready.feeTier)?.status).toBe('PASS');
+  });
+
+  it('warns, with the round-trip cost, when the account pays more per market order', () => {
+    const check = feeCheck({
+      pricingTier: 'Intro 1',
+      takerFeeRate: D('0.009'),
+      makerFeeRate: D('0.005'),
+      volume30dUsd: D(0),
+    });
+    expect(check?.status).toBe('WARN');
+    expect(check?.detail).toContain('0.90% per market order and 0.50% per limit order');
+    expect(check?.detail).toContain('(tier Intro 1, $0.00 traded in the last 30 days)');
+    // (0.90% + 0.05% slippage) × 2 against (0.60% + 0.05%) × 2.
+    expect(check?.detail).toContain('about 1.90% instead of 1.30%');
+  });
+
+  it('only warns: a higher fee is a cost to weigh, not a broken setup', () => {
+    const pricey = {
+      ...ready,
+      feeTier: {
+        pricingTier: 'Intro 1',
+        takerFeeRate: D('0.012'),
+        makerFeeRate: D('0.006'),
+        volume30dUsd: D(0),
+      },
+    };
+    expect(failures(pricey)).toEqual([]);
+  });
+
+  it('warns when Coinbase would not say', () => {
+    const check = feeCheck({ error: 'HTTP 403 Forbidden' });
+    expect(check?.status).toBe('WARN');
+    expect(check?.detail).toMatch(/403.*0\.60% per market order/);
+  });
+
+  it('says nothing about fees it never read', () => {
+    expect(feeCheck(null)).toBeUndefined();
   });
 });
 

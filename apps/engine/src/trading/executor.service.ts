@@ -5,7 +5,7 @@ import { APP_CONFIG } from '../config/tokens';
 import type { AppConfig } from '../config/config.schema';
 import { EXCHANGE } from '../exchange/tokens';
 import { EventRepository } from '../persistence/repositories/event.repository';
-import { OrderRepository } from '../persistence/repositories/order.repository';
+import { OrderRepository, type StoredOrder } from '../persistence/repositories/order.repository';
 import { childLogger } from '../common/logger';
 import { KillSwitchService } from './kill-switch.service';
 import { RiskService } from './risk.service';
@@ -18,6 +18,17 @@ export interface ExecutionResult {
   readonly order: OrderResult | null;
   readonly skippedReason?: string;
 }
+
+/**
+ * What became of a maker order. `refused`: the exchange turned it down outright
+ * (post-only crossing, say), nothing rests, and a market order is safe.
+ * `blocked`: it may be on the exchange (ambiguous, kill switch engaged) or its
+ * key was used before; either way, nothing more may be sent for it.
+ */
+export type MakerPostResult =
+  | { readonly outcome: 'posted'; readonly order: OrderResult }
+  | { readonly outcome: 'refused'; readonly reason: string }
+  | { readonly outcome: 'blocked'; readonly reason: string };
 
 /**
  * Turns an approved intent into an exchange order, exactly once.
@@ -76,27 +87,7 @@ export class ExecutorService {
       return { submitted: false, order: null, skippedReason: 'duplicate idempotency key' };
     }
 
-    // Record the intent BEFORE reaching the network. If the process dies between
-    // here and the exchange's response, the restart finds this row and refuses
-    // to send the order a second time. A stranded PENDING row is recoverable;
-    // a duplicated position is not.
-    this.orders.save({
-      orderId: `pending:${intent.idempotencyKey}`,
-      clientOrderId: intent.idempotencyKey,
-      productId: intent.productId,
-      side: intent.side,
-      status: 'PENDING',
-      requestedBaseSize: intent.baseSize,
-      filledSize: D(0),
-      averageFillPrice: D(0),
-      fee: D(0),
-      referencePrice: intent.referencePrice,
-      reason: intent.reason,
-      exitReason: intent.exitReason ?? null,
-      mode: this.config.TRADING_MODE,
-      createdAt: Date.now(),
-      updatedAt: Date.now(),
-    });
+    this.recordIntent(intent);
 
     this.events.append({
       level: 'info',
@@ -147,6 +138,106 @@ export class ExecutorService {
     }
 
     return { submitted: true, order: settled };
+  }
+
+  /**
+   * Place a post-only limit for an approved intent, without waiting for it to
+   * fill (MAKER_ORDERS). MakerOrderService follows it from there.
+   *
+   * The same discipline as execute(): a key used before is refused, and the
+   * intent is recorded before the network. A failure that may have reached the
+   * exchange engages the kill switch, exactly as for a market order.
+   */
+  async postMaker(
+    intent: OrderIntent,
+    limitPrice: Decimal,
+    expiresAt: number,
+  ): Promise<MakerPostResult> {
+    if (this.orders.findByClientOrderId(intent.idempotencyKey)) {
+      this.log.warn(
+        { clientOrderId: intent.idempotencyKey },
+        'refusing duplicate maker order: this idempotency key has already been submitted',
+      );
+      return { outcome: 'blocked', reason: 'duplicate idempotency key' };
+    }
+    if (!this.exchange.submitMakerOrder) {
+      return { outcome: 'refused', reason: 'this exchange adapter cannot place maker orders' };
+    }
+
+    this.recordIntent(intent);
+    this.events.append({
+      level: 'info',
+      kind: 'order_submitted',
+      message:
+        `maker ${intent.side} ${intent.baseSize.toFixed()} ${intent.productId} at ${limitPrice.toFixed()}, ` +
+        `until ${new Date(expiresAt).toISOString()}`,
+      data: { reason: intent.reason, live: this.exchange.isLive },
+    });
+
+    let order: OrderResult;
+    try {
+      order = await this.exchange.submitMakerOrder({
+        productId: intent.productId,
+        side: intent.side,
+        baseSize: intent.baseSize,
+        limitPrice,
+        expiresAt,
+        clientOrderId: intent.idempotencyKey,
+      });
+    } catch (error) {
+      if (error instanceof ExchangeError && !error.retryable) {
+        // Turned down outright, so nothing rests. The row stays, marked failed,
+        // so this key can never be sent again.
+        const reason = error.message;
+        this.orders.save({ ...this.pendingRow(intent), status: 'FAILED', updatedAt: Date.now() });
+        this.events.append({
+          level: 'info',
+          kind: 'order_submitted',
+          message: `maker order for ${intent.productId} refused (${reason}); going to market`,
+        });
+        return { outcome: 'refused', reason };
+      }
+      const failure = this.handleSubmissionFailure(intent, error);
+      return { outcome: 'blocked', reason: failure.skippedReason ?? 'submission failed' };
+    }
+
+    this.persist(intent, order);
+    return { outcome: 'posted', order };
+  }
+
+  /** Bring the local record of an order up to date with what the exchange reports. */
+  recordOrder(intent: OrderIntent, order: OrderResult): void {
+    this.persist(intent, order);
+  }
+
+  /**
+   * Record the intent BEFORE reaching the network. If the process dies between
+   * here and the exchange's response, the restart finds this row and refuses
+   * to send the order a second time. A stranded PENDING row is recoverable;
+   * a duplicated position is not.
+   */
+  private recordIntent(intent: OrderIntent): void {
+    this.orders.save(this.pendingRow(intent));
+  }
+
+  private pendingRow(intent: OrderIntent): StoredOrder {
+    return {
+      orderId: `pending:${intent.idempotencyKey}`,
+      clientOrderId: intent.idempotencyKey,
+      productId: intent.productId,
+      side: intent.side,
+      status: 'PENDING',
+      requestedBaseSize: intent.baseSize,
+      filledSize: D(0),
+      averageFillPrice: D(0),
+      fee: D(0),
+      referencePrice: intent.referencePrice,
+      reason: intent.reason,
+      exitReason: intent.exitReason ?? null,
+      mode: this.config.TRADING_MODE,
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    };
   }
 
   /**

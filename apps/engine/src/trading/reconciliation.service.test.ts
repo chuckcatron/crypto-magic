@@ -5,6 +5,7 @@ import { loadConfig } from '../config/config.schema';
 import { openDatabase } from '../persistence/database';
 import { EventRepository } from '../persistence/repositories/event.repository';
 import { PositionRepository } from '../persistence/repositories/position.repository';
+import { WorkingOrderRepository } from '../persistence/repositories/working-order.repository';
 import { severityForEvent } from '../alerts/severity';
 import { KillSwitchService } from './kill-switch.service';
 import { ReconciliationService } from './reconciliation.service';
@@ -22,6 +23,7 @@ function setup(btc: { available: string; hold: string }, withPosition = true) {
   const db = openDatabase(':memory:');
   const positions = new PositionRepository(db);
   const events = new EventRepository(db);
+  const working = new WorkingOrderRepository(db);
   const exchange = {
     getBalances: async () => [
       { currency: 'USD', available: D(4), hold: D(0) },
@@ -48,8 +50,15 @@ function setup(btc: { available: string; hold: string }, withPosition = true) {
     });
   }
   const killSwitch = new KillSwitchService(config, events);
-  const service = new ReconciliationService(exchange, config, positions, events, killSwitch);
-  return { service, positions, events, killSwitch };
+  const service = new ReconciliationService(
+    exchange,
+    config,
+    positions,
+    events,
+    killSwitch,
+    working,
+  );
+  return { service, positions, events, killSwitch, working };
 }
 
 describe('ReconciliationService', () => {
@@ -94,5 +103,53 @@ describe('ReconciliationService', () => {
     const event = events.recent().find((e) => e.kind === 'reconciliation')!;
     expect(event.level).toBe('info');
     expect(severityForEvent(event)).toBeNull();
+  });
+
+  describe('with a maker order in flight', () => {
+    const inFlight = (purpose: 'entry' | 'exit', side: 'BUY' | 'SELL') => ({
+      productId: 'BTC-USD',
+      purpose,
+      side,
+      baseSize: D('0.5'),
+      referencePrice: D(60000),
+      limitPrice: D(60000),
+      makerOrderId: 'ord-1',
+      makerClientOrderId: 'k-maker',
+      crossClientOrderId: 'k-cross',
+      expiresAt: Date.now() + 3_600_000,
+      reason: 'test',
+      exitReason: purpose === 'exit' ? ('signal' as const) : null,
+      entryAtr: purpose === 'entry' ? D(2000) : null,
+      barOpenTime: 1_700_000_000,
+      entryReasons: [],
+      confidence: 1,
+      mode: 'live' as const,
+      createdAt: Date.now(),
+    });
+
+    it('leaves a half-sold exit alone instead of halting on the size it has not booked yet', async () => {
+      // 0.2 of the 0.5 sold by the resting maker order before a restart.
+      const { service, positions, killSwitch, working } = setup({ available: '0', hold: '0.3' });
+      working.save(inFlight('exit', 'SELL'));
+
+      const report = await service.reconcile();
+
+      expect(report.halted).toBe(false);
+      expect(report.working).toEqual(['BTC-USD']);
+      expect(positions.findAll()[0]!.baseSize.toString()).toBe('0.5');
+      expect(killSwitch.isEngaged()).toBe(false);
+    });
+
+    it('does not call coins an entry has bought so far unmanaged', async () => {
+      const { service, working, events } = setup({ available: '0.2', hold: '0' }, false);
+      working.save(inFlight('entry', 'BUY'));
+
+      const report = await service.reconcile();
+
+      expect(report.unmanagedBalances).toEqual([]);
+      const event = events.recent().find((e) => e.kind === 'reconciliation')!;
+      expect(event.level).toBe('info');
+      expect(event.message).toMatch(/maker order in flight/);
+    });
   });
 });

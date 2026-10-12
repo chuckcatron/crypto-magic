@@ -93,6 +93,15 @@ export const configSchema = z
     PROTECTIVE_STOP_ENABLED: bool(true),
     PROTECTIVE_STOP_SLACK_ATR: numeric(0.5),
 
+    // --- Execution ------------------------------------------------------------
+    /**
+     * EXPERIMENT-011's maker policy for the strategy's own entries and signal
+     * exits: a post-only limit at the touch, left for up to an hour, then
+     * whatever has not filled goes at market. Stop exits, the kill switch and
+     * flattening always go at market. Off by default; try it in paper first.
+     */
+    MAKER_ORDERS: bool(false),
+
     // --- Loop timing --------------------------------------------------------
     /** How often to re-check stops against the live ticker, in seconds. */
     STOP_MONITOR_INTERVAL_SECONDS: z.coerce.number().int().min(5).default(30),
@@ -203,6 +212,15 @@ export const configSchema = z
         message:
           'STRATEGY=regime needs GRANULARITY=ONE_DAY: its 200-bar average was tested ' +
           'on daily bars, and on hourly bars it would be a different strategy',
+      });
+    }
+    if (cfg.MAKER_ORDERS && cfg.GRANULARITY !== 'ONE_DAY') {
+      ctx.addIssue({
+        code: z.ZodIssueCode.custom,
+        path: ['MAKER_ORDERS'],
+        message:
+          'MAKER_ORDERS=true needs GRANULARITY=ONE_DAY: an order may wait an hour, which ' +
+          'only fits inside a daily bar, and EXPERIMENT-011 tested it at the daily close',
       });
     }
     if (cfg.MAX_POSITION_NOTIONAL > cfg.MAX_TOTAL_NOTIONAL) {

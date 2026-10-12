@@ -81,6 +81,12 @@ export default tseslint.config(
     languageOptions: { globals: globals.node },
   },
 
+  // The futures dashboard's page script runs in the browser, not in Node.
+  {
+    files: ['apps/futures-engine/public/**/*.js'],
+    languageOptions: { sourceType: 'script', globals: globals.browser },
+  },
+
   // Last, so it switches off any stylistic rule Prettier owns.
   prettier,
 );

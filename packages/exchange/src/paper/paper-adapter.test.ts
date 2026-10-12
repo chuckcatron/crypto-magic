@@ -221,6 +221,22 @@ describe('PaperAdapter idempotency', () => {
   });
 });
 
+describe('PaperAdapter order ids', () => {
+  it('never repeats an id from an earlier run, since the order table keys on it', async () => {
+    const buy = (adapter: PaperAdapter) =>
+      adapter.submitMarketOrder({
+        productId: 'BTC-USD',
+        side: 'BUY',
+        baseSize: D('0.1'),
+        referencePrice: D(100),
+        clientOrderId: 'first-order-of-the-run',
+      });
+    const before = await buy(makeAdapter());
+    const after = await buy(makeAdapter()); // a restart: a new adapter, counting from 1 again
+    expect(after.orderId).not.toBe(before.orderId);
+  });
+});
+
 describe('PaperAdapter safety surface', () => {
   it('reports itself as not live so the engine can log the distinction', () => {
     expect(makeAdapter().isLive).toBe(false);

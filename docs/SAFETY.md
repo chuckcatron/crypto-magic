@@ -83,6 +83,23 @@ engine normally exits first at the tighter level; the exchange-side one is for
 when the process is not running to enforce it. Power cut at 3am with an open
 position is the case it exists for.
 
+### A maker order cannot outlive its hour
+
+Off by default. With `MAKER_ORDERS=true`, the strategy's own entries and signal
+exits first rest as post-only limit orders for up to an hour (EXPERIMENT-011).
+Coinbase itself cancels each one at the hour, so it cannot rest on if the
+engine dies. Post-only means it can only pay the maker fee: Coinbase refuses one
+that would match on arrival, and the bot goes to market as it always did.
+
+The working order is written to SQLite before it is sent, with the id of the
+market order for whatever it does not fill already fixed, so a restart resumes
+it rather than repeating it. The bot never sends that market order until the
+exchange confirms the limit order has stopped filling.
+
+Stops, the kill switch and **Flatten all** never wait. A stop or a flatten
+cancels a resting order first, books what it filled, then sells at market. The
+kill switch cancels a resting buy on its next pass.
+
 ### Money is never a float
 
 Sizes and prices are arbitrary-precision decimals end to end, stored as TEXT in

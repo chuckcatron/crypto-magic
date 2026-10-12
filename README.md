@@ -13,7 +13,9 @@ packages/core        pure domain — indicators, strategy, risk, backtester. No 
 packages/exchange    ExchangeAdapter port + Coinbase adapter + paper adapter
 packages/notify      alert policy + ntfy / Discord / Telegram channels
 packages/insight     LLM port + Ollama, news port + CryptoPanic, review prompts
+packages/futures     long/short futures simulation: strategies, risk rules, backtester
 apps/engine          NestJS engine: the loop, persistence, dashboard API
+apps/futures-engine  NestJS paper-only engine for the futures strategies, with its own dashboard
 apps/web             Next.js dashboard
 ```
 
@@ -53,6 +55,27 @@ a proxy: +16.7%/yr net in 2020–2021, then roughly what Treasury bills paid in
 2022–2023 — less than cash in each of those years. Stepping in and out around
 the funding rate failed in both periods on switching costs. See
 [`docs/EXPERIMENT-002-funding-carry.md`](docs/EXPERIMENT-002-funding-carry.md).
+
+**Fast trading fails, even on cheap futures.** Four pre-registered strategies,
+long and short, on Coinbase's US perpetual futures costs: a flush catcher and a
+squeeze breakout on 5- and 15-minute bars, a trend pullback, and weekly
+momentum across 23 coins. All four lost money in development (2019–2023) and
+in the holdout (2023–2026). The three fast ones captured about zero per trade
+before costs, so cheaper fills would not save them. See
+[`docs/EXPERIMENT-008-fast-futures.md`](docs/EXPERIMENT-008-fast-futures.md). A
+paper-only engine runs them forward as a test of the futures machinery:
+[`docs/FUTURES-PAPER.md`](docs/FUTURES-PAPER.md).
+
+**"Trade any crypto" bots fail too.** Six pre-registered long-only rules, the
+kinds of bot that could produce a friend's +200% in five months: momentum
+rotation, breakout trend following, volume-surge chasing and dip buying, two
+of them behind the BTC 200-day gate. They were tested on every Binance USDT
+pair, including the 191 that died or were delisted, so the test can't be
+fooled by survivors. None beat holding Bitcoin at the same drawdown. In
+2023–2026 all six lost money while BTC made +36% a year. They look brilliant
+in the right months (the gated breakout made +43% over the friend's five) and
+give it back. See
+[`docs/EXPERIMENT-009-any-crypto.md`](docs/EXPERIMENT-009-any-crypto.md).
 
 ## Before you risk real money
 
@@ -105,12 +128,17 @@ more than anything else in it:
     Versus average winner   47% of +$0.70
 ```
 
-At Coinbase's retail taker tier every trade starts 1.2% behind, before slippage.
-With a $25 position cap that is $0.33 a round trip against an average winner of
-well under a dollar. Set `--taker-bps 0 --slippage-bps 0` to see how much of a
-result is the strategy and how much is just the cost of trading — if the gap is
-large, the fee tier and position size are worth more attention than any
-indicator parameter.
+The backtests charge a 0.60% taker fee by default, so every round trip starts
+1.2% behind, before slippage. With a $25 position cap that is $0.33 a round trip
+against an average winner of well under a dollar. Set
+`--taker-bps 0 --slippage-bps 0` to see how much of a result is the strategy and
+how much is just the cost of trading — if the gap is large, the fee tier and
+position size are worth more attention than any indicator parameter.
+
+Coinbase sets the real fee per account, and it may be higher than 0.60%:
+`pnpm preflight` shows yours, and `--taker-bps` models it. `MAKER_ORDERS`, off
+by default, lets the strategy's own orders wait up to an hour for the lower
+maker fee (EXPERIMENT-011; see the RUNBOOK).
 
 ## Going live
 
@@ -338,7 +366,7 @@ Both were considered and rejected for this build:
 ## Testing
 
 ```bash
-pnpm test        # 314 tests
+pnpm test        # 579 tests
 pnpm typecheck
 ```
 

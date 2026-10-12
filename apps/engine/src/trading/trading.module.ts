@@ -8,6 +8,7 @@ import { MarketDataService } from '../market-data/market-data.service';
 import { TradingEngineService } from './engine.service';
 import { ExecutorService } from './executor.service';
 import { KillSwitchService } from './kill-switch.service';
+import { MakerOrderService } from './maker-order.service';
 import { PortfolioService } from './portfolio.service';
 import { ReconciliationService } from './reconciliation.service';
 import { RiskService } from './risk.service';
@@ -21,6 +22,7 @@ import { RiskService } from './risk.service';
     PortfolioService,
     RiskService,
     ExecutorService,
+    MakerOrderService,
     ReconciliationService,
     TradingEngineService,
     PostMortemService,
