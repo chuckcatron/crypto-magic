@@ -309,6 +309,28 @@ describe('TradingEngineService (integration)', () => {
     expect(api.equityBaseline()).toEqual({ baseline: { ts: baseline.ts, equity: '12000' } });
   });
 
+  it('serves the whole run in this mode as the equity history, as strings', async () => {
+    const state = moduleRef.get(StateRepository);
+    state.recordEquity({ ts: 1, equity: D(50), cash: D(50), positionValue: D(0), mode: 'live' });
+    for (let n = 0; n < 3; n++) {
+      state.recordEquity({
+        ts: 1_000_000 + n * 30_000,
+        equity: D(10000 + n),
+        cash: D(10000 + n),
+        positionValue: D(0),
+        mode: 'paper',
+      });
+    }
+
+    const history = api.equityHistory() as { ts: number; equity: string }[];
+
+    expect(history.map((p) => [p.ts, p.equity])).toEqual([
+      [1_000_000, '10000'],
+      [1_030_000, '10001'],
+      [1_060_000, '10002'],
+    ]);
+  });
+
   it('serves traded prices, never watch-only ones, when nothing is watched', async () => {
     market.price = 123.45;
     const prices = (await api.prices()) as { productId: string; watchOnly: boolean }[];

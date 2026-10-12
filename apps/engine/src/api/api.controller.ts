@@ -203,6 +203,14 @@ export class ApiController {
     return serialize(this.state.equityCurve(clampLimit(limit, 1000, 5000)));
   }
 
+  /** The whole run in this mode, thinned to at most `points` snapshots, for the chart. */
+  @Get('equity/history')
+  equityHistory(@Query('points') points?: string) {
+    return serialize(
+      this.state.equityHistory(this.config.TRADING_MODE, clampLimit(points, 500, 2000)),
+    );
+  }
+
   /**
    * Where the account started, for the dashboard's "since …" figure: `ts` is
    * when records began in this mode, and `equity` is the paper account's
