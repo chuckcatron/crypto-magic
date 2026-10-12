@@ -184,10 +184,11 @@ export interface DashboardData {
   positions: PositionRow[];
   trades: TradeRow[];
   events: EventRow[];
+  /** The whole run in this mode, thinned by the engine to at most 500 points. */
   equity: EquityPoint[];
   /**
    * Where the account started: when records began in this mode, and the starting
-   * cash (paper) or first recorded equity (live). `equity` holds only recent points.
+   * cash (paper) or first recorded equity (live).
    */
   baseline: EquityBaseline | null;
   metrics: Metrics;
@@ -215,7 +216,7 @@ export async function fetchDashboard(signal?: AbortSignal): Promise<DashboardDat
     get<PositionRow[]>('/positions', signal),
     get<TradeRow[]>('/trades?limit=25', signal),
     get<EventRow[]>('/events?limit=80', signal),
-    get<EquityPoint[]>('/equity?limit=500', signal),
+    get<EquityPoint[]>('/equity/history?points=500', signal),
     get<{ baseline: EquityBaseline | null }>('/equity/baseline', signal),
     get<Metrics>('/metrics', signal),
     get<InsightStatus>('/insight', signal),
